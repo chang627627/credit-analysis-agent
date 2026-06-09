@@ -15,7 +15,7 @@ export function StepCard({ step }: { step: StepView }) {
         <header className="step__title">{step.title}</header>
 
         {step.thinking && (
-          <p className="step__thinking">
+          <p className={`step__thinking${streamingThought ? ' step__thinking--live' : ''}`}>
             {step.thinking}
             {streamingThought && <span className="cursor" />}
           </p>

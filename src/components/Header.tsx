@@ -9,6 +9,9 @@ const STATUS_LABEL: Record<RunStatus, string> = {
   error: 'Error',
 };
 
+const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone/i.test(navigator.platform || navigator.userAgent);
+export const MOD_KEY = IS_MAC ? '⌘' : 'Ctrl';
+
 export function Header({
   status,
   speed,
@@ -17,6 +20,7 @@ export function Header({
   onReset,
   theme,
   onToggleTheme,
+  onOpenPalette,
 }: {
   status: RunStatus;
   speed: number;
@@ -24,7 +28,8 @@ export function Header({
   onRun: () => void;
   onReset: () => void;
   theme: 'light' | 'dark';
-  onToggleTheme: () => void;
+  onToggleTheme: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onOpenPalette: () => void;
 }) {
   const busy = status === 'running' || status === 'awaiting_approval';
 
@@ -39,6 +44,11 @@ export function Header({
       </div>
 
       <div className="topbar__spacer" />
+
+      <button className="palettebtn" onClick={onOpenPalette} aria-label="Open command palette" title="Command palette">
+        <span className="kbd">{MOD_KEY}</span>
+        <span className="kbd">K</span>
+      </button>
 
       <button
         className="btn btn--ghost btn--icon"
@@ -67,9 +77,13 @@ export function Header({
         <span className="status__dot" />
         {STATUS_LABEL[status]}
       </span>
+      <span className="sr-only" role="status" aria-live="polite">
+        {STATUS_LABEL[status]}
+      </span>
 
       <button className="btn btn--primary" onClick={onRun} disabled={busy}>
         {status === 'idle' ? 'Run analysis' : busy ? 'Running…' : 'Re-run'}
+        {!busy && <span className="kbd kbd--on-accent">{MOD_KEY}↵</span>}
       </button>
       <button className="btn btn--ghost" onClick={onReset} disabled={status === 'idle'}>
         Reset

@@ -7,11 +7,24 @@
 
 import type { ToolName } from '../agent/types';
 import type { CovenantTest, ExtractedFinancials, RiskScore } from '../agent/mockData';
+import { useCountUp } from '../hooks/useCountUp';
 
 interface MemoData {
   memoId: string;
   sections: number;
   attachments: string[];
+}
+
+/** A number that counts up on mount — makes the data feel computed, not pasted. */
+function Num({ n, dp = 0, prefix = '', suffix = '' }: { n: number; dp?: number; prefix?: string; suffix?: string }) {
+  const v = useCountUp(n);
+  return (
+    <>
+      {prefix}
+      {v.toFixed(dp)}
+      {suffix}
+    </>
+  );
 }
 
 export function Artifact({ tool, data }: { tool: ToolName; data: unknown }) {
@@ -29,12 +42,12 @@ export function Artifact({ tool, data }: { tool: ToolName; data: unknown }) {
 
 function FinancialsArtifact({ data }: { data: ExtractedFinancials }) {
   const cards = [
-    { k: 'Revenue (TTM)', v: `$${data.revenueTtm}M` },
-    { k: 'Adj. EBITDA', v: `$${data.ebitdaTtm}M`, sub: `${data.ebitdaMarginPct}% margin` },
-    { k: 'Total Debt', v: `$${data.totalDebt}M` },
-    { k: 'Leverage', v: `${data.leverageX}x`, tone: data.leverageX > 4 ? 'bad' : 'good' },
-    { k: 'Interest Cov.', v: `${data.interestCoverageX}x` },
-    { k: 'Liquidity', v: `$${data.liquidity}M` },
+    { k: 'Revenue (TTM)', n: data.revenueTtm, dp: 1, prefix: '$', suffix: 'M' },
+    { k: 'Adj. EBITDA', n: data.ebitdaTtm, dp: 1, prefix: '$', suffix: 'M', sub: `${data.ebitdaMarginPct}% margin` },
+    { k: 'Total Debt', n: data.totalDebt, dp: 1, prefix: '$', suffix: 'M' },
+    { k: 'Leverage', n: data.leverageX, dp: 2, suffix: 'x', tone: data.leverageX > 4 ? 'bad' : 'good' },
+    { k: 'Interest Cov.', n: data.interestCoverageX, dp: 1, suffix: 'x' },
+    { k: 'Liquidity', n: data.liquidity, dp: 1, prefix: '$', suffix: 'M' },
   ];
   return (
     <div className="art">
@@ -45,10 +58,16 @@ function FinancialsArtifact({ data }: { data: ExtractedFinancials }) {
         </span>
       </div>
       <div className="art__cards">
-        {cards.map((c) => (
-          <div className={`fcard ${c.tone ? `fcard--${c.tone}` : ''}`} key={c.k}>
+        {cards.map((c, i) => (
+          <div
+            className={`fcard ${c.tone ? `fcard--${c.tone}` : ''}`}
+            key={c.k}
+            style={{ '--i': i } as React.CSSProperties}
+          >
             <span className="fcard__k">{c.k}</span>
-            <span className="fcard__v">{c.v}</span>
+            <span className="fcard__v">
+              <Num n={c.n} dp={c.dp} prefix={c.prefix} suffix={c.suffix} />
+            </span>
             {c.sub && <span className="fcard__sub">{c.sub}</span>}
           </div>
         ))}
@@ -65,7 +84,7 @@ function RiskArtifact({ data }: { data: RiskScore }) {
       <div className="gauge">
         <div className="gauge__top">
           <span className="gauge__score">
-            {data.score}
+            <Num n={data.score} />
             <small> / 100</small>
           </span>
           <span className={`gauge__rating gauge__rating--${tone}`}>{data.rating}</span>

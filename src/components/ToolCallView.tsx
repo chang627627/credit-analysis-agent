@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ToolCall, ToolResult } from '../agent/types';
 import { ConfidenceBadge } from './ConfidenceBadge';
 
@@ -20,7 +20,16 @@ function Elapsed() {
  */
 export function ToolCallView({ call, result }: { call: ToolCall; result?: ToolResult }) {
   const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState<'args' | 'result' | null>(null);
+  const copyTimer = useRef<number | undefined>(undefined);
   const running = !result;
+
+  const copyJson = (which: 'args' | 'result', obj: unknown) => {
+    void navigator.clipboard?.writeText(JSON.stringify(obj, null, 2));
+    setCopied(which);
+    window.clearTimeout(copyTimer.current);
+    copyTimer.current = window.setTimeout(() => setCopied(null), 1200);
+  };
 
   return (
     <div className={`tool ${running ? 'tool--running' : 'tool--done'}`}>
@@ -45,11 +54,21 @@ export function ToolCallView({ call, result }: { call: ToolCall; result?: ToolRe
         <div className="tool__body">
           <div className="kv">
             <span className="kv__k">args →</span>
+            <button className="kv__copy" onClick={() => copyJson('args', call.args)} aria-label="Copy args as JSON">
+              {copied === 'args' ? '✓ copied' : '⧉ copy'}
+            </button>
             <pre className="kv__v">{JSON.stringify(call.args, null, 2)}</pre>
           </div>
           {result && (
             <div className="kv">
               <span className="kv__k">← result</span>
+              <button
+                className="kv__copy"
+                onClick={() => copyJson('result', result.data)}
+                aria-label="Copy result as JSON"
+              >
+                {copied === 'result' ? '✓ copied' : '⧉ copy'}
+              </button>
               <pre className="kv__v">{JSON.stringify(result.data, null, 2)}</pre>
             </div>
           )}

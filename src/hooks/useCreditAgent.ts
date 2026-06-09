@@ -15,10 +15,11 @@ import type {
   ApprovalPackage,
   Flag,
   PlanStep,
+  Recommendation,
   ToolCall,
   ToolResult,
 } from '../agent/types';
-import { getPlan, runCreditAgent } from '../agent/runAgent';
+import { getPlan, recommendationFor, runCreditAgent } from '../agent/runAgent';
 import type { Deal } from '../agent/mockData';
 import { DEALS } from '../agent/mockData';
 import { synthesizeDealFromFile } from '../agent/synthesize';
@@ -66,7 +67,7 @@ export interface CreditAgentApi {
   audit: AuditEntry[];
   speed: number;
   document: Deal['document'];
-  deals: { id: string; name: string; uploaded?: boolean }[];
+  deals: { id: string; name: string; uploaded?: boolean; outcome: Recommendation }[];
   selectedDealId: string;
   parsing: ParsingState | null;
   messages: ChatMessage[];
@@ -74,7 +75,8 @@ export interface CreditAgentApi {
   selectDeal: (id: string) => void;
   uploadDeal: (file: File) => void;
   sendMessage: (text: string) => void;
-  start: () => void;
+  /** Optionally pass a deal id to select-and-run in one action (launchpad chips). */
+  start: (dealId?: string) => void;
   approve: () => void;
   reject: () => void;
   reset: () => void;
@@ -95,6 +97,8 @@ export function useCreditAgent(): CreditAgentApi {
 
   const allDeals = [...DEALS, ...extraDeals];
   const deal = allDeals.find((d) => d.id === dealId) ?? DEALS[0];
+  const allDealsRef = useRef(allDeals);
+  allDealsRef.current = allDeals;
 
   // Mutable handles the loop reads/writes without re-rendering.
   const approvalResolver = useRef<((d: ApprovalDecision) => void) | null>(null);
@@ -158,7 +162,7 @@ export function useCreditAgent(): CreditAgentApi {
     [pushAudit],
   );
 
-  const start = useCallback(() => {
+  const start = useCallback((dealId?: string) => {
     // reset transient state for a fresh run
     abortRef.current?.abort();
     approvalResolver.current = null;
@@ -168,11 +172,17 @@ export function useCreditAgent(): CreditAgentApi {
     setMessages([]);
     setStatus('running');
 
+    // resolve the deal directly so select-and-run is race-free
+    const runDeal = dealId
+      ? allDealsRef.current.find((d) => d.id === dealId) ?? dealRef.current
+      : dealRef.current;
+    if (dealId) setDealId(dealId);
+
     const ac = new AbortController();
     abortRef.current = ac;
 
     const ctx: AgentContext = {
-      deal: dealRef.current, // snapshot the selected deal for this run
+      deal: runDeal, // snapshot the deal for this run
       get speed() {
         return speedRef.current;
       },
@@ -292,7 +302,7 @@ export function useCreditAgent(): CreditAgentApi {
     audit,
     speed,
     document: deal.document,
-    deals: allDeals.map((d) => ({ id: d.id, name: d.name, uploaded: d.uploaded })),
+    deals: allDeals.map((d) => ({ id: d.id, name: d.name, uploaded: d.uploaded, outcome: recommendationFor(d) })),
     selectedDealId: dealId,
     parsing,
     messages,

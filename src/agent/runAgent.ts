@@ -14,10 +14,16 @@
 // (approve / escalate / decline), all from the same loop.
 // ---------------------------------------------------------------------------
 
-import type { AgentContext, AgentEvent, ApprovalPackage, Flag, PlanStep, ToolCall, ToolName } from './types';
+import type { AgentContext, AgentEvent, ApprovalPackage, Flag, PlanStep, Recommendation, ToolCall, ToolName } from './types';
 import type { Deal } from './mockData';
 import { TOOLS } from './tools';
 import { sleep, uid } from './util';
+
+/** The decision rule, exported so the UI can preview a deal's computed outcome. */
+export function recommendationFor(deal: Deal): Recommendation {
+  const breaches = deal.covenants.filter((c) => c.status === 'breach').length;
+  return breaches === 0 ? 'approve' : deal.risk.score >= 75 ? 'decline' : 'escalate';
+}
 
 const PLAN: PlanStep[] = [
   { id: 'step_extract', title: 'Extract financials from the CIM', toolName: 'extract_financials' },
@@ -81,10 +87,7 @@ function deriveFlags(deal: Deal): Flag[] {
 }
 
 function buildPackage(deal: Deal, flags: Flag[]): ApprovalPackage {
-  const breaches = deal.covenants.filter((c) => c.status === 'breach').length;
-  const recommendation =
-    breaches === 0 ? 'approve' : deal.risk.score >= 75 ? 'decline' : 'escalate';
-
+  const recommendation = recommendationFor(deal);
   const f = deal.financials;
   return {
     memoId: deal.memoId,

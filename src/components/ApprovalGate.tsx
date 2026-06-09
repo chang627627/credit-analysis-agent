@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { ApprovalPackage, Recommendation } from '../agent/types';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { FlagPill } from './FlagPill';
@@ -21,8 +22,25 @@ export function ApprovalGate({
   onApprove: () => void;
   onReject: () => void;
 }) {
+  // The agent just suspended on a consequential decision — bring the reviewer's
+  // viewport AND keyboard focus to the gate so gate → A/R is a two-second flow.
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    ref.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest' });
+    // don't steal focus if the user is mid-sentence in the composer
+    const tag = document.activeElement?.tagName;
+    if (tag !== 'TEXTAREA' && tag !== 'INPUT') ref.current?.focus({ preventScroll: true });
+  }, []);
+
   return (
-    <section className="gate">
+    <section
+      className="gate"
+      ref={ref}
+      tabIndex={-1}
+      role="region"
+      aria-label="Approval required — human decision needed"
+    >
       <header className="gate__head">
         <span className="gate__badge">human-in-the-loop</span>
         <h3 className="gate__title">Approval required</h3>
@@ -58,10 +76,10 @@ export function ApprovalGate({
 
       <div className="gate__actions">
         <button className="btn btn--reject" onClick={onReject}>
-          Reject
+          Reject <span className="kbd">R</span>
         </button>
         <button className="btn btn--approve" onClick={onApprove}>
-          Approve &amp; sign memo
+          Approve &amp; sign memo <span className="kbd kbd--on-accent">A</span>
         </button>
       </div>
     </section>

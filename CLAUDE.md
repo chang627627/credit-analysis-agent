@@ -139,6 +139,11 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
   Hooks"; it's gone on a full reload. Verify on a fresh load, not mid-HMR.
 - **Driving via the preview tool:** reading the DOM synchronously right after a `.click()` races
   React's state update — read in a separate call.
+- **Single-key shortcuts must reject modifiers:** the A/R gate shortcuts guard with
+  `if (e.metaKey || e.ctrlKey || e.altKey) return` — otherwise ⌘A (select-all) approves and
+  ⌘R (reload) rejects a memo. Caught by adversarial review; keep the guard if editing shortcuts.
+- **Preview console buffer persists across reloads** — only a server restart clears it; old
+  HMR-window errors linger and look current.
 
 ## Progress log
 
@@ -157,6 +162,13 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
 - [x] Fixed sticky PLAN bar bleed-through (top padding moved into the bar)
 - [x] Pushed to GitHub (public): chang627627/credit-analysis-agent
 - [x] Deployed to Vercel with GitHub auto-deploy → https://credit-analysis-agent.vercel.app
+- [x] "2026 polish" pass (multi-lens design panel → implement → adversarial review):
+      ⌘K command palette (context-aware), global shortcuts (⌘↵ run, A/R at the gate, `[` nav)
+      with kbd chips, View Transitions circular theme reveal, streaming-text shimmer +
+      rotating conic "live seam" on running tool & gate, count-up numbers, toasts,
+      copy-as-JSON in the inspector, launchpad empty state (loop diagram + one-click sample
+      chips via `start(dealId?)`), glass composer, focus-visible rings + aria-live +
+      prefers-reduced-motion guard, gate auto-scroll/focus
 - [ ] Not built: real LLM via SSE behind the same event interface; editable "what-if" fields;
       Supabase persistence of the audit trail; composer that can start a run
 

@@ -164,11 +164,13 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
 - [x] Deployed to Vercel with GitHub auto-deploy → https://credit-analysis-agent.vercel.app
 - [x] "2026 polish" pass (multi-lens design panel → implement → adversarial review):
       ⌘K command palette (context-aware), global shortcuts (⌘↵ run, A/R at the gate, `[` nav)
-      with kbd chips, View Transitions circular theme reveal, streaming-text shimmer +
-      rotating conic "live seam" on running tool & gate, count-up numbers, toasts,
-      copy-as-JSON in the inspector, launchpad empty state (loop diagram + one-click sample
-      chips via `start(dealId?)`), glass composer, focus-visible rings + aria-live +
-      prefers-reduced-motion guard, gate auto-scroll/focus
+      with kbd chips, streaming-text shimmer + rotating conic "live seam" on running tool &
+      gate, count-up numbers, toasts, copy-as-JSON in the inspector, launchpad empty state
+      (loop diagram + one-click sample chips via `start(dealId?)`), focus-visible rings +
+      aria-live + prefers-reduced-motion guard, gate auto-scroll/focus
+      · Reverted on request: glass composer + composer kbd hints (back to the original flat
+      bar) and the View Transitions circular theme reveal (theme switch is instant — "too
+      fancy, not professional")
 - [ ] Not built: real LLM via SSE behind the same event interface; editable "what-if" fields;
       Supabase persistence of the audit trail; composer that can start a run
 

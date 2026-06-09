@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { flushSync } from 'react-dom';
 import { useCreditAgent } from './hooks/useCreditAgent';
 import type { ChatMessage } from './hooks/useCreditAgent';
 import type { Recommendation } from './agent/types';
@@ -103,33 +102,7 @@ export default function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Theme switch as a circular reveal from the click point (View Transitions API).
-  // Falls back to an instant swap without the API or with reduced motion.
-  const toggleTheme = (e?: React.MouseEvent<HTMLButtonElement>) => {
-    const next: Theme = theme === 'light' ? 'dark' : 'light';
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const doc = document as Document & {
-      startViewTransition?: (cb: () => void) => { ready: Promise<void> };
-    };
-    if (!doc.startViewTransition || reduce || !e) {
-      setTheme(next);
-      return;
-    }
-    const x = e.clientX;
-    const y = e.clientY;
-    const r = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
-    doc
-      .startViewTransition(() => {
-        flushSync(() => setTheme(next));
-      })
-      .ready.then(() => {
-        document.documentElement.animate(
-          { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${r}px at ${x}px ${y}px)`] },
-          { duration: 420, easing: 'ease-in-out', pseudoElement: '::view-transition-new(root)' },
-        );
-      })
-      .catch(() => {});
-  };
+  const toggleTheme = () => setTheme((t) => (t === 'light' ? 'dark' : 'light'));
 
   const [navCollapsed, setNavCollapsed] = useState(() => localStorage.getItem('navCollapsed') === '1');
   useEffect(() => {

@@ -28,7 +28,7 @@ export function Header({
   onRun: () => void;
   onReset: () => void;
   theme: 'light' | 'dark';
-  onToggleTheme: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onToggleTheme: () => void;
   onOpenPalette: () => void;
 }) {
   const busy = status === 'running' || status === 'awaiting_approval';

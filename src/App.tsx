@@ -118,14 +118,7 @@ export default function App() {
     agent.uploadDeal(f);
     notify(`Extracting financials from ${f.name}… (simulated)`);
   };
-  const handleApprove = () => {
-    agent.approve();
-    notify('Approved — decision committed to the audit trail', 'good');
-  };
-  const handleReject = () => {
-    agent.reject();
-    notify('Rejected — decision committed to the audit trail');
-  };
+  // Approve/Reject need no toast — the outcome banner already announces the decision.
 
   // Global keyboard shortcuts. ⌘K always works; the palette consumes its own
   // keys; ⌘↵ works everywhere (the composer ignores meta+Enter); single-key
@@ -152,12 +145,12 @@ export default function App() {
       if (status === 'awaiting_approval') {
         if (e.key === 'a' || e.key === 'A') {
           e.preventDefault();
-          handleApprove();
+          agent.approve();
           return;
         }
         if (e.key === 'r' || e.key === 'R') {
           e.preventDefault();
-          handleReject();
+          agent.reject();
           return;
         }
       }
@@ -175,8 +168,8 @@ export default function App() {
   const commands: Command[] = [
     ...(status === 'awaiting_approval'
       ? [
-          { id: 'approve', label: 'Approve & sign memo', section: 'Decision', kbd: 'A', run: handleApprove },
-          { id: 'reject', label: 'Reject package', section: 'Decision', kbd: 'R', run: handleReject },
+          { id: 'approve', label: 'Approve & sign memo', section: 'Decision', kbd: 'A', run: agent.approve },
+          { id: 'reject', label: 'Reject package', section: 'Decision', kbd: 'R', run: agent.reject },
         ]
       : []),
     ...(!busy
@@ -264,7 +257,7 @@ export default function App() {
             )}
 
             {status === 'awaiting_approval' && agent.approvalPackage && (
-              <ApprovalGate pkg={agent.approvalPackage} onApprove={handleApprove} onReject={handleReject} />
+              <ApprovalGate pkg={agent.approvalPackage} onApprove={agent.approve} onReject={agent.reject} />
             )}
 
             {finished && agent.approvalPackage && (

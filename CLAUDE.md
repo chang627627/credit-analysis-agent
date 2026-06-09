@@ -36,8 +36,9 @@ It's a **static Vite SPA with no backend**, so Vercel is a zero-config, free fit
 - **No env vars / secrets** needed (backend is mocked). `.gitignore` excludes `node_modules/`
   and `dist/`.
 - **Repo:** https://github.com/chang627627/credit-analysis-agent (public, `main`).
-- **Status:** pushed to GitHub ✅. Vercel import: **pending** (do it in the Vercel dashboard:
-  Add New → Project → import the repo → it auto-detects Vite → Deploy).
+- **Live:** https://credit-analysis-agent.vercel.app ✅
+- **Status:** deployed on Vercel, GitHub integration connected — **push to `main` auto-deploys**;
+  PRs get preview URLs. Production deployment is public (no deployment protection).
 
 ## Architecture — the spine
 
@@ -155,7 +156,7 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
 - [x] Original "Graphite & Teal" design system (own teal accent + surfaces)
 - [x] Fixed sticky PLAN bar bleed-through (top padding moved into the bar)
 - [x] Pushed to GitHub (public): chang627627/credit-analysis-agent
-- [ ] Vercel import (auto-deploy) — pending, do in the Vercel dashboard
+- [x] Deployed to Vercel with GitHub auto-deploy → https://credit-analysis-agent.vercel.app
 - [ ] Not built: real LLM via SSE behind the same event interface; editable "what-if" fields;
       Supabase persistence of the audit trail; composer that can start a run
 

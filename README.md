@@ -1,5 +1,7 @@
 # Credit Analysis Agent — agentic workflow prototype
 
+**▶ Live demo: [credit-analysis-agent.vercel.app](https://credit-analysis-agent.vercel.app)** &nbsp;·&nbsp; auto-deployed from `main` via Vercel
+
 A front-end reference prototype for practicing an **obin.ai-style live coding round**.
 It shows an **agent loop you can watch and inspect** — plan → call tool → observe →
 decide → repeat → **human approval gate** — applied to a credit-analysis workflow.

@@ -164,24 +164,28 @@ export function PortfolioView({
           {open.length === 0 && acked.length === 0 && (
             <p className="queue__empty">Nothing needs review — the agent will escalate covenant drift here.</p>
           )}
-          {open.map((e) => (
-            <div key={e.id} className={`esc esc--${e.severity}`}>
-              <div className="esc__top">
-                <span className="esc__icon">{e.severity === 'critical' ? '■' : '▲'}</span>
-                <strong className="esc__deal">{e.dealName}</strong>
-                <span className="esc__time">{timeAgo(e.at, now)}</span>
-              </div>
-              <p className="esc__reason">{e.reason}</p>
-              <div className="esc__actions">
-                <button className="btn btn--ghost btn--sm" onClick={() => onAcknowledge(e.id)}>
-                  Acknowledge
-                </button>
-                <button className="btn btn--sm" onClick={() => onOpenDeal(e.dealId)}>
-                  Open deal →
-                </button>
-              </div>
+          {open.length > 0 && (
+            <div className="queue__items">
+              {open.map((e) => (
+                <div key={e.id} className={`esc esc--${e.severity}`}>
+                  <div className="esc__top">
+                    <span className="esc__icon">{e.severity === 'critical' ? '■' : '▲'}</span>
+                    <strong className="esc__deal">{e.dealName}</strong>
+                    <span className="esc__time">{timeAgo(e.at, now)}</span>
+                  </div>
+                  <p className="esc__reason">{e.reason}</p>
+                  <div className="esc__actions">
+                    <button className="btn btn--ghost btn--sm" onClick={() => onAcknowledge(e.id)}>
+                      Acknowledge
+                    </button>
+                    <button className="btn btn--sm" onClick={() => onOpenDeal(e.dealId)}>
+                      Open deal →
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
           {acked.length > 0 && (
             <div className="queue__acked">
               {acked.map((e) => (

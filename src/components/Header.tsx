@@ -38,8 +38,8 @@ export function Header({
       <div className="brand">
         <span className="brand__mark">◧</span>
         <div className="brand__text">
-          <strong>Credit Analysis Agent</strong>
-          <span>agentic workflow · mocked backend</span>
+          <strong>Countersign</strong>
+          <span>agentic credit analysis · the agent analyzes, you countersign</span>
         </div>
       </div>
 

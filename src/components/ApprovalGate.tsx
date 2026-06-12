@@ -79,7 +79,7 @@ export function ApprovalGate({
           Reject <span className="kbd">R</span>
         </button>
         <button className="btn btn--approve" onClick={onApprove}>
-          Approve &amp; sign memo <span className="kbd kbd--on-accent">A</span>
+          Countersign &amp; approve <span className="kbd kbd--on-accent">A</span>
         </button>
       </div>
     </section>

@@ -241,7 +241,7 @@ export default function App() {
   const commands: Command[] = [
     ...(status === 'awaiting_approval'
       ? [
-          { id: 'approve', label: 'Approve & sign memo', section: 'Decision', kbd: 'A', run: agent.approve },
+          { id: 'approve', label: 'Countersign & approve', section: 'Decision', kbd: 'A', run: agent.approve },
           { id: 'reject', label: 'Reject package', section: 'Decision', kbd: 'R', run: agent.reject },
         ]
       : []),

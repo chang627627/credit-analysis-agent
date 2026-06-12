@@ -8,9 +8,13 @@ file_ at the bottom.
 
 Interview practice for **obin.ai** (an "agentic workforce for regulated finance" — credit
 analysis, document intelligence, covenant monitoring, audit trails). This is a **front-end
-reference prototype** for a live-coding round: a **Credit Analysis Agent** that makes an
-**agent loop visible and inspectable**, with a **mocked backend** (no API keys). Role focus:
-**frontend / UX engineering**.
+reference prototype** for a live-coding round: **"Countersign"** — a credit-analysis agent that
+makes the **agent loop visible and inspectable**, with a **mocked backend** (no API keys). Role
+focus: **frontend / UX engineering**.
+
+**Product name: Countersign** — a countersignature is the second signature that makes a document
+binding; the agent analyzes, a human countersigns (human-in-the-loop encoded in the name).
+The GitHub repo/Vercel slugs stay `credit-analysis-agent` (renaming would break the live URL).
 
 > Not affiliated with obin.ai. All deal data is fictional.
 

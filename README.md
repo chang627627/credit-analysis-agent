@@ -1,4 +1,7 @@
-# Credit Analysis Agent — agentic workflow prototype
+# Countersign — an agentic credit-analysis prototype
+
+> **Countersign** (n.): the second signature that makes a document binding.
+> The agent analyzes; a human countersigns. That's the whole product thesis.
 
 **▶ Live demo: [credit-analysis-agent.vercel.app](https://credit-analysis-agent.vercel.app)** &nbsp;·&nbsp; auto-deployed from `main` via Vercel
 

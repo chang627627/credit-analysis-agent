@@ -54,6 +54,14 @@ export function PortfolioView({
   const open = escalations.filter((e) => e.status === 'open');
   const acked = escalations.filter((e) => e.status === 'acknowledged');
 
+  const stats = [
+    { k: 'Deals monitored', v: rows.length, tone: '' },
+    { k: 'Healthy', v: rows.filter((r) => r.health === 'healthy').length, tone: 'good' },
+    { k: 'Watch', v: rows.filter((r) => r.health === 'watch').length, tone: 'warn' },
+    { k: 'In breach', v: rows.filter((r) => r.health === 'breach').length, tone: 'bad' },
+    { k: 'Open escalations', v: open.length, tone: 'accent' },
+  ];
+
   return (
     <section className="portfolio">
       <header className="portfolio__head">
@@ -78,6 +86,15 @@ export function PortfolioView({
           </button>
         </div>
       </header>
+
+      <div className="pstats">
+        {stats.map((s) => (
+          <div className={`pstat ${s.tone ? `pstat--${s.tone}` : ''}`} key={s.k}>
+            <span className="pstat__k">{s.k}</span>
+            <span className="pstat__v">{s.v}</span>
+          </div>
+        ))}
+      </div>
 
       <div className="portfolio__grid">
         <div className="ptablewrap">

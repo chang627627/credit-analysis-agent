@@ -2365,6 +2365,48 @@ button {
   animation: pulse 1.1s ease-in-out infinite;
 }
 
+/* KPI summary strip — anchors the page before the dense table */
+.pstats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.pstat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  box-shadow: inset 0 1px 0 var(--edge), var(--card-shadow);
+}
+.pstat__k {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-faint);
+}
+.pstat__v {
+  font-family: var(--mono);
+  font-size: 21px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.pstat--good .pstat__v {
+  color: var(--good-text);
+}
+.pstat--warn .pstat__v {
+  color: var(--warn-text);
+}
+.pstat--bad .pstat__v {
+  color: var(--bad-text);
+}
+.pstat--accent .pstat__v {
+  color: var(--accent-text);
+}
+
 .portfolio__grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
@@ -2438,6 +2480,7 @@ button {
 }
 .ptable__deal strong {
   font-size: 12.5px;
+  white-space: nowrap;
 }
 .ptable__deal:hover strong {
   color: var(--accent-text);
@@ -2445,6 +2488,10 @@ button {
 .ptable__deal span {
   font-size: 10.5px;
   color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
 }
 
 .pdelta {
@@ -2503,7 +2550,7 @@ button {
   background: var(--bad-soft);
 }
 
-/* escalation queue */
+/* escalation queue — sticky with its own scroll so it can't unbalance the page */
 .queue {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -2513,6 +2560,10 @@ button {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  position: sticky;
+  top: 12px;
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
 }
 .queue__head {
   display: flex;

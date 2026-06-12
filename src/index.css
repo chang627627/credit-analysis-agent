@@ -2407,16 +2407,11 @@ button {
   color: var(--accent-text);
 }
 
+/* sections stack full-width: table, then the escalation queue */
 .portfolio__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  display: flex;
+  flex-direction: column;
   gap: 18px;
-  align-items: start;
-}
-@media (max-width: 1100px) {
-  .portfolio__grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .ptablewrap {
@@ -2550,7 +2545,7 @@ button {
   background: var(--bad-soft);
 }
 
-/* escalation queue — sticky with its own scroll so it can't unbalance the page */
+/* escalation queue — a full-width section; cards flow in a responsive grid */
 .queue {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -2560,10 +2555,11 @@ button {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  position: sticky;
-  top: 12px;
-  max-height: calc(100vh - 220px);
-  overflow-y: auto;
+}
+.queue__items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 10px;
 }
 .queue__head {
   display: flex;

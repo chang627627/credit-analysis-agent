@@ -1,18 +1,27 @@
-import { useState } from 'react';
+// App-shell navigation. "Credit Analysis"/"Deals" and "Portfolio" route between
+// the two real views; the rest are shell items (App toasts that they're backlog).
 
-// App-shell navigation. This is a single-screen prototype, so the items establish
-// the product shell rather than route — the active item reflects the current view.
 const NAV = [
   { id: 'analysis', icon: '◧', label: 'Credit Analysis' },
-  { id: 'deals', icon: '▤', label: 'Deals', badge: '12' },
+  { id: 'deals', icon: '▤', label: 'Deals' },
   { id: 'portfolio', icon: '◍', label: 'Portfolio' },
   { id: 'agents', icon: '✦', label: 'Agents' },
   { id: 'audit', icon: '☑', label: 'Audit log' },
 ];
 
-export function NavSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
-  const [active, setActive] = useState('analysis');
-
+export function NavSidebar({
+  collapsed,
+  onToggle,
+  active,
+  onNavigate,
+  badges = {},
+}: {
+  collapsed: boolean;
+  onToggle: () => void;
+  active: string;
+  onNavigate: (id: string) => void;
+  badges?: Record<string, string | number | undefined>;
+}) {
   return (
     <nav className={`nav ${collapsed ? 'nav--collapsed' : ''}`}>
       <div className="nav__top">
@@ -32,12 +41,12 @@ export function NavSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
           <li key={it.id}>
             <button
               className={`nav__item ${active === it.id ? 'nav__item--active' : ''}`}
-              onClick={() => setActive(it.id)}
+              onClick={() => onNavigate(it.id)}
               title={collapsed ? it.label : undefined}
             >
               <span className="nav__icon">{it.icon}</span>
               {!collapsed && <span className="nav__label">{it.label}</span>}
-              {!collapsed && it.badge && <span className="nav__badge">{it.badge}</span>}
+              {!collapsed && badges[it.id] !== undefined && <span className="nav__badge">{badges[it.id]}</span>}
             </button>
           </li>
         ))}

@@ -68,6 +68,8 @@ export interface CreditAgentApi {
   speed: number;
   document: Deal['document'];
   deals: { id: string; name: string; uploaded?: boolean; outcome: Recommendation }[];
+  /** full deal objects — the portfolio monitor reads financials/covenants */
+  dealsFull: Deal[];
   selectedDealId: string;
   parsing: ParsingState | null;
   messages: ChatMessage[];
@@ -303,6 +305,7 @@ export function useCreditAgent(): CreditAgentApi {
     speed,
     document: deal.document,
     deals: allDeals.map((d) => ({ id: d.id, name: d.name, uploaded: d.uploaded, outcome: recommendationFor(d) })),
+    dealsFull: allDeals,
     selectedDealId: dealId,
     parsing,
     messages,

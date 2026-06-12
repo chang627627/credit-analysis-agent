@@ -1,6 +1,23 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Deal } from '../agent/mockData';
 import type { ParsingState } from '../hooks/useCreditAgent';
+
+/** Wrap any occurrence of the cited values in <mark> so provenance is visible. */
+function renderMarked(text: string, highlights: string[]) {
+  if (highlights.length === 0) return text;
+  const escaped = highlights.map((h) => h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const re = new RegExp(`(${escaped.join('|')})`, 'g');
+  const parts = text.split(re);
+  return parts.map((p, i) =>
+    highlights.includes(p) ? (
+      <mark className="cited" key={i}>
+        {p}
+      </mark>
+    ) : (
+      p
+    ),
+  );
+}
 
 /** The input column — upload a CIM or pick a recent deal, then read its document. */
 export function DocumentPanel({
@@ -12,6 +29,8 @@ export function DocumentPanel({
   parsing,
   active,
   disabled,
+  highlights = [],
+  onClearHighlights,
 }: {
   document: Deal['document'];
   deals: { id: string; name: string; uploaded?: boolean }[];
@@ -21,13 +40,33 @@ export function DocumentPanel({
   parsing: ParsingState | null;
   active: boolean;
   disabled: boolean;
+  highlights?: string[];
+  onClearHighlights?: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState(false);
+
+  // when a citation lands, bring its first mark into view
+  useEffect(() => {
+    if (highlights.length === 0) return;
+    const mark = bodyRef.current?.querySelector('mark.cited');
+    if (mark) {
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      mark.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+    }
+  }, [highlights, document]);
 
   return (
     <aside className="doc">
-      <div className="doc__tag">input · deal</div>
+      <div className="doc__tagrow">
+        <span className="doc__tag">input · deal</span>
+        {highlights.length > 0 && (
+          <button className="linkbtn" onClick={onClearHighlights}>
+            clear highlights
+          </button>
+        )}
+      </div>
 
       <div
         className={`drop ${drag ? 'drop--over' : ''} ${parsing ? 'drop--parsing' : ''}`}
@@ -102,9 +141,9 @@ export function DocumentPanel({
           <dd>{document.facility}</dd>
         </div>
       </dl>
-      <div className={`doc__body ${active ? 'doc__body--scanning' : ''}`}>
+      <div className={`doc__body ${active ? 'doc__body--scanning' : ''}`} ref={bodyRef}>
         {document.body.split('\n\n').map((para, i) => (
-          <p key={i}>{para}</p>
+          <p key={i}>{renderMarked(para, highlights)}</p>
         ))}
       </div>
     </aside>

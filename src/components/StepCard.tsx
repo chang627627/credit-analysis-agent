@@ -1,9 +1,10 @@
 import type { StepView } from '../hooks/useCreditAgent';
 import { ToolCallView } from './ToolCallView';
 import { Artifact } from './Artifact';
+import type { Cite } from './Artifact';
 import { FlagPill } from './FlagPill';
 
-export function StepCard({ step }: { step: StepView }) {
+export function StepCard({ step, cite }: { step: StepView; cite?: Cite }) {
   const streamingThought = step.status === 'running' && !step.call;
 
   return (
@@ -23,7 +24,7 @@ export function StepCard({ step }: { step: StepView }) {
 
         {step.call && <ToolCallView call={step.call} result={step.result} />}
 
-        {step.call && step.result && <Artifact tool={step.call.name} data={step.result.data} />}
+        {step.call && step.result && <Artifact tool={step.call.name} data={step.result.data} cite={cite} />}
 
         {step.flags.map((f) => (
           <FlagPill key={f.id} flag={f} />

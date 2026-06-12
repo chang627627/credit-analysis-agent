@@ -148,6 +148,9 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
   ⌘R (reload) rejects a memo. Caught by adversarial review; keep the guard if editing shortcuts.
 - **Preview console buffer persists across reloads** — only a server restart clears it; old
   HMR-window errors linger and look current.
+- **Backgrounded preview tab gets timer-throttled** (Chrome: down to ~1 timer/min) — the agent's
+  simulated delays, monitor sweeps, and any in-page polling all crawl. If runs seem stuck during
+  automated verification, it's throttling, not the app; verify with the tab focused.
 
 ## Progress log
 
@@ -185,9 +188,13 @@ Ordered roughly by recommendation; (1)–(2) = biggest narrative upgrade, (3)–
 2. [x] **Escalation inbox / review queue** — DONE: drift/breach raises deduped escalation
        items; queue supports Acknowledge + "Open deal →" (jumps to analysis with the deal
        selected); open count badges the Portfolio nav item
-3. [ ] **Click-through provenance** — click an extracted figure → highlight its source sentence
-       in the document panel (makes the ⛓ citation chip functional)
-4. [ ] **Audit log as a real screen** — wire the unused `AuditLog.tsx` to the nav item
+3. [x] **Click-through provenance** — DONE: citable figure cards (only values present in the
+       document become buttons) + the ⛓ chip highlight + scroll to the source in the document
+       panel; cites auto-clear on any deal change (false-provenance guard); width-guard toast
+       when the doc panel is hidden (≤1100px)
+4. [x] **Audit log as a real screen** — DONE: `AuditView` (nav-routed) merges the session-wide
+       run trail (`auditHistory` in useCreditAgent, capped 500) with monitor escalations;
+       filter chips (aria-pressed), export JSON; dead `AuditLog.tsx` deleted
 5. [ ] **Real LLM via SSE** — `claude-fable-5` behind the same AgentEvent interface
        (serverless fn keeps the key off the client; mock stays as fallback)
 6. [ ] **Editable "what-if" fields** — stress EBITDA/rates/leverage; recommendation flips live

@@ -59,12 +59,20 @@ export interface AuditEntry {
   detail?: string;
 }
 
+/** Audit entry enriched with run context — the session-wide trail. */
+export interface AuditHistoryEntry extends AuditEntry {
+  dealName: string;
+  runId: number;
+}
+
 export interface CreditAgentApi {
   status: RunStatus;
   plan: PlanStep[];
   steps: StepView[];
   approvalPackage: ApprovalPackage | null;
   audit: AuditEntry[];
+  /** session-wide trail: every entry from every run, never cleared (capped) */
+  auditHistory: AuditHistoryEntry[];
   speed: number;
   document: Deal['document'];
   deals: { id: string; name: string; uploaded?: boolean; outcome: Recommendation }[];
@@ -91,6 +99,7 @@ export function useCreditAgent(): CreditAgentApi {
   const [steps, setSteps] = useState<StepView[]>([]);
   const [approvalPackage, setApprovalPackage] = useState<ApprovalPackage | null>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
+  const [auditHistory, setAuditHistory] = useState<AuditHistoryEntry[]>([]);
   const [speed, setSpeed] = useState(1);
   const [extraDeals, setExtraDeals] = useState<Deal[]>([]);
   const [dealId, setDealId] = useState(DEALS[0].id);
@@ -105,13 +114,21 @@ export function useCreditAgent(): CreditAgentApi {
   // Mutable handles the loop reads/writes without re-rendering.
   const approvalResolver = useRef<((d: ApprovalDecision) => void) | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const runIdRef = useRef(0);
+  const runDealNameRef = useRef(DEALS[0].name); // the deal of the CURRENT run (set in start)
   const speedRef = useRef(speed);
   speedRef.current = speed;
   const dealRef = useRef(deal);
   dealRef.current = deal;
 
   const pushAudit = useCallback((entry: Omit<AuditEntry, 'id' | 't'>) => {
-    setAudit((prev) => [...prev, { ...entry, id: uid('audit'), t: Date.now() }]);
+    const full: AuditEntry = { ...entry, id: uid('audit'), t: Date.now() };
+    setAudit((prev) => [...prev, full]);
+    // session-wide trail: survives reset/deal switches, capped at 500 entries
+    setAuditHistory((prev) => [
+      ...prev.slice(-499),
+      { ...full, dealName: runDealNameRef.current, runId: runIdRef.current },
+    ]);
   }, []);
 
   const apply = useCallback(
@@ -179,6 +196,8 @@ export function useCreditAgent(): CreditAgentApi {
       ? allDealsRef.current.find((d) => d.id === dealId) ?? dealRef.current
       : dealRef.current;
     if (dealId) setDealId(dealId);
+    runIdRef.current += 1;
+    runDealNameRef.current = runDeal.name;
 
     const ac = new AbortController();
     abortRef.current = ac;
@@ -302,6 +321,7 @@ export function useCreditAgent(): CreditAgentApi {
     steps,
     approvalPackage,
     audit,
+    auditHistory,
     speed,
     document: deal.document,
     deals: allDeals.map((d) => ({ id: d.id, name: d.name, uploaded: d.uploaded, outcome: recommendationFor(d) })),

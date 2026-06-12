@@ -4,6 +4,8 @@ import type { ChatMessage } from './hooks/useCreditAgent';
 import { useMonitor } from './hooks/useMonitor';
 import type { Recommendation } from './agent/types';
 import { PortfolioView } from './components/PortfolioView';
+import { AuditView } from './components/AuditView';
+import type { Cite } from './components/Artifact';
 import { Header, MOD_KEY } from './components/Header';
 import { NavSidebar } from './components/NavSidebar';
 import { DocumentPanel } from './components/DocumentPanel';
@@ -97,19 +99,71 @@ export default function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   // app-shell routing + the always-on monitoring agent
-  const [view, setView] = useState<'analysis' | 'portfolio'>('analysis');
+  const [view, setView] = useState<'analysis' | 'portfolio' | 'audit'>('analysis');
   const monitor = useMonitor(agent.dealsFull, agent.speed);
   const openEscalations = monitor.escalations.filter((e) => e.status === 'open').length;
 
   const handleNavigate = (id: string) => {
     if (id === 'analysis' || id === 'deals') setView('analysis');
     else if (id === 'portfolio') setView('portfolio');
-    else notify(`"${id === 'agents' ? 'Agents' : 'Audit log'}" is on the backlog — not built in this prototype`);
+    else if (id === 'audit') setView('audit');
+    else notify('"Agents" is on the backlog — not built in this prototype');
   };
 
   const openDealFromPortfolio = (dealId: string) => {
-    agent.selectDeal(dealId);
+    handleSelectDeal(dealId);
     setView('analysis');
+  };
+
+  // click-through provenance: artifact figures highlight their source sentence
+  const [citedValues, setCitedValues] = useState<string[]>([]);
+  // one chokepoint: ANY deal change (picker, palette, launchpad chip, upload)
+  // invalidates citations — stale strings on a new document = false provenance
+  useEffect(() => {
+    setCitedValues([]);
+  }, [agent.selectedDealId]);
+
+  const docHidden = () => window.matchMedia('(max-width: 1100px)').matches;
+  const cite: Cite = {
+    has: (v) => agent.document.body.includes(v),
+    show: (v) => {
+      if (docHidden()) {
+        notify('The source document is hidden at this width — widen the window to see provenance');
+        return;
+      }
+      setCitedValues([v]);
+    },
+    showAll: (vs) => {
+      if (docHidden()) {
+        notify('The source document is hidden at this width — widen the window to see provenance');
+        return;
+      }
+      setCitedValues(vs);
+    },
+  };
+  const handleSelectDeal = (id: string) => {
+    agent.selectDeal(id);
+  };
+  const handleReset = () => {
+    setCitedValues([]);
+    agent.reset();
+  };
+
+  // full session export: analysis trail + monitoring escalations, merged
+  const exportFullAudit = () => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      analysisEvents: agent.auditHistory,
+      monitoringEscalations: monitor.escalations,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'session-audit-log.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    notify('Session audit log exported · session-audit-log.json', 'good');
   };
 
   const [theme, setTheme] = useState<Theme>(() =>
@@ -133,6 +187,7 @@ export default function App() {
     notify('Audit trail exported · credit-analysis-audit.json', 'good');
   };
   const handleUpload = (f: File) => {
+    setCitedValues([]);
     agent.uploadDeal(f);
     notify(`Extracting financials from ${f.name}… (simulated)`);
   };
@@ -201,7 +256,7 @@ export default function App() {
           },
         ]
       : []),
-    ...(status !== 'idle' ? [{ id: 'reset', label: 'Reset run', section: 'Run', run: agent.reset }] : []),
+    ...(status !== 'idle' ? [{ id: 'reset', label: 'Reset run', section: 'Run', run: handleReset }] : []),
     ...(finished
       ? [{ id: 'export', label: 'Export audit trail (JSON)', section: 'Audit', run: handleExport }]
       : []),
@@ -218,9 +273,15 @@ export default function App() {
       section: 'Demo',
       run: () => agent.setSpeed(s),
     })),
+    ...(view !== 'analysis'
+      ? [{ id: 'view-analysis', label: 'Open Credit Analysis', section: 'View', run: () => setView('analysis') }]
+      : []),
     ...(view !== 'portfolio'
       ? [{ id: 'view-portfolio', label: 'Open Portfolio monitor', section: 'View', run: () => setView('portfolio') }]
-      : [{ id: 'view-analysis', label: 'Open Credit Analysis', section: 'View', run: () => setView('analysis') }]),
+      : []),
+    ...(view !== 'audit'
+      ? [{ id: 'view-audit', label: 'Open Audit log', section: 'View', run: () => setView('audit') }]
+      : []),
     { id: 'sweep', label: 'Sweep portfolio now', section: 'Demo', run: monitor.sweepNow },
     {
       id: 'theme',
@@ -244,7 +305,7 @@ export default function App() {
         speed={agent.speed}
         onSpeed={agent.setSpeed}
         onRun={() => agent.start()}
-        onReset={agent.reset}
+        onReset={handleReset}
         theme={theme}
         onToggleTheme={toggleTheme}
         onOpenPalette={() => setPaletteOpen(true)}
@@ -265,11 +326,13 @@ export default function App() {
               document={agent.document}
               deals={agent.deals}
               selectedId={agent.selectedDealId}
-              onSelect={agent.selectDeal}
+              onSelect={handleSelectDeal}
               onUpload={handleUpload}
               parsing={agent.parsing}
               active={status === 'running'}
               disabled={busy}
+              highlights={citedValues}
+              onClearHighlights={() => setCitedValues([])}
             />
 
             <section className="workspace">
@@ -283,7 +346,7 @@ export default function App() {
                     onPickAndRun={(id) => agent.start(id)}
                   />
                 ) : (
-                  <AgentStream steps={agent.steps} />
+                  <AgentStream steps={agent.steps} cite={cite} />
                 )}
 
                 {status === 'awaiting_approval' && agent.approvalPackage && (
@@ -294,7 +357,7 @@ export default function App() {
                   <OutcomeBanner
                     approved={status === 'approved'}
                     pkg={agent.approvalPackage}
-                    onReset={agent.reset}
+                    onReset={handleReset}
                     onExport={handleExport}
                   />
                 )}
@@ -305,7 +368,7 @@ export default function App() {
               <Composer onSend={agent.sendMessage} onAttach={handleUpload} attachDisabled={busy} />
             </section>
           </>
-        ) : (
+        ) : view === 'portfolio' ? (
           <PortfolioView
             rows={monitor.portfolio}
             escalations={monitor.escalations}
@@ -316,6 +379,8 @@ export default function App() {
             onAcknowledge={monitor.acknowledge}
             onOpenDeal={openDealFromPortfolio}
           />
+        ) : (
+          <AuditView entries={agent.auditHistory} escalations={monitor.escalations} onExport={exportFullAudit} />
         )}
       </main>
 

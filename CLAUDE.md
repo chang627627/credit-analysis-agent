@@ -75,12 +75,16 @@ src/
     mockData.ts     3 sample deals + the Deal type
     synthesize.ts   simulated extraction: a Deal derived from an uploaded filename
     responder.ts    rule-based composer Q&A over the current deal
+    monitor.ts      portfolio monitoring sweep generator (drift → covenant re-test → escalate)
     util.ts         abortable sleep, uid, confidenceBucket
   hooks/
     useCreditAgent.ts   generator → reduce → state + controls
+    useMonitor.ts       always-on sweep cadence → portfolio state + escalation queue
+    useCountUp.ts       rAF count-up for metric/score numbers
   components/
     Header, NavSidebar, DocumentPanel, PlanBar, AgentStream, StepCard, ToolCallView,
-    Artifact, ConfidenceBadge, FlagPill, ApprovalGate, OutcomeBanner, Composer
+    Artifact, ConfidenceBadge, FlagPill, ApprovalGate, OutcomeBanner, Composer,
+    CommandPalette, Toasts, PortfolioView (portfolio monitor + escalation queue)
     (AuditLog.tsx is kept but unused — the audit panel was replaced by the nav)
   App.tsx, main.tsx, index.css
 .claude/launch.json   dev-server config for the preview tool
@@ -171,8 +175,26 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       · Reverted on request: glass composer + composer kbd hints (back to the original flat
       bar) and the View Transitions circular theme reveal (theme switch is instant — "too
       fancy, not professional")
-- [ ] Not built: real LLM via SSE behind the same event interface; editable "what-if" fields;
-      Supabase persistence of the audit trail; composer that can start a run
+## Backlog (to-do)
+
+Ordered roughly by recommendation; (1)–(2) = biggest narrative upgrade, (3)–(4) = cheapest wins.
+
+1. [x] **Portfolio & covenant monitoring screen** — DONE: always-on monitoring agent
+       (`src/agent/monitor.ts` sweep generator + `useMonitor` hook) re-tests covenants on a
+       ~25s÷speed cadence with deterministic metric drift; Portfolio nav item routes to it
+2. [x] **Escalation inbox / review queue** — DONE: drift/breach raises deduped escalation
+       items; queue supports Acknowledge + "Open deal →" (jumps to analysis with the deal
+       selected); open count badges the Portfolio nav item
+3. [ ] **Click-through provenance** — click an extracted figure → highlight its source sentence
+       in the document panel (makes the ⛓ citation chip functional)
+4. [ ] **Audit log as a real screen** — wire the unused `AuditLog.tsx` to the nav item
+5. [ ] **Real LLM via SSE** — `claude-fable-5` behind the same AgentEvent interface
+       (serverless fn keeps the key off the client; mock stays as fallback)
+6. [ ] **Editable "what-if" fields** — stress EBITDA/rates/leverage; recommendation flips live
+7. [ ] **Supabase persistence** of the audit trail (runs survive reloads)
+8. [ ] **Composer that can start a run** — instructions kick off work, not just Q&A
+9. [ ] **Interview rehearsal** — README's 90-second tour + "extend it live" drills
+10. [ ] **LinkedIn post** — live link + repo exist; caption remaining
 
 ## Interview talking points
 

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useCreditAgent } from './hooks/useCreditAgent';
 import type { ChatMessage } from './hooks/useCreditAgent';
+import { useMonitor } from './hooks/useMonitor';
 import type { Recommendation } from './agent/types';
+import { PortfolioView } from './components/PortfolioView';
 import { Header, MOD_KEY } from './components/Header';
 import { NavSidebar } from './components/NavSidebar';
 import { DocumentPanel } from './components/DocumentPanel';
@@ -93,6 +95,22 @@ export default function App() {
 
   const { toasts, notify } = useToasts();
   const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // app-shell routing + the always-on monitoring agent
+  const [view, setView] = useState<'analysis' | 'portfolio'>('analysis');
+  const monitor = useMonitor(agent.dealsFull, agent.speed);
+  const openEscalations = monitor.escalations.filter((e) => e.status === 'open').length;
+
+  const handleNavigate = (id: string) => {
+    if (id === 'analysis' || id === 'deals') setView('analysis');
+    else if (id === 'portfolio') setView('portfolio');
+    else notify(`"${id === 'agents' ? 'Agents' : 'Audit log'}" is on the backlog — not built in this prototype`);
+  };
+
+  const openDealFromPortfolio = (dealId: string) => {
+    agent.selectDeal(dealId);
+    setView('analysis');
+  };
 
   const [theme, setTheme] = useState<Theme>(() =>
     localStorage.getItem('theme') === 'dark' ? 'dark' : 'light',
@@ -200,6 +218,10 @@ export default function App() {
       section: 'Demo',
       run: () => agent.setSpeed(s),
     })),
+    ...(view !== 'portfolio'
+      ? [{ id: 'view-portfolio', label: 'Open Portfolio monitor', section: 'View', run: () => setView('portfolio') }]
+      : [{ id: 'view-analysis', label: 'Open Credit Analysis', section: 'View', run: () => setView('analysis') }]),
+    { id: 'sweep', label: 'Sweep portfolio now', section: 'Demo', run: monitor.sweepNow },
     {
       id: 'theme',
       label: `Switch to ${theme === 'light' ? 'dark' : 'light'} theme`,
@@ -229,51 +251,72 @@ export default function App() {
       />
 
       <main className={`grid${navCollapsed ? ' grid--nav-collapsed' : ''}`}>
-        <NavSidebar collapsed={navCollapsed} onToggle={() => setNavCollapsed((v) => !v)} />
-
-        <DocumentPanel
-          document={agent.document}
-          deals={agent.deals}
-          selectedId={agent.selectedDealId}
-          onSelect={agent.selectDeal}
-          onUpload={handleUpload}
-          parsing={agent.parsing}
-          active={status === 'running'}
-          disabled={busy}
+        <NavSidebar
+          collapsed={navCollapsed}
+          onToggle={() => setNavCollapsed((v) => !v)}
+          active={view}
+          onNavigate={handleNavigate}
+          badges={{ deals: agent.deals.length, portfolio: openEscalations || undefined }}
         />
 
-        <section className="workspace">
-          <div className="workspace__scroll">
-            <PlanBar plan={agent.plan} steps={agent.steps} />
+        {view === 'analysis' ? (
+          <>
+            <DocumentPanel
+              document={agent.document}
+              deals={agent.deals}
+              selectedId={agent.selectedDealId}
+              onSelect={agent.selectDeal}
+              onUpload={handleUpload}
+              parsing={agent.parsing}
+              active={status === 'running'}
+              disabled={busy}
+            />
 
-            {status === 'idle' ? (
-              <EmptyState
-                onRun={() => agent.start()}
-                deals={agent.deals}
-                onPickAndRun={(id) => agent.start(id)}
-              />
-            ) : (
-              <AgentStream steps={agent.steps} />
-            )}
+            <section className="workspace">
+              <div className="workspace__scroll">
+                <PlanBar plan={agent.plan} steps={agent.steps} />
 
-            {status === 'awaiting_approval' && agent.approvalPackage && (
-              <ApprovalGate pkg={agent.approvalPackage} onApprove={agent.approve} onReject={agent.reject} />
-            )}
+                {status === 'idle' ? (
+                  <EmptyState
+                    onRun={() => agent.start()}
+                    deals={agent.deals}
+                    onPickAndRun={(id) => agent.start(id)}
+                  />
+                ) : (
+                  <AgentStream steps={agent.steps} />
+                )}
 
-            {finished && agent.approvalPackage && (
-              <OutcomeBanner
-                approved={status === 'approved'}
-                pkg={agent.approvalPackage}
-                onReset={agent.reset}
-                onExport={handleExport}
-              />
-            )}
+                {status === 'awaiting_approval' && agent.approvalPackage && (
+                  <ApprovalGate pkg={agent.approvalPackage} onApprove={agent.approve} onReject={agent.reject} />
+                )}
 
-            <MessageThread messages={agent.messages} />
-          </div>
+                {finished && agent.approvalPackage && (
+                  <OutcomeBanner
+                    approved={status === 'approved'}
+                    pkg={agent.approvalPackage}
+                    onReset={agent.reset}
+                    onExport={handleExport}
+                  />
+                )}
 
-          <Composer onSend={agent.sendMessage} onAttach={handleUpload} attachDisabled={busy} />
-        </section>
+                <MessageThread messages={agent.messages} />
+              </div>
+
+              <Composer onSend={agent.sendMessage} onAttach={handleUpload} attachDisabled={busy} />
+            </section>
+          </>
+        ) : (
+          <PortfolioView
+            rows={monitor.portfolio}
+            escalations={monitor.escalations}
+            sweeping={monitor.sweeping}
+            lastSweepAt={monitor.lastSweepAt}
+            sweepCount={monitor.sweepCount}
+            onSweepNow={monitor.sweepNow}
+            onAcknowledge={monitor.acknowledge}
+            onOpenDeal={openDealFromPortfolio}
+          />
+        )}
       </main>
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} commands={commands} />

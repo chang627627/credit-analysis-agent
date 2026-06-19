@@ -268,6 +268,11 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       categorical tool/human), teal is 100% token-driven (no hardcoded hexes outside a doc
       comment), and the brand is deliberately teal-forward ("Graphite & Teal") — so NO changes
       were warranted. A clean audit is the result; stripping teal would fight the brand.
+- [x] **Escalation card button alignment**: action buttons sat at different heights across a row
+      (reason text varies 1–2 lines). Made `.esc` a flex column + `.esc__actions { margin-top: auto }`
+      so buttons pin to the bottom of the already-equal-height grid cells (short cards get empty
+      space above — consistency over compactness, per request). Guarded `.esc--acked` back to
+      `flex-direction: row`. (The Agents cards were already aligned via the same pattern.)
 
 ## Backlog (to-do)
 

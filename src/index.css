@@ -2875,6 +2875,7 @@ textarea::placeholder {
 .queue__items {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-auto-rows: 1fr; /* every escalation card the same height (uniform grid) */
   gap: 10px;
 }
 .queue__head {
@@ -3181,6 +3182,7 @@ mark.cited {
 .agents__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-auto-rows: 1fr; /* uniform agent-card height across rows */
   gap: 14px;
 }
 .acard {

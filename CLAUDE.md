@@ -273,6 +273,8 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       so buttons pin to the bottom of the already-equal-height grid cells (short cards get empty
       space above — consistency over compactness, per request). Guarded `.esc--acked` back to
       `flex-direction: row`. (The Agents cards were already aligned via the same pattern.)
+      Then made the whole grid uniform — `grid-auto-rows: 1fr` on `.queue__items` (+ `.agents__grid`)
+      so EVERY card is the tallest card's height, not just equal within a row (rows were ragged).
 
 ## Backlog (to-do)
 

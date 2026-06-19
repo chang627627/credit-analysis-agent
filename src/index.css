@@ -2905,6 +2905,8 @@ textarea::placeholder {
   margin: 4px 2px;
 }
 .esc {
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
@@ -2955,6 +2957,7 @@ textarea::placeholder {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
+  margin-top: auto;
 }
 .btn--sm {
   padding: 5px 10px;
@@ -2979,6 +2982,7 @@ textarea::placeholder {
 }
 .esc--acked {
   display: flex;
+  flex-direction: row;
   gap: 8px;
   align-items: baseline;
   border: 0;

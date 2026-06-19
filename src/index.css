@@ -3199,6 +3199,9 @@ mark.cited {
   display: flex;
   align-items: center;
   gap: 12px;
+  /* fixed height so cards line up below regardless of whether a longer status
+     pill wraps the name to two lines (keeps the KPI tiles aligned across cards) */
+  min-height: 52px;
 }
 .acard__icon {
   display: grid;
@@ -3230,6 +3233,9 @@ mark.cited {
   letter-spacing: 0.3px;
   text-transform: uppercase;
   color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .acard__status {
   display: inline-flex;
@@ -3279,6 +3285,9 @@ mark.cited {
   font-size: 12.5px;
   line-height: 1.55;
   color: var(--text-dim);
+  /* reserve the tallest description's height (~4 lines) so the KPI tiles line up
+     across cards even when one description is shorter */
+  min-height: calc(1.55em * 4);
 }
 .acard__kpis {
   display: flex;

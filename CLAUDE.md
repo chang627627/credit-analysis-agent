@@ -80,6 +80,8 @@ src/
     synthesize.ts   simulated extraction: a Deal derived from an uploaded filename
     responder.ts    rule-based composer Q&A over the current deal
     monitor.ts      portfolio monitoring sweep generator (drift → covenant re-test → escalate)
+    whatif.ts       pure what-if sensitivity model + the shared `decide` rule (recompute
+                    covenants/risk/recommendation from editable drivers)
     util.ts         abortable sleep, uid, confidenceBucket
   hooks/
     useCreditAgent.ts   generator → reduce → state + controls
@@ -88,7 +90,8 @@ src/
   components/
     Header, NavSidebar, DocumentPanel, PlanBar, AgentStream, StepCard, ToolCallView,
     Artifact, ConfidenceBadge, FlagPill, ApprovalGate, OutcomeBanner, Composer,
-    CommandPalette, Toasts, PortfolioView (monitor + escalation queue), AuditView (session log)
+    CommandPalette, Toasts, PortfolioView (monitor + escalation queue), AuditView (session log),
+    WhatIfPanel (what-if stress-test sliders → live recommendation flip)
   App.tsx, main.tsx, index.css
 .claude/launch.json   dev-server config for the preview tool
 ```
@@ -191,10 +194,23 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
 - [x] Click-through provenance + Audit-log screen (session trail; dead `AuditLog.tsx` removed)
 - [x] Portfolio layout rebalanced — full-width stacked sections + KPI summary strip
 - [x] Named the product **Countersign** (gate action relabeled "Countersign & approve")
+- [x] What-if sensitivity panel (backlog #5): pure `whatif.ts` model recomputes covenants, risk
+      and the recommendation from 4 editable drivers and re-runs the shared `decide` rule, so the
+      recommendation flips live; base case reproduces each deal exactly. `recommendationFor` now
+      delegates to `decide` (one rule for the agent and the panel)
+- [x] What-if **legibility** fix (multi-agent design pass → adversarial verify → implement): the
+      gate and the panel both said "Recommend · X", so users watched the static gate, slid a
+      driver, saw nothing move, and thought the slider was dead. Now: gate reads "**Agent's
+      decision · X**" under an "on the filed figures · final" eyebrow (clearly fixed); the panel
+      puts the **sliders first** with the live result **directly beneath** them (one eye-line),
+      framed **base → stressed** (ghost base pill → solid live pill + "flips/holds" tag, risk
+      shown `58 → 53`), and the outcome row **flashes on every drag** (re-keyed by a `bump`
+      counter) so even sub-threshold moves visibly recompute. Panel gets a teal left spine to read
+      as a distinct sandbox.
 
 ## Backlog (to-do)
 
-Items 1–4 are DONE (kept for the record). Remaining work grouped by type.
+Items 1–5 are DONE (kept for the record). Remaining work grouped by type.
 
 1. [x] **Portfolio & covenant monitoring screen** — DONE: always-on monitoring agent
        (`src/agent/monitor.ts` sweep generator + `useMonitor` hook) re-tests covenants on a
@@ -209,9 +225,14 @@ Items 1–4 are DONE (kept for the record). Remaining work grouped by type.
 4. [x] **Audit log as a real screen** — DONE: `AuditView` (nav-routed) merges the session-wide
        run trail (`auditHistory` in useCreditAgent, capped 500) with monitor escalations;
        filter chips (aria-pressed), export JSON; dead `AuditLog.tsx` deleted
+5. [x] **Editable "what-if" fields** — DONE: `WhatIfPanel` + a pure `src/agent/whatif.ts` model.
+       Four drivers (EBITDA / total debt / interest rate / liquidity) recompute leverage,
+       coverage, covenant pass/breach and a baseline-anchored risk score, then re-run the SAME
+       `decide` rule the agent uses → the recommendation flips live (e.g. Atlas ESCALATE→APPROVE
+       on +$2.4M EBITDA; any deal can be driven across all three outcomes). Calibrated so the base
+       case reproduces each deal's published figures exactly (every delta is zero at base). Renders
+       at the approval gate and after a finished run; "Reset to base case".
 **Remaining — frontend-only (next candidates):**
-5. [ ] **Editable "what-if" fields** — stress EBITDA/rates/leverage; recommendation flips live.
-       Highest demo value (interactive sensitivity analysis); relatively small build.
 6. [ ] **Deals pipeline screen** — make the (currently redundant) Deals nav item a real
        origination board: deals by stage (Screening → In analysis → Awaiting countersign →
        Decided), clickable to open in analysis. Distinct from Portfolio (monitoring, not pipeline).
@@ -234,6 +255,10 @@ Items 1–4 are DONE (kept for the record). Remaining work grouped by type.
   (low confidence / covenant breach → escalate to a human) rather than blindly trusting output."
 - "**Human-in-the-loop** isn't a modal — the agent **suspends** at the gate and can't proceed
   without a person. Right default for a consequential, regulated action."
+- "The **what-if panel** makes the *decide* step tangible: stress EBITDA/debt/rate/liquidity and
+  the covenants, risk score and recommendation recompute live — through the **same `decide`
+  function** the agent uses, so the analyst's sensitivity test and the agent can never disagree.
+  The model is baseline-anchored, so the base case reproduces the deal's published numbers exactly."
 - "Everything is **inspectable + logged** (args in, data out, confidence, timestamps) because
   traceability is the product."
 - "The design system is **all tokens** — an original 'Graphite & Teal' identity. I studied how

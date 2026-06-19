@@ -17,12 +17,17 @@
 import type { AgentContext, AgentEvent, ApprovalPackage, Flag, PlanStep, Recommendation, ToolCall, ToolName } from './types';
 import type { Deal } from './mockData';
 import { TOOLS } from './tools';
+import { decide } from './whatif';
 import { sleep, uid } from './util';
 
-/** The decision rule, exported so the UI can preview a deal's computed outcome. */
+/**
+ * The decision rule, exported so the UI can preview a deal's computed outcome.
+ * Delegates to `decide` in whatif.ts — the single source of truth shared with
+ * the what-if stress panel, so the two can never drift apart.
+ */
 export function recommendationFor(deal: Deal): Recommendation {
   const breaches = deal.covenants.filter((c) => c.status === 'breach').length;
-  return breaches === 0 ? 'approve' : deal.risk.score >= 75 ? 'decline' : 'escalate';
+  return decide(breaches, deal.risk.score);
 }
 
 const PLAN: PlanStep[] = [

@@ -224,7 +224,7 @@ textarea::placeholder {
   grid-template-columns: var(--nav-w, 224px) 300px minmax(0, 1fr);
   gap: 1px;
   background: var(--border);
-  transition: grid-template-columns 0.22s ease;
+  transition: grid-template-columns var(--dur-2) var(--ease-out);
 }
 .grid--nav-collapsed {
   --nav-w: 60px;
@@ -295,7 +295,7 @@ textarea::placeholder {
   font-weight: 600;
   cursor: pointer;
   text-align: left;
-  transition: background 0.14s ease, color 0.14s ease;
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
 .nav__item:hover {
   background: var(--hover-tint);
@@ -382,7 +382,7 @@ textarea::placeholder {
   font-size: 14px;
   display: grid;
   place-items: center;
-  transition: background 0.14s ease, color 0.14s ease;
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
 .nav__toggle:hover {
   background: var(--hover-tint);
@@ -529,7 +529,8 @@ textarea::placeholder {
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: transform 0.06s ease, background 0.15s ease, border-color 0.15s ease, opacity 0.15s;
+  transition: transform 0.06s var(--ease-out), background var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out), opacity var(--dur-1) var(--ease-out);
 }
 .btn:hover:not(:disabled) {
   border-color: var(--accent);
@@ -610,7 +611,7 @@ textarea::placeholder {
   border-radius: var(--radius-sm);
   padding: 9px 30px 9px 11px;
   cursor: pointer;
-  transition: border-color 0.15s ease;
+  transition: border-color var(--dur-1) var(--ease-out);
 }
 .select select:hover:not(:disabled) {
   border-color: var(--accent);
@@ -753,7 +754,8 @@ textarea::placeholder {
   background: var(--panel-2);
   font-size: 11.5px;
   color: var(--text-faint);
-  transition: all 0.25s ease;
+  transition: background var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out),
+    border-color var(--dur-2) var(--ease-out);
 }
 .plan__num {
   display: grid;
@@ -977,7 +979,7 @@ textarea::placeholder {
   padding: 2px 7px;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.12s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: opacity var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
 }
 .kv:hover .kv__copy,
 .kv__copy:focus-visible {
@@ -1620,7 +1622,7 @@ textarea::placeholder {
 .gauge__fill {
   height: 100%;
   border-radius: 999px;
-  transition: width 0.6s ease;
+  transition: width var(--dur-3) var(--ease-out);
 }
 .gauge__fill--good {
   background: var(--good);
@@ -1836,7 +1838,7 @@ textarea::placeholder {
   border-radius: var(--radius-sm);
   padding: 6px 11px;
   cursor: pointer;
-  transition: background var(--dur-1), border-color var(--dur-1);
+  transition: background var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
 }
 .whatif__reset:hover:not(:disabled) {
   background: var(--accent-soft);
@@ -2039,7 +2041,7 @@ textarea::placeholder {
   border-radius: 999px;
   padding: 6px 13px;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: border-color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
 }
 .chip:hover {
   border-color: var(--accent);
@@ -2062,7 +2064,7 @@ textarea::placeholder {
   margin-bottom: 14px;
   cursor: pointer;
   color: var(--text-dim);
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: border-color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
 }
 .drop:hover,
 .drop--over {
@@ -2569,8 +2571,9 @@ textarea::placeholder {
 /* hover lift on interactive cards */
 .chip,
 .deal {
-  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.15s ease, background 0.15s ease,
-    color 0.15s ease;
+  transition: transform var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
 }
 .chip:hover,
 .deal:hover:not(:disabled) {
@@ -3442,7 +3445,7 @@ mark.cited {
   background: var(--panel);
   box-shadow: var(--card-shadow);
   cursor: pointer;
-  transition: border-color var(--dur-1), transform var(--dur-1);
+  transition: border-color var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out);
 }
 .dcard:hover {
   border-color: var(--accent);

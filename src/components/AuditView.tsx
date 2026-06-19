@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Info, Wrench, CornerDownLeft, AlertTriangle, CheckCircle2, Activity, type LucideIcon } from 'lucide-react';
 import type { AuditHistoryEntry, AuditKind } from '../hooks/useCreditAgent';
 import type { EscalationItem } from '../agent/monitor';
 
@@ -16,13 +17,13 @@ interface Row {
   source: string;
 }
 
-const ICON: Record<RowKind, string> = {
-  info: '•',
-  tool: '⚙',
-  result: '←',
-  flag: '▲',
-  human: '☑',
-  monitor: '◍',
+const ICON: Record<RowKind, LucideIcon> = {
+  info: Info,
+  tool: Wrench,
+  result: CornerDownLeft,
+  flag: AlertTriangle,
+  human: CheckCircle2,
+  monitor: Activity,
 };
 
 const FILTERS: { id: 'all' | RowKind; label: string }[] = [
@@ -117,10 +118,14 @@ export function AuditView({
               : `No ${FILTERS.find((f) => f.id === filter)?.label.toLowerCase()} events yet — try another filter.`}
           </p>
         )}
-        {visible.map((r) => (
+        {visible.map((r) => {
+          const RowIcon = ICON[r.kind];
+          return (
           <div key={r.id} className={`arow arow--${r.kind}`}>
             <span className="arow__time">{fmt(r.t)}</span>
-            <span className="arow__icon">{ICON[r.kind]}</span>
+            <span className="arow__icon">
+              <RowIcon size={13} strokeWidth={1.75} />
+            </span>
             <div className="arow__body">
               <span className="arow__label">{r.label}</span>
               {r.detail && <span className="arow__detail">{r.detail}</span>}
@@ -129,7 +134,8 @@ export function AuditView({
               {r.source}
             </span>
           </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

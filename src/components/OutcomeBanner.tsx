@@ -1,3 +1,4 @@
+import { CheckCircle2, XCircle } from 'lucide-react';
 import type { ApprovalPackage } from '../agent/types';
 
 export function OutcomeBanner({
@@ -14,7 +15,9 @@ export function OutcomeBanner({
   return (
     <section className={`outcome outcome--${approved ? 'approved' : 'rejected'}`}>
       <div className="outcome__row">
-        <span className="outcome__icon">{approved ? '✓' : '✕'}</span>
+        <span className="outcome__icon">
+          {approved ? <CheckCircle2 size={20} strokeWidth={1.75} /> : <XCircle size={20} strokeWidth={1.75} />}
+        </span>
         <div className="outcome__text">
           <strong>{approved ? 'Approved by human reviewer' : 'Rejected by human reviewer'}</strong>
           <span>

@@ -1,3 +1,4 @@
+import { Moon, Sun } from 'lucide-react';
 import type { RunStatus } from '../hooks/useCreditAgent';
 
 const STATUS_LABEL: Record<RunStatus, string> = {
@@ -56,7 +57,7 @@ export function Header({
         title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
         aria-label="Toggle light or dark theme"
       >
-        {theme === 'light' ? '☾' : '☀'}
+        {theme === 'light' ? <Moon size={16} strokeWidth={1.75} /> : <Sun size={16} strokeWidth={1.75} />}
       </button>
 
       <div className="speed" title="Demo speed — also affects in-flight delays">

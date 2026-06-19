@@ -259,6 +259,15 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       borders were invisible); covenant dots got a hairline ring; step spine + gauge track →
       `--border-strong`. (Gotchas: in dark, a 16%-alpha-soft border is invisible — frame with the
       solid colour; native form controls need `color-scheme` or they render light.)
+- [x] **"2026 polish" Tiers 4–5** (the deferred ones): **Tier 4 (motion)** — all 14 `transition:`
+      declarations tokenized to ONE curve (`var(--ease-out)` = cubic-bezier(.22,1,.36,1)) + the
+      `--dur-*` tokens, keeping the two intentional exceptions (0.06s button press, linear
+      slider-follow); hover micro-states were already complete on every interactive element.
+      **Tier 5 (accent audit)** — categorised all 33 `--accent-text` usages: 31 are legitimate
+      (active nav/deal/row, live/running indicators, links, hover, focus, status, identity,
+      categorical tool/human), teal is 100% token-driven (no hardcoded hexes outside a doc
+      comment), and the brand is deliberately teal-forward ("Graphite & Teal") — so NO changes
+      were warranted. A clean audit is the result; stripping teal would fight the brand.
 
 ## Backlog (to-do)
 

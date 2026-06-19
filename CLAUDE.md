@@ -245,6 +245,20 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       **type** — `font-optical-sizing: auto`, Inter `cv11` single-story `a`, grayscale smoothing,
       heading tracking −0.024em. All token/base changes (no component rewrites); verified both themes.
       Deferred Tiers 4–5 (motion-curve unification, accent-usage audit) as optional follow-ups.
+- [x] **Escalation button frames unreadable (dark mode)**: the ghost "Acknowledge" button is
+      `background: transparent`, so on a tinted (`--bad-soft`/`--warn-soft`) escalation card its
+      `--border-strong` frame vanished against the tint. Fix: `.esc__actions .btn` gets a solid
+      `var(--panel)` surface so the frame reads on any card. (Gotcha: transparent/ghost buttons on
+      tinted surfaces lose their frame in dark mode — give them a solid panel background.)
+- [x] **Dark-mode contrast audit** (8-agent workflow → synthesize, grounded in the real dark tokens
+      + WCAG ratios). Fixed 12 issues, all token-based: `color-scheme: dark/light` on the roots
+      (native sliders/scrollbars were glaring light-grey); lifted dark `--text-faint` #636a76 → #777e8a
+      (micro-labels/timestamps below AA app-wide); added a `::placeholder` rule (was UA-default grey);
+      borrower names + escalation timestamps → `--text-dim` (faintest on tinted breach/watch rows);
+      `fcard--good`/`plan__item--done`/`acard__status--good|bad` got solid colored frames (16%-alpha
+      borders were invisible); covenant dots got a hairline ring; step spine + gauge track →
+      `--border-strong`. (Gotchas: in dark, a 16%-alpha-soft border is invisible — frame with the
+      solid colour; native form controls need `color-scheme` or they render light.)
 
 ## Backlog (to-do)
 

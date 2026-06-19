@@ -10,6 +10,7 @@
    =========================================================================== */
 
 :root {
+  color-scheme: light;
   /* surfaces · light (cool neutral) */
   --bg: #ffffff;
   --bg-2: #f4f6f9;
@@ -84,6 +85,7 @@
 }
 
 :root[data-theme="dark"] {
+  color-scheme: dark;
   /* graphite surface ladder: canvas → surface-1 → surface-2 */
   --bg: #0a0b0d;
   --bg-2: #0d0f11;
@@ -99,7 +101,7 @@
 
   --text: #f3f5f6;
   --text-dim: #8b929d;
-  --text-faint: #636a76;
+  --text-faint: #777e8a; /* lifted from #636a76 — clears ~AA on panel without losing the tier below --text-dim */
 
   /* accent · signature teal (brighter for near-black) */
   --accent: #2bb8cc;
@@ -197,6 +199,14 @@ button {
    Lucide's default 2 (and our old 1.75) renders the Moon crescent chunky. */
 .lucide {
   stroke-width: 1.5;
+}
+
+/* Placeholders — without this they fall back to a UA grey that's barely legible
+   on the dark panel. Token-driven + opacity:1 (Firefox dims placeholders). */
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-faint);
+  opacity: 1;
 }
 
 /* ----------------------------------------------------------------- layout */
@@ -768,7 +778,7 @@ button {
 }
 .plan__item--done {
   color: var(--text-dim);
-  border-color: var(--good-soft);
+  border-color: var(--good);
 }
 .plan__item--done .plan__num {
   background: var(--good);
@@ -800,7 +810,7 @@ button {
   top: 26px;
   bottom: -10px;
   width: 2px;
-  background: var(--border);
+  background: var(--border-strong);
 }
 .step:last-child .step__rail::before {
   display: none;
@@ -1553,7 +1563,8 @@ button {
   color: var(--bad-text);
 }
 .fcard--good {
-  border-color: var(--good-soft);
+  border-color: var(--good);
+  background: var(--good-soft);
 }
 
 /* risk gauge */
@@ -1603,7 +1614,7 @@ button {
 .gauge__track {
   height: 8px;
   border-radius: 999px;
-  background: var(--border);
+  background: var(--border-strong);
   overflow: hidden;
 }
 .gauge__fill {
@@ -2782,7 +2793,7 @@ button {
 }
 .ptable__deal span {
   font-size: 10.5px;
-  color: var(--text-faint);
+  color: var(--text-dim);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2813,6 +2824,8 @@ button {
   height: 9px;
   border-radius: 50%;
   cursor: help;
+  /* a hairline ring so each state dot stays distinct from its matching row tint */
+  box-shadow: 0 0 0 1px var(--border-strong);
 }
 .covdot--pass {
   background: var(--good);
@@ -2926,7 +2939,7 @@ button {
 .esc__time {
   font-family: var(--mono);
   font-size: 10px;
-  color: var(--text-faint);
+  color: var(--text-dim);
   font-variant-numeric: tabular-nums;
 }
 .esc__reason {
@@ -2943,6 +2956,16 @@ button {
 .btn--sm {
   padding: 5px 10px;
   font-size: 11.5px;
+}
+/* Escalation actions sit on a tinted (red/amber) card — give them a solid surface
+   so the frame stays readable. A transparent ghost button's border vanishes against
+   the tint in dark mode. */
+.esc__actions .btn {
+  background: var(--panel);
+  border-color: var(--border-strong);
+}
+.esc__actions .btn:hover:not(:disabled) {
+  border-color: var(--accent);
 }
 .queue__acked {
   border-top: 1px solid var(--border);
@@ -3234,12 +3257,12 @@ mark.cited {
 }
 .acard__status--good {
   color: var(--good-text);
-  border-color: var(--good-soft);
+  border-color: var(--good);
   background: var(--good-soft);
 }
 .acard__status--bad {
   color: var(--bad-text);
-  border-color: var(--bad-soft);
+  border-color: var(--bad);
   background: var(--bad-soft);
 }
 .acard__desc {

@@ -13,6 +13,7 @@ import { PlanBar } from './components/PlanBar';
 import { AgentStream } from './components/AgentStream';
 import { ApprovalGate } from './components/ApprovalGate';
 import { OutcomeBanner } from './components/OutcomeBanner';
+import { WhatIfPanel } from './components/WhatIfPanel';
 import { Composer } from './components/Composer';
 import { CommandPalette } from './components/CommandPalette';
 import type { Command } from './components/CommandPalette';
@@ -94,6 +95,9 @@ export default function App() {
   const { status } = agent;
   const finished = status === 'approved' || status === 'rejected';
   const busy = status === 'running' || status === 'awaiting_approval' || agent.parsing !== null;
+  // The full deal behind the current package — what the what-if panel stresses.
+  const currentDeal = agent.dealsFull.find((d) => d.id === agent.selectedDealId);
+  const showWhatIf = status === 'awaiting_approval' || finished;
 
   const { toasts, notify } = useToasts();
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -361,6 +365,8 @@ export default function App() {
                     onExport={handleExport}
                   />
                 )}
+
+                {showWhatIf && currentDeal && <WhatIfPanel key={currentDeal.id} deal={currentDeal} />}
 
                 <MessageThread messages={agent.messages} />
               </div>

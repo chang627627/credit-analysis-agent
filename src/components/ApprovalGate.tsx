@@ -4,9 +4,9 @@ import { ConfidenceBadge } from './ConfidenceBadge';
 import { FlagPill } from './FlagPill';
 
 const REC_LABEL: Record<Recommendation, string> = {
-  approve: 'Recommend · APPROVE',
-  decline: 'Recommend · DECLINE',
-  escalate: 'Recommend · ESCALATE',
+  approve: "Agent's decision · APPROVE",
+  decline: "Agent's decision · DECLINE",
+  escalate: "Agent's decision · ESCALATE",
 };
 
 /**
@@ -50,8 +50,11 @@ export function ApprovalGate({
       </header>
 
       <div className="gate__rec">
-        <span className={`rec rec--${pkg.recommendation}`}>{REC_LABEL[pkg.recommendation]}</span>
-        <span className="gate__rating">Risk rating · {pkg.riskRating}</span>
+        <span className="gate__receyebrow">On the filed figures · final</span>
+        <div className="gate__recrow">
+          <span className={`rec rec--${pkg.recommendation}`}>{REC_LABEL[pkg.recommendation]}</span>
+          <span className="gate__rating">Risk rating · {pkg.riskRating}</span>
+        </div>
       </div>
 
       <div className="gate__metrics">

@@ -5,6 +5,8 @@ import { useMonitor } from './hooks/useMonitor';
 import type { Recommendation } from './agent/types';
 import { PortfolioView } from './components/PortfolioView';
 import { AuditView } from './components/AuditView';
+import { AgentsView } from './components/AgentsView';
+import { DealsView } from './components/DealsView';
 import type { Cite } from './components/Artifact';
 import { Header, MOD_KEY } from './components/Header';
 import { NavSidebar } from './components/NavSidebar';
@@ -103,15 +105,16 @@ export default function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   // app-shell routing + the always-on monitoring agent
-  const [view, setView] = useState<'analysis' | 'portfolio' | 'audit'>('analysis');
+  const [view, setView] = useState<'analysis' | 'deals' | 'portfolio' | 'agents' | 'audit'>('analysis');
   const monitor = useMonitor(agent.dealsFull, agent.speed);
   const openEscalations = monitor.escalations.filter((e) => e.status === 'open').length;
 
   const handleNavigate = (id: string) => {
-    if (id === 'analysis' || id === 'deals') setView('analysis');
+    if (id === 'analysis') setView('analysis');
+    else if (id === 'deals') setView('deals');
     else if (id === 'portfolio') setView('portfolio');
+    else if (id === 'agents') setView('agents');
     else if (id === 'audit') setView('audit');
-    else notify('"Agents" is on the backlog — not built in this prototype');
   };
 
   const openDealFromPortfolio = (dealId: string) => {
@@ -280,8 +283,14 @@ export default function App() {
     ...(view !== 'analysis'
       ? [{ id: 'view-analysis', label: 'Open Credit Analysis', section: 'View', run: () => setView('analysis') }]
       : []),
+    ...(view !== 'deals'
+      ? [{ id: 'view-deals', label: 'Open Deals pipeline', section: 'View', run: () => setView('deals') }]
+      : []),
     ...(view !== 'portfolio'
       ? [{ id: 'view-portfolio', label: 'Open Portfolio monitor', section: 'View', run: () => setView('portfolio') }]
+      : []),
+    ...(view !== 'agents'
+      ? [{ id: 'view-agents', label: 'Open Agents', section: 'View', run: () => setView('agents') }]
       : []),
     ...(view !== 'audit'
       ? [{ id: 'view-audit', label: 'Open Audit log', section: 'View', run: () => setView('audit') }]
@@ -374,6 +383,14 @@ export default function App() {
               <Composer onSend={agent.sendMessage} onAttach={handleUpload} attachDisabled={busy} />
             </section>
           </>
+        ) : view === 'deals' ? (
+          <DealsView
+            deals={agent.dealsFull}
+            selectedDealId={agent.selectedDealId}
+            creditStatus={status}
+            auditHistory={agent.auditHistory}
+            onOpenDeal={openDealFromPortfolio}
+          />
         ) : view === 'portfolio' ? (
           <PortfolioView
             rows={monitor.portfolio}
@@ -384,6 +401,18 @@ export default function App() {
             onSweepNow={monitor.sweepNow}
             onAcknowledge={monitor.acknowledge}
             onOpenDeal={openDealFromPortfolio}
+          />
+        ) : view === 'agents' ? (
+          <AgentsView
+            creditStatus={status}
+            selectedDealName={agent.deals.find((d) => d.id === agent.selectedDealId)?.name ?? '—'}
+            parsing={agent.parsing !== null}
+            docsIngested={agent.dealsFull.filter((d) => d.uploaded).length}
+            auditHistory={agent.auditHistory}
+            monitor={monitor}
+            onOpenAnalysis={() => setView('analysis')}
+            onOpenPortfolio={() => setView('portfolio')}
+            onSweepNow={monitor.sweepNow}
           />
         ) : (
           <AuditView entries={agent.auditHistory} escalations={monitor.escalations} onExport={exportFullAudit} />

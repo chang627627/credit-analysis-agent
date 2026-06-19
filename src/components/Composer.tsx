@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Paperclip, ArrowUp } from 'lucide-react';
 
 /**
  * ChatGPT-style composer for steering / follow-ups. The 📎 attaches a CIM (the
@@ -43,7 +44,7 @@ export function Composer({
         onClick={() => fileRef.current?.click()}
         disabled={attachDisabled}
       >
-        ⎘
+        <Paperclip size={16} strokeWidth={1.75} />
       </button>
       <textarea
         className="composer__input"
@@ -60,7 +61,7 @@ export function Composer({
         }}
       />
       <button className="composer__send" onClick={submit} disabled={!text.trim()} aria-label="Send">
-        ↑
+        <ArrowUp size={16} strokeWidth={2} />
       </button>
     </div>
   );

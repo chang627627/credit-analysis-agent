@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AlertOctagon, AlertTriangle, Check } from 'lucide-react';
 import type { EscalationItem, PortfolioDealState } from '../agent/monitor';
 
 // The "always-on" surface: the monitoring agent's view of the whole book, plus
@@ -169,7 +170,13 @@ export function PortfolioView({
               {open.map((e) => (
                 <div key={e.id} className={`esc esc--${e.severity}`}>
                   <div className="esc__top">
-                    <span className="esc__icon">{e.severity === 'critical' ? '■' : '▲'}</span>
+                    <span className="esc__icon">
+                      {e.severity === 'critical' ? (
+                        <AlertOctagon size={13} strokeWidth={2} />
+                      ) : (
+                        <AlertTriangle size={13} strokeWidth={2} />
+                      )}
+                    </span>
                     <strong className="esc__deal">{e.dealName}</strong>
                     <span className="esc__time">{timeAgo(e.at, now)}</span>
                   </div>
@@ -190,7 +197,9 @@ export function PortfolioView({
             <div className="queue__acked">
               {acked.map((e) => (
                 <div key={e.id} className="esc esc--acked">
-                  <span className="esc__icon">✓</span>
+                  <span className="esc__icon">
+                    <Check size={13} strokeWidth={2.5} />
+                  </span>
                   <span className="esc__reason">
                     {e.dealName} — {e.reason}
                   </span>

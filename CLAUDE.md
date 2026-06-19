@@ -91,7 +91,8 @@ src/
     Header, NavSidebar, DocumentPanel, PlanBar, AgentStream, StepCard, ToolCallView,
     Artifact, ConfidenceBadge, FlagPill, ApprovalGate, OutcomeBanner, Composer,
     CommandPalette, Toasts, PortfolioView (monitor + escalation queue), AuditView (session log),
-    WhatIfPanel (what-if stress-test sliders → live recommendation flip)
+    WhatIfPanel (what-if stress-test sliders → live recommendation flip),
+    DealsView (origination pipeline board), AgentsView (agentic-workforce roster)
   App.tsx, main.tsx, index.css
 .claude/launch.json   dev-server config for the preview tool
 ```
@@ -100,10 +101,11 @@ src/
 
 - **Layout = app shell:** collapsible nav rail | document/context panel | agent canvas + composer.
   (The audit-trail right panel was removed in favor of nav; audit data still exists and exports.)
-- **Nav routes to real screens:** Credit Analysis & Deals → the analysis view; Portfolio → the
-  monitor; Audit log → the session trail. "Agents" is the only shell item (toasts "backlog").
-  Badges show the deal count and the open-escalation count. (Deals currently duplicates Credit
-  Analysis — see backlog: a real Deals pipeline screen would close that.)
+- **Nav routes to real screens — every item now lands somewhere real:** Credit Analysis → the
+  analysis view; **Deals → an origination pipeline board** (`DealsView`); Portfolio → the monitor;
+  **Agents → the agentic-workforce roster** (`AgentsView`); Audit log → the session trail. No shell
+  items left (the "Agents toasts backlog" dead end is gone). Badges show the deal count and the
+  open-escalation count.
 - **Portfolio layout = full-width stacked sections:** KPI strip → book table → escalation cards
   in a responsive grid. (A side-by-side table|queue split left dead space under the short table.)
 - **Input model = "upload to ingest, chat to steer."** A PDF drop zone (simulated extraction) is
@@ -134,6 +136,9 @@ of any specific product.
   highlight (depth from surfaces, not shadows).
 - Functional pass/warn/breach = green/amber/red (they carry meaning), kept distinct from teal.
 - Type: **Inter** (loaded in `index.html`) with negative letter-spacing on headings.
+- Icons: **Lucide** stroke icons (`lucide-react`) — consistent grid + weight, `currentColor` so they
+  inherit the tokens (active nav item turns teal, dark/light theming for free). Replaced the old
+  grab-bag of Unicode glyphs. The `◧` Countersign brandmark stays (identity, not an icon).
 
 Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) were read as
 *references for principles only*. No product's literal palette is used.
@@ -207,10 +212,43 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       shown `58 → 53`), and the outcome row **flashes on every drag** (re-keyed by a `bump`
       counter) so even sub-threshold moves visibly recompute. Panel gets a teal left spine to read
       as a distinct sandbox.
+- [x] **Deals pipeline board** (`DealsView`, backlog #6) + **Agents roster** (`AgentsView`) — filled
+      the two nav items that didn't lead anywhere (Deals duplicated Credit Analysis; Agents toasted
+      "backlog"). Deals is an origination kanban (Screening → In analysis → Awaiting countersign →
+      Decided) whose stage is **derived from real run state** (the live deal flows across as you run
+      and countersign; decided deals read from `auditHistory`) — verified live. Agents surfaces the
+      **three agents that actually run** (Credit Analyst · Portfolio Monitor · Document Intake) with
+      live status from `useCreditAgent`/`useMonitor`, KPIs, and a recent-runs feed. IA is now clean:
+      Deals = pipeline, Portfolio = monitoring, Agents = the workforce.
+- [x] **Mobbin design audit** (visual reference research → multi-agent ground-vs-code + adversarial
+      "worth it?" judging). Verdict: the core (loop, gate, provenance, what-if) already matches/beats
+      best-in-class; most SaaS "best practices" (sortable tables, pipeline $-totals, filter bars, run
+      chrome) are scale-driven clutter for a 3-deal demo → **rejected**. Shipped the two wins that
+      passed: (1) **risk drivers → color-coded factor list** (impact phrase → `good/warn/bad` pill, so
+      a severe-leverage driver no longer reads the same gray as a favorable margin); (2) **leverage on
+      each Deals card** (mono chip, red past the 4.0x covenant) for at-a-glance severity-within-tier.
+- [x] **Icon system → Lucide (app-wide)**: replaced the inconsistent Unicode glyphs with
+      `lucide-react` stroke icons — `currentColor` + `strokeWidth 1.75`, idle muted → active teal,
+      themes for free. Sidebar (FileSearch / SquareKanban / Activity / Bot / ScrollText / Settings),
+      header (Moon·Sun), composer (Paperclip·ArrowUp), agent cards (match nav), Deals upload,
+      Artifact (FileText memo · Link2 provenance + citemarks), OutcomeBanner (CheckCircle2·XCircle),
+      AuditView row icons, Portfolio escalation icons. First runtime dependency; tree-shakes to ~2KB
+      gzip. The `◧` Countersign brandmark stays (identity). Sidebar collapse toggle uses
+      **ChevronsLeft·Right** (`«`/`»`) — the earlier PanelLeft icons read as confusing.
+- [x] **Systemic dark-mode text fix**: the global `button {}` reset only inherited `font-family`,
+      not `color`, so any unstyled `<button>` fell back to UA-default black → invisible on dark
+      surfaces (surfaced as unreadable deal-card names). Fixed at the root: `button { color: inherit }`.
+- [x] **"2026 polish" token pass** (Linear/Vercel/Stripe principles via awesome-design-md +
+      judgement — calibration, not trend-chasing; no void-black/120px-display clichés): icon weight
+      down to **1.5** (one `.lucide { stroke-width }` knob — fixed the "fat" Moon crescent);
+      **radius 12→10 / 8→6** (crisper); **flatter light shadows** (lean on hairline borders);
+      **type** — `font-optical-sizing: auto`, Inter `cv11` single-story `a`, grayscale smoothing,
+      heading tracking −0.024em. All token/base changes (no component rewrites); verified both themes.
+      Deferred Tiers 4–5 (motion-curve unification, accent-usage audit) as optional follow-ups.
 
 ## Backlog (to-do)
 
-Items 1–5 are DONE (kept for the record). Remaining work grouped by type.
+Items 1–6 + the Agents roster are DONE (kept for the record). Remaining work grouped by type.
 
 1. [x] **Portfolio & covenant monitoring screen** — DONE: always-on monitoring agent
        (`src/agent/monitor.ts` sweep generator + `useMonitor` hook) re-tests covenants on a
@@ -232,10 +270,10 @@ Items 1–5 are DONE (kept for the record). Remaining work grouped by type.
        on +$2.4M EBITDA; any deal can be driven across all three outcomes). Calibrated so the base
        case reproduces each deal's published figures exactly (every delta is zero at base). Renders
        at the approval gate and after a finished run; "Reset to base case".
+6. [x] **Deals pipeline screen** — DONE: `DealsView` origination board, deals by stage (Screening →
+       In analysis → Awaiting countersign → Decided), stage derived from real run state, cards open
+       in analysis. Plus a bonus **Agents roster** (`AgentsView`) filling the last dead nav item.
 **Remaining — frontend-only (next candidates):**
-6. [ ] **Deals pipeline screen** — make the (currently redundant) Deals nav item a real
-       origination board: deals by stage (Screening → In analysis → Awaiting countersign →
-       Decided), clickable to open in analysis. Distinct from Portfolio (monitoring, not pipeline).
 7. [ ] **Composer that can start a run** — instructions kick off work, not just Q&A.
 
 **Deferred — needs a real backend (scoped frontend-only per request: "no backend"):**

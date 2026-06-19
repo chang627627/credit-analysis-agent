@@ -5,6 +5,7 @@
 // deliverable, with the raw call still available in the inspector below.
 // ---------------------------------------------------------------------------
 
+import { FileText, Link2 } from 'lucide-react';
 import type { ToolName } from '../agent/types';
 import type { CovenantTest, ExtractedFinancials, RiskScore } from '../agent/mockData';
 import { useCountUp } from '../hooks/useCountUp';
@@ -70,7 +71,7 @@ function FinancialsArtifact({ data, cite }: { data: ExtractedFinancials; cite?: 
           onClick={() => cite?.showAll(allCitable)}
           disabled={!cite || allCitable.length === 0}
         >
-          ⛓ CIM · p.12–28
+          <Link2 size={11} strokeWidth={2} /> CIM · p.12–28
         </button>
       </div>
       <div className="art__cards">
@@ -81,11 +82,7 @@ function FinancialsArtifact({ data, cite }: { data: ExtractedFinancials; cite?: 
             <>
               <span className="fcard__k">
                 {c.k}
-                {citable && (
-                  <span className="fcard__citemark" aria-hidden="true">
-                    ⛓
-                  </span>
-                )}
+                {citable && <Link2 className="fcard__citemark" size={10} strokeWidth={2} aria-hidden="true" />}
               </span>
               <span className="fcard__v">
                 <Num n={c.n} dp={c.dp} prefix={c.prefix} suffix={c.suffix} />
@@ -118,6 +115,14 @@ function FinancialsArtifact({ data, cite }: { data: ExtractedFinancials; cite?: 
   );
 }
 
+/** Map a driver's impact phrase ("adds risk · high" / "reduces risk · favorable") to a tone. */
+function driverTone(impact: string): 'good' | 'warn' | 'bad' {
+  const s = impact.toLowerCase();
+  if (s.includes('reduces')) return 'good';
+  if (s.includes('severe') || s.includes('high')) return 'bad';
+  return 'warn';
+}
+
 function RiskArtifact({ data }: { data: RiskScore }) {
   const tone = data.score < 40 ? 'good' : data.score < 70 ? 'warn' : 'bad';
   return (
@@ -137,11 +142,15 @@ function RiskArtifact({ data }: { data: RiskScore }) {
         <div className="gauge__scale">{data.scale}</div>
       </div>
       <div className="drivers">
-        {data.drivers.map((d) => (
-          <span className="driver" key={d.factor}>
-            {d.factor} <em>{d.impact}</em>
-          </span>
-        ))}
+        {data.drivers.map((d) => {
+          const t = driverTone(d.impact);
+          return (
+            <div className="driver" key={d.factor}>
+              <span className="driver__factor">{d.factor}</span>
+              <span className={`driver__impact driver__impact--${t}`}>{d.impact}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -182,7 +191,9 @@ function CovenantsArtifact({ data }: { data: CovenantTest[] }) {
 function MemoArtifact({ data }: { data: MemoData }) {
   return (
     <div className="art art--memo">
-      <span className="art__memoicon">▤</span>
+      <span className="art__memoicon">
+        <FileText size={20} strokeWidth={1.75} />
+      </span>
       <div>
         <div className="art__memotitle">Credit memo {data.memoId}</div>
         <div className="art__memometa">

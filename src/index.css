@@ -3287,6 +3287,7 @@ mark.cited {
 }
 .astat {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 2px;
   padding: 8px 11px;
@@ -3306,6 +3307,9 @@ mark.cited {
   font-size: 15px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .acard__runs {
   display: flex;

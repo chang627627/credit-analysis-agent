@@ -275,6 +275,9 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       `flex-direction: row`. (The Agents cards were already aligned via the same pattern.)
       Then made the whole grid uniform — `grid-auto-rows: 1fr` on `.queue__items` (+ `.agents__grid`)
       so EVERY card is the tallest card's height, not just equal within a row (rows were ragged).
+      Also made the agent-card KPI tiles (`.astat`) `flex: 1` so they're equal-width and fill the
+      row (were content-sized → ragged: "OPEN ESCALATIONS" wider than "SWEEPS"); single-stat cards
+      get one full-width tile. Consolidated a duplicate `.astat__v` + added ellipsis for long values.
 
 ## Backlog (to-do)
 

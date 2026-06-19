@@ -278,6 +278,11 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       Also made the agent-card KPI tiles (`.astat`) `flex: 1` so they're equal-width and fill the
       row (were content-sized → ragged: "OPEN ESCALATIONS" wider than "SWEEPS"); single-stat cards
       get one full-width tile. Consolidated a duplicate `.astat__v` + added ellipsis for long values.
+      Then aligned the KPI tiles ACROSS cards: reserved the description block (`.acard__desc`
+      `min-height: calc(1.55em * 4)`) and gave `.acard__head` a `min-height: 52px` (the head varied
+      because a wider status pill wraps the agent name to 2 lines); `.acard__type` capped to one line.
+      Net: heads/tiles/buttons all share the same Y across cards regardless of name-wrap or
+      description length (verified kpisTop + actionsTop identical across all three cards).
 
 ## Backlog (to-do)
 

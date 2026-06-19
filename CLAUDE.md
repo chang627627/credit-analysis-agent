@@ -88,8 +88,7 @@ src/
   components/
     Header, NavSidebar, DocumentPanel, PlanBar, AgentStream, StepCard, ToolCallView,
     Artifact, ConfidenceBadge, FlagPill, ApprovalGate, OutcomeBanner, Composer,
-    CommandPalette, Toasts, PortfolioView (portfolio monitor + escalation queue)
-    (AuditLog.tsx is kept but unused — the audit panel was replaced by the nav)
+    CommandPalette, Toasts, PortfolioView (monitor + escalation queue), AuditView (session log)
   App.tsx, main.tsx, index.css
 .claude/launch.json   dev-server config for the preview tool
 ```
@@ -98,6 +97,12 @@ src/
 
 - **Layout = app shell:** collapsible nav rail | document/context panel | agent canvas + composer.
   (The audit-trail right panel was removed in favor of nav; audit data still exists and exports.)
+- **Nav routes to real screens:** Credit Analysis & Deals → the analysis view; Portfolio → the
+  monitor; Audit log → the session trail. "Agents" is the only shell item (toasts "backlog").
+  Badges show the deal count and the open-escalation count. (Deals currently duplicates Credit
+  Analysis — see backlog: a real Deals pipeline screen would close that.)
+- **Portfolio layout = full-width stacked sections:** KPI strip → book table → escalation cards
+  in a responsive grid. (A side-by-side table|queue split left dead space under the short table.)
 - **Input model = "upload to ingest, chat to steer."** A PDF drop zone (simulated extraction) is
   the primary input; the bottom composer is for follow-ups/steering, not data entry. Avoids the
   "I typed and nothing changed" trap. The composer 📎 reuses the same ingest path.
@@ -182,9 +187,14 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       · Reverted on request: glass composer + composer kbd hints (back to the original flat
       bar) and the View Transitions circular theme reveal (theme switch is instant — "too
       fancy, not professional")
+- [x] Portfolio & covenant monitoring screen + escalation queue (always-on sweep agent)
+- [x] Click-through provenance + Audit-log screen (session trail; dead `AuditLog.tsx` removed)
+- [x] Portfolio layout rebalanced — full-width stacked sections + KPI summary strip
+- [x] Named the product **Countersign** (gate action relabeled "Countersign & approve")
+
 ## Backlog (to-do)
 
-Ordered roughly by recommendation; (1)–(2) = biggest narrative upgrade, (3)–(4) = cheapest wins.
+Items 1–4 are DONE (kept for the record). Remaining work grouped by type.
 
 1. [x] **Portfolio & covenant monitoring screen** — DONE: always-on monitoring agent
        (`src/agent/monitor.ts` sweep generator + `useMonitor` hook) re-tests covenants on a
@@ -199,13 +209,22 @@ Ordered roughly by recommendation; (1)–(2) = biggest narrative upgrade, (3)–
 4. [x] **Audit log as a real screen** — DONE: `AuditView` (nav-routed) merges the session-wide
        run trail (`auditHistory` in useCreditAgent, capped 500) with monitor escalations;
        filter chips (aria-pressed), export JSON; dead `AuditLog.tsx` deleted
-5. [ ] **Real LLM via SSE** — `claude-fable-5` behind the same AgentEvent interface
-       (serverless fn keeps the key off the client; mock stays as fallback)
-6. [ ] **Editable "what-if" fields** — stress EBITDA/rates/leverage; recommendation flips live
-7. [ ] **Supabase persistence** of the audit trail (runs survive reloads)
-8. [ ] **Composer that can start a run** — instructions kick off work, not just Q&A
-9. [ ] **Interview rehearsal** — README's 90-second tour + "extend it live" drills
-10. [ ] **LinkedIn post** — live link + repo exist; caption remaining
+**Remaining — frontend-only (next candidates):**
+5. [ ] **Editable "what-if" fields** — stress EBITDA/rates/leverage; recommendation flips live.
+       Highest demo value (interactive sensitivity analysis); relatively small build.
+6. [ ] **Deals pipeline screen** — make the (currently redundant) Deals nav item a real
+       origination board: deals by stage (Screening → In analysis → Awaiting countersign →
+       Decided), clickable to open in analysis. Distinct from Portfolio (monitoring, not pipeline).
+7. [ ] **Composer that can start a run** — instructions kick off work, not just Q&A.
+
+**Deferred — needs a real backend (scoped frontend-only per request: "no backend"):**
+8. [ ] Real LLM (`claude-fable-5`) behind the same AgentEvent interface (serverless fn keeps the
+       key off the client; mock stays as fallback).
+9. [ ] Supabase persistence of the audit trail (runs survive reloads).
+
+**Non-code (highest ROI before the interview):**
+10. [ ] Interview rehearsal — README's 90-second tour + "extend it live" drills.
+11. [ ] LinkedIn post — live link + repo exist; caption remaining.
 
 ## Interview talking points
 

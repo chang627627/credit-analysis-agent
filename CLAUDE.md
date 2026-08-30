@@ -412,6 +412,18 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       scrubber (best architecture flex), mid-run steering (backlog #7), maker-checker critique
       pass, override-rationale + reviewer identity (EU AI Act Art. 14 / SR 26-2 hook).
 
+- [x] **DESIGN.md + design-preview.html** — the design system documented in the
+      VoltAgent/awesome-design-md (Google Stitch) format: YAML front matter with machine-readable
+      token maps (`colors` = light default, `typography`, `rounded`, `spacing`, `components` with
+      `{token}` refs) + the standard body sections (Overview → Colors → Dark Theme table →
+      Typography → Layout → Elevation → Shapes → Components → Motion → Do's/Don'ts → Responsive →
+      Iteration Guide → Known Gaps). Values extracted 1:1 from `src/index.css`; the Don'ts encode
+      the session's rejected patterns (serif, dim, second accent, alpha borders in dark).
+      `design-preview.html` (repo root, self-contained) is the getdesign.md-style visual catalog —
+      swatches/type/shapes/controls/component specimens painted EXPLICITLY on side-by-side light
+      and dark boards (scoped token re-declaration), with theme-aware page chrome. Also published
+      as the "Graphite & Teal" artifact.
+
 ## Backlog (to-do)
 
 Items 1–6 + the Agents roster are DONE (kept for the record). Remaining work grouped by type.

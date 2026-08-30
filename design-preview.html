@@ -1,0 +1,541 @@
+<title>Graphite & Teal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist+Mono:wght@400;500;700&display=swap">
+<style>
+  /* ---- page chrome: the system's own tokens, three-state theme-aware ---- */
+  :root {
+    --bg: #ffffff; --bg-2: #f4f6f9; --panel: #ffffff; --panel-2: #f4f6f9;
+    --border: #e5e8ef; --border-strong: #d3d9e2;
+    --text: #0f2436; --text-dim: #51607a; --text-faint: #8a96a8;
+    --accent: #0f7d8c; --accent-hover: #0b6573; --accent-soft: rgba(15,125,140,.10);
+    --accent-text: #0a6675; --on-accent: #ffffff;
+    --good: #16a34a; --good-soft: rgba(22,163,74,.12); --good-text: #117a39; --on-good:#fff;
+    --warn: #d9930a; --warn-soft: rgba(217,147,10,.14); --warn-text: #97670a;
+    --bad: #e03131; --bad-soft: rgba(224,49,49,.10); --bad-text: #bb1f2f;
+    --chip-bg: rgba(15,30,50,.06); --code-bg:#f4f6f9; --code-text:#243246;
+    --edge: transparent;
+    --shadow-xs: 0 1px 1px rgba(15,36,54,.04);
+    --shadow-sm: 0 1px 2px rgba(15,36,54,.04), 0 2px 8px -4px rgba(15,36,54,.06);
+    --shadow-md: 0 2px 4px rgba(15,36,54,.04), 0 8px 24px -12px rgba(15,36,54,.12);
+    --mono: "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: "Inter", "SF Pro Display", -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+    --radius: 10px; --radius-sm: 6px; --radius-xs: 4px;
+    --ease-out: cubic-bezier(.22,1,.36,1);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:#0a0b0d; --bg-2:#0d0f11; --panel:#111315; --panel-2:#16181b;
+      --border:#20232a; --border-strong:#31353d;
+      --text:#f3f5f6; --text-dim:#8b929d; --text-faint:#777e8a;
+      --accent:#2bb8cc; --accent-hover:#4dccdd; --accent-soft:rgba(43,184,204,.16);
+      --accent-text:#57cfe0; --on-accent:#042a30;
+      --good:#2ea043; --good-soft:rgba(46,160,67,.16); --good-text:#4ac76a; --on-good:#04140a;
+      --warn:#d6a02b; --warn-soft:rgba(214,160,43,.16); --warn-text:#e3b341;
+      --bad:#e5484d; --bad-soft:rgba(229,72,77,.16); --bad-text:#ff6166;
+      --chip-bg:rgba(255,255,255,.06); --code-bg:#0d0f11; --code-text:#c6cdd6;
+      --edge: rgba(255,255,255,.04);
+      --shadow-xs: 0 0 0 0 transparent;
+      --shadow-sm: 0 2px 8px rgba(0,0,0,.35);
+      --shadow-md: 0 16px 40px -16px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#0a0b0d; --bg-2:#0d0f11; --panel:#111315; --panel-2:#16181b;
+    --border:#20232a; --border-strong:#31353d;
+    --text:#f3f5f6; --text-dim:#8b929d; --text-faint:#777e8a;
+    --accent:#2bb8cc; --accent-hover:#4dccdd; --accent-soft:rgba(43,184,204,.16);
+    --accent-text:#57cfe0; --on-accent:#042a30;
+    --good:#2ea043; --good-soft:rgba(46,160,67,.16); --good-text:#4ac76a; --on-good:#04140a;
+    --warn:#d6a02b; --warn-soft:rgba(214,160,43,.16); --warn-text:#e3b341;
+    --bad:#e5484d; --bad-soft:rgba(229,72,77,.16); --bad-text:#ff6166;
+    --chip-bg:rgba(255,255,255,.06); --code-bg:#0d0f11; --code-text:#c6cdd6;
+    --edge: rgba(255,255,255,.04);
+    --shadow-xs: 0 0 0 0 transparent;
+    --shadow-sm: 0 2px 8px rgba(0,0,0,.35);
+    --shadow-md: 0 16px 40px -16px rgba(0,0,0,.6);
+  }
+
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: var(--sans); font-size: 14px; line-height: 1.55;
+    letter-spacing: -0.008em; -webkit-font-smoothing: antialiased;
+    font-feature-settings: "cv11";
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 44px 28px 72px; }
+
+  /* ---- header ---- */
+  .masthead { display:flex; align-items:flex-end; justify-content:space-between; gap:18px; flex-wrap:wrap;
+    border-bottom: 1px solid var(--border); padding-bottom: 22px; margin-bottom: 34px; }
+  .masthead h1 { margin: 6px 0 8px; font-size: 30px; font-weight: 700; letter-spacing: -0.024em; text-wrap: balance; }
+  .masthead p { margin: 0; max-width: 62ch; color: var(--text-dim); font-size: 13.5px; }
+  .mark { display:inline-grid; place-items:center; width:34px; height:34px; border-radius: 8px;
+    background: var(--accent); color: var(--on-accent); font-size: 18px; font-weight: 700; }
+  .meta { font-family: var(--mono); font-size: 10.5px; color: var(--text-faint); text-align: right; line-height: 1.8; }
+  .meta b { color: var(--accent-text); font-weight: 500; }
+
+  .eyebrow { display:inline-block; font-family: var(--mono); font-size: 10px; font-weight: 500;
+    letter-spacing: 1.2px; text-transform: uppercase; color: var(--accent-text);
+    background: var(--accent-soft); border-radius: 999px; padding: 3px 10px; }
+  section { margin: 0 0 40px; }
+  .sechead { display: flex; align-items: baseline; gap: 12px; margin: 0 0 14px; }
+  .sechead h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.024em; }
+  .sechead span { font-size: 12px; color: var(--text-faint); }
+
+  /* ---- the two boards: specimens painted EXPLICITLY in each theme ---- */
+  .boards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 780px) { .boards { grid-template-columns: 1fr; } }
+  .board { border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+  .board__tag { font-family: var(--mono); font-size: 10px; letter-spacing: 1.2px;
+    text-transform: uppercase; margin: 0 0 14px; }
+  /* light board: the system's light tokens, literal */
+  .board--light { background:#ffffff; color:#0f2436;
+    --bg:#ffffff; --bg-2:#f4f6f9; --panel:#ffffff; --panel-2:#f4f6f9;
+    --border:#e5e8ef; --border-strong:#d3d9e2;
+    --text:#0f2436; --text-dim:#51607a; --text-faint:#8a96a8;
+    --accent:#0f7d8c; --accent-hover:#0b6573; --accent-soft:rgba(15,125,140,.10);
+    --accent-text:#0a6675; --on-accent:#ffffff;
+    --good:#16a34a; --good-soft:rgba(22,163,74,.12); --good-text:#117a39; --on-good:#fff;
+    --warn:#d9930a; --warn-soft:rgba(217,147,10,.14); --warn-text:#97670a;
+    --bad:#e03131; --bad-soft:rgba(224,49,49,.10); --bad-text:#bb1f2f;
+    --chip-bg:rgba(15,30,50,.06); --edge:transparent;
+    --shadow-xs:0 1px 1px rgba(15,36,54,.04);
+    border-color:#e5e8ef; }
+  .board--light .board__tag { color:#8a96a8; }
+  /* dark board: the graphite ladder, literal */
+  .board--dark { background:#0a0b0d; color:#f3f5f6;
+    --bg:#0a0b0d; --bg-2:#0d0f11; --panel:#111315; --panel-2:#16181b;
+    --border:#20232a; --border-strong:#31353d;
+    --text:#f3f5f6; --text-dim:#8b929d; --text-faint:#777e8a;
+    --accent:#2bb8cc; --accent-hover:#4dccdd; --accent-soft:rgba(43,184,204,.16);
+    --accent-text:#57cfe0; --on-accent:#042a30;
+    --good:#2ea043; --good-soft:rgba(46,160,67,.16); --good-text:#4ac76a; --on-good:#04140a;
+    --warn:#d6a02b; --warn-soft:rgba(214,160,43,.16); --warn-text:#e3b341;
+    --bad:#e5484d; --bad-soft:rgba(229,72,77,.16); --bad-text:#ff6166;
+    --chip-bg:rgba(255,255,255,.06); --edge:rgba(255,255,255,.04);
+    --shadow-xs:0 0 0 0 transparent;
+    border-color:#20232a; }
+  .board--dark .board__tag { color:#777e8a; }
+
+  /* ---- swatches ---- */
+  .swgroup { margin-bottom: 14px; }
+  .swgroup:last-child { margin-bottom: 0; }
+  .swgroup h4 { margin: 0 0 8px; font-size: 10.5px; font-weight: 600; letter-spacing: .6px;
+    text-transform: uppercase; color: var(--text-faint); }
+  .sw { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+  .sw div { border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--panel); overflow: hidden; }
+  .sw i { display: block; height: 40px; border-bottom: 1px solid var(--border); }
+  .sw b { display: block; font-size: 11px; font-weight: 600; padding: 6px 8px 0; }
+  .sw code { display: block; font-family: var(--mono); font-size: 10px; color: var(--text-faint);
+    padding: 1px 8px 7px; }
+
+  /* ---- type scale ---- */
+  .typerow { display: grid; grid-template-columns: 168px 1fr; gap: 16px; align-items: baseline;
+    padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .typerow:last-child { border-bottom: 0; }
+  .typerow code { font-family: var(--mono); font-size: 10px; color: var(--text-faint); }
+  .t-page   { font-size: 20px; font-weight: 700; letter-spacing: -0.024em; }
+  .t-sect   { font-size: 18px; font-weight: 700; letter-spacing: -0.024em; }
+  .t-card   { font-size: 17px; font-weight: 700; letter-spacing: -0.024em; }
+  .t-step   { font-size: 14px; font-weight: 700; letter-spacing: -0.024em; }
+  .t-body   { font-size: 13px; }
+  .t-label  { font-size: 10.5px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; color: var(--text-faint); }
+  .t-eyebrow{ font-family: var(--mono); font-size: 10px; font-weight: 500; letter-spacing: 1.2px; text-transform: uppercase; color: var(--accent-text); }
+  .t-mono   { font-family: var(--mono); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  .t-badge  { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .5px; }
+
+  /* ---- shapes / lines / shadows ---- */
+  .shapes { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .shape { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel);
+    padding: 12px; }
+  .shape p { margin: 8px 0 0; font-family: var(--mono); font-size: 10px; color: var(--text-faint); }
+  .shape .demo { height: 44px; border: 1px solid var(--border-strong); background: var(--panel-2); }
+  .demo--r4 { border-radius: 4px; } .demo--r6 { border-radius: 6px; }
+  .demo--r10 { border-radius: 10px; } .demo--pill { border-radius: 999px; }
+  .demo--dash { border-style: dashed; border-radius: 10px; }
+  .demo--spine { border-left: 3px solid var(--warn); border-radius: 6px; }
+  .demo--sh1 { border: 1px solid var(--border); box-shadow: var(--shadow-xs); }
+  .demo--sh2 { border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+  .demo--edge { border: 1px solid var(--border); box-shadow: inset 0 1px 0 var(--edge), var(--shadow-xs); }
+
+  /* ---- controls (specimens, consume board-scoped tokens) ---- */
+  .row { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; margin-bottom: 12px; }
+  .row:last-child { margin-bottom: 0; }
+  .btn { font: 600 13px var(--sans); letter-spacing: -0.008em; color: var(--text);
+    background: var(--panel); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm); padding: 8px 14px; cursor: default; }
+  .btn--primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .btn--approve { background: var(--good); border-color: var(--good); color: var(--on-good); }
+  .btn--reject { background: transparent; border-color: var(--bad); color: var(--bad-text); }
+  .btn--rework { color: var(--text-dim); }
+  .kbd { font-family: var(--mono); font-size: 10px; font-weight: 700; color: var(--text-dim);
+    background: var(--chip-bg); border-radius: 4px; padding: 1px 5px; margin-left: 6px; }
+  .kbd--on { color: var(--on-accent); background: rgba(255,255,255,.22); }
+  .chip { font-size: 12px; font-weight: 600; color: var(--text); background: var(--panel);
+    border: 1px solid var(--border-strong); border-radius: 999px; padding: 6px 13px; }
+  .rec { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .5px;
+    border-radius: 4px; padding: 4px 10px; }
+  .rec--approve { background: var(--good-soft); color: var(--good-text); }
+  .rec--escalate { background: var(--warn-soft); color: var(--warn-text); }
+  .rec--decline { background: var(--bad-soft); color: var(--bad-text); }
+  .rec--ghost { background: transparent; border: 1px dashed var(--border-strong); color: var(--text-faint); }
+  .conf { font-family: var(--mono); font-size: 10px; font-weight: 700; border-radius: 999px; padding: 2px 8px; }
+  .conf--high { background: var(--good-soft); color: var(--good-text); }
+  .conf--med { background: var(--warn-soft); color: var(--warn-text); }
+  .conf--low { background: var(--bad-soft); color: var(--bad-text); }
+
+  .flag { display: flex; align-items: center; gap: 8px; width: 100%;
+    font-size: 12.5px; border: 1px solid; border-radius: var(--radius-sm); padding: 8px 12px; }
+  .flag--critical { background: var(--bad-soft); border-color: var(--bad); color: var(--bad-text); }
+  .flag--warning { background: var(--warn-soft); border-color: var(--warn); color: var(--warn-text); }
+  .flag i { flex-shrink: 0; width: 12px; height: 12px; border: 1.6px solid currentColor; border-radius: 3px; }
+  .flag--warning i { border-radius: 50% 50% 4px 4px; }
+  .flag em { font: 700 9.5px var(--mono); font-style: normal; letter-spacing: .5px; margin-left: auto;
+    text-transform: uppercase; opacity: .85; }
+
+  /* ---- component specimens ---- */
+  .metric { display: inline-flex; flex-direction: column; gap: 4px; min-width: 132px;
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 10px 12px; box-shadow: inset 0 1px 0 var(--edge); }
+  .metric b { font-size: 10.5px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase;
+    color: var(--text-faint); }
+  .metric span { font-family: var(--mono); font-size: 15px; font-weight: 700;
+    font-variant-numeric: tabular-nums; color: var(--text); }
+  .metric .conf { align-self: flex-start; }
+
+  .plan { display: flex; gap: 8px; width: 100%; }
+  .plan div { flex: 1; display: flex; align-items: center; gap: 8px; font-size: 11.5px;
+    color: var(--text-faint); background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 9px 11px; }
+  .plan i { display: inline-grid; place-items: center; width: 18px; height: 18px; flex-shrink: 0;
+    border-radius: 50%; background: var(--border); color: var(--text-dim);
+    font: 700 10px var(--sans); font-style: normal; }
+  .plan .is-done { color: var(--text-dim); border-color: var(--good); }
+  .plan .is-done i { background: var(--good); color: var(--on-good); }
+  .plan .is-active { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
+  .plan .is-active i { background: var(--accent); color: var(--on-accent); }
+  .plan .is-skip { opacity: .45; }
+  .plan .is-skip span { text-decoration: line-through; }
+
+  .hbar { display: flex; align-items: center; gap: 8px; width: 100%; max-width: 330px; }
+  .hbar .rail { position: relative; flex: 1; height: 4px; border-radius: 999px; background: var(--border-strong); }
+  .hbar .fill { position: absolute; inset: 0 auto 0 0; border-radius: 999px; }
+  .hbar .tick { position: absolute; top: -3px; bottom: -3px; width: 2px; border-radius: 1px; background: var(--text-dim); }
+  .hbar code { font-family: var(--mono); font-size: 10px; color: var(--text-faint); white-space: nowrap; }
+  .hbar code.bad { color: var(--bad-text); }
+
+  .zones { position: relative; width: 100%; max-width: 330px; height: 5px; border-radius: 999px;
+    overflow: hidden; background: var(--border-strong); }
+  .zones i { position: absolute; top: 0; bottom: 0; }
+  .zones .notch { width: 2px; background: var(--bg); }
+
+  .gate { border: 1px solid var(--accent); border-radius: var(--radius); background: var(--panel);
+    box-shadow: 0 0 0 1px var(--accent-soft), 0 10px 28px -18px var(--accent); padding: 14px 16px; width: 100%; }
+  .gate .g-eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 1.2px;
+    text-transform: uppercase; color: var(--accent-text); background: var(--accent-soft);
+    border-radius: 999px; padding: 3px 9px; display: inline-block; }
+  .gate h5 { margin: 8px 0 3px; font-size: 16px; font-weight: 700; letter-spacing: -0.024em; color: var(--text); }
+  .gate .g-sub { margin: 0 0 10px; font-size: 12px; color: var(--text-dim); }
+  .gate .g-verbs { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+
+  .sig { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel);
+    padding: 12px 14px 10px; width: 100%; display: flex; gap: 24px; flex-wrap: wrap; }
+  .sig > div { flex: 1; min-width: 180px; }
+  .sig .pad { display: flex; align-items: flex-end; height: 30px; border-bottom: 1px solid var(--border-strong);
+    padding-bottom: 2px; font-family: var(--mono); font-size: 11.5px; color: var(--text); }
+  .sig svg { width: 110px; height: 26px; overflow: visible; }
+  .sig svg path { fill: none; stroke: var(--text); stroke-width: 1.6; stroke-linecap: round; }
+  .sig .lab { margin-top: 5px; font-family: var(--mono); font-size: 9.8px; letter-spacing: .8px;
+    text-transform: uppercase; color: var(--text-faint); }
+
+  /* ---- rules footer ---- */
+  .laws { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 22px; }
+  @media (max-width: 780px) { .laws { grid-template-columns: 1fr; } }
+  .laws p { margin: 0; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 12.5px; color: var(--text-dim); }
+  .laws b { color: var(--text); font-weight: 600; }
+  .foot { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border);
+    font-family: var(--mono); font-size: 10.5px; color: var(--text-faint);
+    display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <div>
+      <span class="mark">◧</span>
+      <h1>Graphite &amp; Teal</h1>
+      <p>The Countersign design system — light-first cool neutrals, graphite-navy ink, one deep-teal
+         accent that means <b>live</b>, functional green/amber/red that mean <b>pass/warn/breach</b>,
+         and mono for every number on the record.</p>
+    </div>
+    <div class="meta">
+      <b>DESIGN.md</b> · version alpha<br>
+      source of truth · src/index.css<br>
+      format · VoltAgent/awesome-design-md
+    </div>
+  </header>
+
+  <section>
+    <div class="sechead"><h2>Color</h2><span>every value is a CSS token; re-skinning is a token swap</span></div>
+    <div class="boards">
+      <div class="board board--light">
+        <p class="board__tag">Light · default</p>
+        <div class="swgroup"><h4>Accent — signature teal</h4>
+          <div class="sw">
+            <div><i style="background:#0f7d8c"></i><b>accent</b><code>#0f7d8c</code></div>
+            <div><i style="background:#0b6573"></i><b>accent-hover</b><code>#0b6573</code></div>
+            <div><i style="background:rgba(15,125,140,.10)"></i><b>accent-soft</b><code>teal / 10%</code></div>
+            <div><i style="background:#0a6675"></i><b>accent-text</b><code>#0a6675</code></div>
+          </div>
+        </div>
+        <div class="swgroup"><h4>Surfaces &amp; lines</h4>
+          <div class="sw">
+            <div><i style="background:#ffffff"></i><b>bg / panel</b><code>#ffffff</code></div>
+            <div><i style="background:#f4f6f9"></i><b>panel-2</b><code>#f4f6f9</code></div>
+            <div><i style="background:#e5e8ef"></i><b>border</b><code>#e5e8ef</code></div>
+            <div><i style="background:#d3d9e2"></i><b>border-strong</b><code>#d3d9e2</code></div>
+          </div>
+        </div>
+        <div class="swgroup"><h4>Ink</h4>
+          <div class="sw">
+            <div><i style="background:#0f2436"></i><b>text</b><code>#0f2436</code></div>
+            <div><i style="background:#51607a"></i><b>text-dim</b><code>#51607a</code></div>
+            <div><i style="background:#8a96a8"></i><b>text-faint</b><code>#8a96a8</code></div>
+          </div>
+        </div>
+        <div class="swgroup"><h4>Functional — pass / warn / breach</h4>
+          <div class="sw">
+            <div><i style="background:#16a34a"></i><b>good</b><code>#16a34a</code></div>
+            <div><i style="background:#d9930a"></i><b>warn</b><code>#d9930a</code></div>
+            <div><i style="background:#e03131"></i><b>bad</b><code>#e03131</code></div>
+          </div>
+        </div>
+      </div>
+      <div class="board board--dark">
+        <p class="board__tag">Dark · graphite ladder</p>
+        <div class="swgroup"><h4>Accent — brighter for near-black</h4>
+          <div class="sw">
+            <div><i style="background:#2bb8cc"></i><b>accent</b><code>#2bb8cc</code></div>
+            <div><i style="background:#4dccdd"></i><b>accent-hover</b><code>#4dccdd</code></div>
+            <div><i style="background:rgba(43,184,204,.16)"></i><b>accent-soft</b><code>teal / 16%</code></div>
+            <div><i style="background:#57cfe0"></i><b>accent-text</b><code>#57cfe0</code></div>
+          </div>
+        </div>
+        <div class="swgroup"><h4>Surface ladder</h4>
+          <div class="sw">
+            <div><i style="background:#0a0b0d"></i><b>bg · canvas</b><code>#0a0b0d</code></div>
+            <div><i style="background:#111315"></i><b>panel · s1</b><code>#111315</code></div>
+            <div><i style="background:#16181b"></i><b>panel-2 · s2</b><code>#16181b</code></div>
+            <div><i style="background:#31353d"></i><b>border-strong</b><code>#31353d</code></div>
+          </div>
+        </div>
+        <div class="swgroup"><h4>Ink</h4>
+          <div class="sw">
+            <div><i style="background:#f3f5f6"></i><b>text</b><code>#f3f5f6</code></div>
+            <div><i style="background:#8b929d"></i><b>text-dim</b><code>#8b929d</code></div>
+            <div><i style="background:#777e8a"></i><b>text-faint</b><code>#777e8a</code></div>
+          </div>
+        </div>
+        <div class="swgroup"><h4>Functional</h4>
+          <div class="sw">
+            <div><i style="background:#2ea043"></i><b>good</b><code>#2ea043</code></div>
+            <div><i style="background:#d6a02b"></i><b>warn</b><code>#d6a02b</code></div>
+            <div><i style="background:#e5484d"></i><b>bad</b><code>#e5484d</code></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead"><h2>Typography</h2><span>Inter (cv11) + Geist Mono · tabular-nums on every number</span></div>
+    <div class="board" style="background:var(--panel)">
+      <div class="typerow"><code>page-title · 20/700 · −0.024em</code><div class="t-page">Agentic credit analysis</div></div>
+      <div class="typerow"><code>section-title · 18/700</code><div class="t-sect">Approval required</div></div>
+      <div class="typerow"><code>card-title · 17/700</code><div class="t-card">What would change this decision?</div></div>
+      <div class="typerow"><code>step-title · 14/700</code><div class="t-step">Test covenant compliance</div></div>
+      <div class="typerow"><code>body · 13/400 · −0.008em</code><div class="t-body">The agent reached a consequential action and paused. It will not sign off on its own.</div></div>
+      <div class="typerow"><code>field-label · 10.5/600 · +0.6px</code><div class="t-label">Total leverage</div></div>
+      <div class="typerow"><code>eyebrow · mono 10 · +1.2px</code><div class="t-eyebrow">Human-in-the-loop · Revision 2</div></div>
+      <div class="typerow"><code>mono-data · 11.5 · tnum</code><div class="t-mono">$22.6M · 17.6% &nbsp; leverage 4.26x vs ≤ 4.00x &nbsp; memo CAM-2026-0417</div></div>
+      <div class="typerow"><code>mono-badge · 10/700 · +0.5px</code><div class="t-badge">PASS &nbsp; BREACH &nbsp; 94% &nbsp; AUTO · POLICY</div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead"><h2>Shape, line &amp; depth</h2><span>4 / 6 / 10 px + pills · dashed = sandbox · dark depth = ladder + edge</span></div>
+    <div class="shapes">
+      <div class="shape"><div class="demo demo--r4"></div><p>radius-xs · 4px · chips, pills</p></div>
+      <div class="shape"><div class="demo demo--r6"></div><p>radius-sm · 6px · buttons, tiles</p></div>
+      <div class="shape"><div class="demo demo--r10"></div><p>radius · 10px · major panels</p></div>
+      <div class="shape"><div class="demo demo--pill"></div><p>pill · 999px · badges, rails</p></div>
+      <div class="shape"><div class="demo demo--dash"></div><p>dashed strong · sandbox frame</p></div>
+      <div class="shape"><div class="demo demo--spine"></div><p>3px spine · attribution</p></div>
+      <div class="shape"><div class="demo demo--sh1"></div><p>shadow-xs · card resting</p></div>
+      <div class="shape"><div class="demo demo--sh2"></div><p>shadow-sm · lifted (toast)</p></div>
+      <div class="shape"><div class="demo demo--edge"></div><p>inset edge highlight · dark</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead"><h2>Controls</h2><span>the gate's three verbs, chips, pills, badges — both themes</span></div>
+    <div class="boards">
+      <div class="board board--light">
+        <p class="board__tag">Light</p>
+        <div class="row">
+          <button class="btn btn--reject">Reject<span class="kbd">R</span></button>
+          <button class="btn btn--rework">↩ Send back for rework</button>
+          <button class="btn btn--approve">Countersign &amp; approve<span class="kbd kbd--on">A</span></button>
+        </div>
+        <div class="row">
+          <button class="btn btn--primary">Run analysis<span class="kbd kbd--on">⌘↵</span></button>
+          <button class="btn">Reset</button>
+          <span class="chip">Project Atlas <span class="rec rec--escalate">ESCALATE</span></span>
+        </div>
+        <div class="row">
+          <span class="rec rec--approve">APPROVE</span>
+          <span class="rec rec--escalate">ESCALATE</span>
+          <span class="rec rec--decline">DECLINE</span>
+          <span class="rec rec--ghost">ESCALATE</span>
+          <span class="conf conf--high">94%</span>
+          <span class="conf conf--med">86%</span>
+          <span class="conf conf--low">70%</span>
+        </div>
+        <div class="row"><span class="flag flag--critical"><i></i>Max Total Leverage 4.26x breaches the ≤ 4.00x covenant — cannot auto-approve.<em>needs human</em></span></div>
+        <div class="row"><span class="flag flag--warning"><i></i>Reviewer send-back (rev 1): re-verify the EBITDA adjustments.<em>needs human</em></span></div>
+      </div>
+      <div class="board board--dark">
+        <p class="board__tag">Dark</p>
+        <div class="row">
+          <button class="btn btn--reject" style="background:var(--panel)">Reject<span class="kbd">R</span></button>
+          <button class="btn btn--rework">↩ Send back for rework</button>
+          <button class="btn btn--approve">Countersign &amp; approve<span class="kbd kbd--on">A</span></button>
+        </div>
+        <div class="row">
+          <button class="btn btn--primary">Run analysis<span class="kbd kbd--on">⌘↵</span></button>
+          <button class="btn">Reset</button>
+          <span class="chip">Project Atlas <span class="rec rec--escalate">ESCALATE</span></span>
+        </div>
+        <div class="row">
+          <span class="rec rec--approve">APPROVE</span>
+          <span class="rec rec--escalate">ESCALATE</span>
+          <span class="rec rec--decline">DECLINE</span>
+          <span class="rec rec--ghost">ESCALATE</span>
+          <span class="conf conf--high">94%</span>
+          <span class="conf conf--med">86%</span>
+          <span class="conf conf--low">70%</span>
+        </div>
+        <div class="row"><span class="flag flag--critical"><i></i>Max Total Leverage 4.26x breaches the ≤ 4.00x covenant — cannot auto-approve.<em>needs human</em></span></div>
+        <div class="row"><span class="flag flag--warning"><i></i>Reviewer send-back (rev 1): re-verify the EBITDA adjustments.<em>needs human</em></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead"><h2>Components</h2><span>specimens with real product data</span></div>
+    <div class="boards">
+      <div class="board board--light">
+        <p class="board__tag">Light</p>
+        <div class="row">
+          <span class="metric"><b>Total leverage</b><span>4.26x</span><span class="conf conf--high">94%</span></span>
+          <span class="metric"><b>Adj. EBITDA</b><span>$22.6M · 17.6%</span><span class="conf conf--high">94%</span></span>
+          <span class="metric"><b>Liquidity</b><span>$14.2M</span><span class="conf conf--med">86%</span></span>
+        </div>
+        <div class="row"><div class="plan">
+          <div class="is-done"><i>✓</i><span>Extract financials</span></div>
+          <div class="is-active"><i>2</i><span>Compute risk score</span></div>
+          <div class="is-skip"><i>–</i><span>Benchmark peers</span></div>
+          <div><i>4</i><span>Test covenants</span></div>
+        </div></div>
+        <div class="row"><span class="hbar">
+          <span class="rail"><span class="fill" style="width:82%;background:var(--bad)"></span><span class="tick" style="left:77%"></span></span>
+          <code class="bad">0.26x over</code>
+        </span></div>
+        <div class="row"><span class="hbar">
+          <span class="rail"><span class="fill" style="width:56%;background:var(--good)"></span><span class="tick" style="left:71%"></span></span>
+          <code>$4.2M room</code>
+        </span></div>
+        <div class="row"><span class="zones">
+          <i style="left:0;width:34%;background:rgba(224,49,49,.35)"></i>
+          <i class="notch" style="left:34%"></i>
+          <i style="left:34%;width:31%;background:rgba(217,147,10,.4)"></i>
+          <i class="notch" style="left:65%"></i>
+          <i style="left:65%;width:35%;background:rgba(22,163,74,.4)"></i>
+        </span></div>
+        <div class="row"><div class="gate">
+          <span class="g-eyebrow">human-in-the-loop · revision 2</span>
+          <h5>Approval required</h5>
+          <p class="g-sub">On the proposed revised structure · <span class="rec rec--approve">APPROVE</span></p>
+          <div class="g-verbs">
+            <button class="btn btn--reject">Reject</button>
+            <button class="btn btn--approve">Countersign as amended</button>
+          </div>
+        </div></div>
+        <div class="row"><div class="sig">
+          <div><div class="pad">/s/ Countersign · CAM-2026-0417</div><div class="lab">Prepared by · credit analyst</div></div>
+          <div><div class="pad"><svg viewBox="0 0 120 30"><path d="M4 22 C 13 4, 20 27, 29 13 S 44 5, 51 18 S 66 27, 79 11 c 5 -7, 9 -1, 13 3 s 13 4, 22 -3"/></svg></div><div class="lab">Countersigned by · human reviewer</div></div>
+        </div></div>
+      </div>
+      <div class="board board--dark">
+        <p class="board__tag">Dark</p>
+        <div class="row">
+          <span class="metric"><b>Total leverage</b><span>4.26x</span><span class="conf conf--high">94%</span></span>
+          <span class="metric"><b>Adj. EBITDA</b><span>$22.6M · 17.6%</span><span class="conf conf--high">94%</span></span>
+          <span class="metric"><b>Liquidity</b><span>$14.2M</span><span class="conf conf--med">86%</span></span>
+        </div>
+        <div class="row"><div class="plan">
+          <div class="is-done"><i>✓</i><span>Extract financials</span></div>
+          <div class="is-active"><i>2</i><span>Compute risk score</span></div>
+          <div class="is-skip"><i>–</i><span>Benchmark peers</span></div>
+          <div><i>4</i><span>Test covenants</span></div>
+        </div></div>
+        <div class="row"><span class="hbar">
+          <span class="rail"><span class="fill" style="width:82%;background:var(--bad)"></span><span class="tick" style="left:77%"></span></span>
+          <code class="bad">0.26x over</code>
+        </span></div>
+        <div class="row"><span class="hbar">
+          <span class="rail"><span class="fill" style="width:56%;background:var(--good)"></span><span class="tick" style="left:71%"></span></span>
+          <code>$4.2M room</code>
+        </span></div>
+        <div class="row"><span class="zones">
+          <i style="left:0;width:34%;background:rgba(229,72,77,.42)"></i>
+          <i class="notch" style="left:34%"></i>
+          <i style="left:34%;width:31%;background:rgba(214,160,43,.45)"></i>
+          <i class="notch" style="left:65%"></i>
+          <i style="left:65%;width:35%;background:rgba(46,160,67,.45)"></i>
+        </span></div>
+        <div class="row"><div class="gate">
+          <span class="g-eyebrow">human-in-the-loop · revision 2</span>
+          <h5>Approval required</h5>
+          <p class="g-sub">On the proposed revised structure · <span class="rec rec--approve">APPROVE</span></p>
+          <div class="g-verbs">
+            <button class="btn btn--reject" style="background:var(--panel)">Reject</button>
+            <button class="btn btn--approve">Countersign as amended</button>
+          </div>
+        </div></div>
+        <div class="row"><div class="sig">
+          <div><div class="pad">/auto/ clean-approval policy</div><div class="lab">Auto-countersigned · supervised</div></div>
+          <div><div class="pad"><svg viewBox="0 0 120 30"><path d="M4 22 C 13 4, 20 27, 29 13 S 44 5, 51 18 S 66 27, 79 11 c 5 -7, 9 -1, 13 3 s 13 4, 22 -3"/></svg></div><div class="lab">Countersigned by · human reviewer</div></div>
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead"><h2>System laws</h2><span>the rules that keep it coherent — including what was tried and rejected</span></div>
+    <div class="laws">
+      <p><b>Teal is scarce.</b> Live, active, focus, provenance, identity — never decoration, never a functional state.</p>
+      <p><b>Green/amber/red carry meaning.</b> Pass, warn, breach. They never mix with teal and never mark liveness.</p>
+      <p><b>Every number is mono + tabular-nums</b>, labeled by an uppercase micro-label. 10px is the type floor.</p>
+      <p><b>One motion curve</b> — cubic-bezier(.22, 1, .36, 1). Announce, then rest: decision surfaces go still.</p>
+      <p><b>Dashed hairline = sandbox.</b> The what-if panel and term amendments are scratchpads, not the record.</p>
+      <p><b>Dark-mode law:</b> alpha borders vanish on graphite — frame tinted elements with the solid color; ghost buttons on tint get a solid panel fill.</p>
+      <p><b>Rejected, do not resurrect:</b> a serif document voice, dimming content behind the gate, glass surfaces, theme-reveal transitions, decorative progress rules.</p>
+      <p><b>One typeface family.</b> Inter for the voice, Geist Mono for the record. Nothing else.</p>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span>Countersign · Graphite &amp; Teal — original system, not a clone</span>
+    <span>DESIGN.md · github.com/chang627627/credit-analysis-agent</span>
+  </footer>
+</div>

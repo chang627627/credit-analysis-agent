@@ -581,6 +581,17 @@ textarea::placeholder {
   background: var(--bad-soft);
   border-color: var(--bad);
 }
+/* Send back for rework — the neutral middle verb: not a refusal, not a signature. */
+.btn--rework {
+  background: var(--panel);
+  border-color: var(--border-strong);
+  color: var(--text-dim);
+}
+.btn--rework:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
 
 /* -------------------------------------------------------------- document */
 
@@ -1216,6 +1227,12 @@ textarea::placeholder {
   align-self: flex-start;
 }
 
+/* What the confidence numbers actually mean — states the real flag rule. */
+.gate__confnote {
+  margin: -6px 0 14px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
 .gate__flags {
   margin-bottom: 14px;
 }
@@ -1226,6 +1243,55 @@ textarea::placeholder {
   border-left: 2px solid var(--border-strong);
   padding-left: 12px;
   margin: 0 0 18px;
+}
+
+/* Reviewer note — the human's rationale, captured INTO the record. */
+.gate__notewrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 14px;
+}
+.gate__notelabel {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-faint);
+}
+.gate__notelabel em {
+  font-style: normal;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-faint);
+}
+.gate__note {
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  resize: vertical;
+  min-height: 40px;
+  transition: border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
+}
+.gate__note:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.gate__note--need {
+  border-color: var(--bad);
+}
+.gate__note--need:focus-visible {
+  border-color: var(--bad);
+  box-shadow: 0 0 0 3px var(--bad-soft);
+}
+.gate__notehint {
+  font-size: 12px;
+  color: var(--bad-text);
 }
 .gate__actions {
   display: flex;
@@ -1289,6 +1355,16 @@ textarea::placeholder {
   font-size: 12px;
   color: var(--text-dim);
   font-family: var(--mono);
+}
+/* the reviewer's recorded rationale — prose, not mono: it's a human's words */
+.outcome__text .outcome__note {
+  font-family: inherit;
+  font-style: italic;
+  color: var(--text);
+}
+.outcome__text .outcome__routed {
+  font-family: inherit;
+  color: var(--accent-text);
 }
 
 /* ------------------------------------------------------------ empty state */
@@ -1845,6 +1921,28 @@ textarea::placeholder {
   border-color: var(--accent);
 }
 .whatif__reset:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+/* attach-to-record: same quiet chrome as reset — an action ON the sandbox */
+.whatif__attach {
+  align-self: flex-start;
+  margin-top: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-text);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 6px 11px;
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
+}
+.whatif__attach:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.whatif__attach:disabled {
   opacity: 0.45;
   cursor: default;
 }
@@ -3141,6 +3239,9 @@ mark.cited {
 .arow--human .arow__icon,
 .arow--human .arow__label {
   color: var(--accent-text);
+}
+.arow--whatif .arow__icon {
+  color: var(--warn-text);
 }
 .arow--monitor .arow__icon {
   color: var(--bad-text);

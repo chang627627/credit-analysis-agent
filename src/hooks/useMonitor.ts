@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Deal } from '../agent/mockData';
 import type { EscalationItem, PortfolioDealState } from '../agent/monitor';
 import { sweepPortfolio } from '../agent/monitor';
+import { uid } from '../agent/util';
 
 export interface MonitorApi {
   portfolio: PortfolioDealState[];
@@ -19,6 +20,8 @@ export interface MonitorApi {
   sweepCount: number;
   sweepNow: () => void;
   acknowledge: (id: string) => void;
+  /** Raise an escalation from outside the sweep (e.g. a countersigned ESCALATE memo). Deduped by key. */
+  raise: (item: Omit<EscalationItem, 'id' | 'at' | 'status'>) => void;
 }
 
 export function useMonitor(deals: Deal[], speed: number): MonitorApi {
@@ -94,6 +97,14 @@ export function useMonitor(deals: Deal[], speed: number): MonitorApi {
     setEscalations((prev) => prev.map((e) => (e.id === id ? { ...e, status: 'acknowledged' } : e)));
   }, []);
 
+  // The queue is the escalation destination for the WHOLE workforce, not just
+  // the sweep — a countersigned ESCALATE memo lands here instead of evaporating.
+  const raise = useCallback((item: Omit<EscalationItem, 'id' | 'at' | 'status'>) => {
+    if (seenKeysRef.current.has(item.key)) return;
+    seenKeysRef.current.add(item.key);
+    setEscalations((prev) => [{ ...item, id: uid('esc'), at: Date.now(), status: 'open' }, ...prev]);
+  }, []);
+
   return {
     portfolio: [...portfolio.values()],
     escalations,
@@ -102,5 +113,6 @@ export function useMonitor(deals: Deal[], speed: number): MonitorApi {
     sweepCount,
     sweepNow,
     acknowledge,
+    raise,
   };
 }

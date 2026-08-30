@@ -49,6 +49,8 @@ export interface EscalationItem {
   reason: string;
   at: number;
   status: 'open' | 'acknowledged';
+  /** where it came from: a monitor sweep (default) or a countersigned ESCALATE memo */
+  origin?: 'monitor' | 'countersign';
 }
 
 export type MonitorEvent =

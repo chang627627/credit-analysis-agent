@@ -66,9 +66,25 @@ export interface ApprovalPackage {
   keyMetrics: KeyMetric[];
   flags: Flag[];
   summary: string;
+  /** 1 = first pass; bumped each time the reviewer sends the memo back. */
+  revision: number;
+  /** Send-back notes from prior rework cycles, oldest first. */
+  reviewerNotes: string[];
 }
 
 export type ApprovalDecision = 'approve' | 'reject';
+
+/**
+ * How the human resolves the gate. `rework` re-enters the loop instead of
+ * finishing it. The note is the reviewer's rationale — optional to approve,
+ * required (enforced by the gate UI) to reject or send back, because a human
+ * decision without a reason is the one thing a regulated trail can't carry.
+ */
+export type GateVerb = ApprovalDecision | 'rework';
+export interface GateDecision {
+  verb: GateVerb;
+  note?: string;
+}
 
 /** The event stream. The UI is a pure function of the reduction of these. */
 export type AgentEvent =
@@ -80,7 +96,9 @@ export type AgentEvent =
   | { type: 'flag'; stepId: string; flag: Flag }
   | { type: 'step_completed'; stepId: string }
   | { type: 'awaiting_approval'; package: ApprovalPackage }
-  | { type: 'run_finished'; outcome: ApprovalDecision; package: ApprovalPackage };
+  /** The plan grew mid-run (a reviewer send-back appended a revision step). */
+  | { type: 'plan_updated'; plan: PlanStep[] }
+  | { type: 'run_finished'; outcome: ApprovalDecision; package: ApprovalPackage; note?: string };
 
 /**
  * Everything the loop needs from the outside world. `requestApproval` is the
@@ -91,7 +109,7 @@ export type AgentEvent =
 export interface AgentContext {
   /** The deal being analyzed this run — snapshotted at start. */
   deal: Deal;
-  requestApproval: () => Promise<ApprovalDecision>;
+  requestApproval: () => Promise<GateDecision>;
   readonly speed: number;
   signal?: AbortSignal;
 }

@@ -27,7 +27,14 @@ const fmtDelta = (d: Driver, v: number): string => {
   return d.unit === 'pct' ? `${sign}${delta.toFixed(2)} pts` : `${sign}${delta.toFixed(1)}M`;
 };
 
-export function WhatIfPanel({ deal }: { deal: Deal }) {
+export function WhatIfPanel({
+  deal,
+  onAttach,
+}: {
+  deal: Deal;
+  /** Put the current scenario on the record — it becomes an audit-trail entry. */
+  onAttach?: (label: string, detail: string) => void;
+}) {
   const drivers = useMemo(() => driversFor(deal), [deal]);
   const base = useMemo(() => baselineScenario(deal), [deal]);
   const [scenario, setScenario] = useState<Scenario>(base);
@@ -37,6 +44,23 @@ export function WhatIfPanel({ deal }: { deal: Deal }) {
 
   const dirty = (Object.keys(scenario) as (keyof Scenario)[]).some((k) => scenario[k] !== base[k]);
   const flipped = live.recommendation !== baseOutcome.recommendation;
+
+  // Attach-to-record: sensitivity analysis belongs in the memo file, not just
+  // on screen. Disabled at base (nothing stressed) and after attaching the
+  // exact same scenario (no duplicate rows).
+  const scenarioKey = JSON.stringify(scenario);
+  const [attachedKey, setAttachedKey] = useState<string | null>(null);
+  const attach = () => {
+    if (!onAttach) return;
+    const changes = drivers
+      .filter((d) => scenario[d.key] !== base[d.key])
+      .map((d) => `${d.label} ${fmtValue(d, base[d.key])}→${fmtValue(d, scenario[d.key])}`)
+      .join(', ');
+    const label = `What-if scenario attached · ${REC_LABEL[baseOutcome.recommendation]} → ${REC_LABEL[live.recommendation]}${flipped ? ' (flips)' : ' (holds)'}`;
+    const detail = `${changes} ⇒ risk ${baseOutcome.risk.score}→${live.risk.score}, breaches ${baseOutcome.breaches}→${live.breaches}`;
+    onAttach(label, detail);
+    setAttachedKey(scenarioKey);
+  };
 
   // `bump` increments on every change so we can re-key the outcome row → it visibly
   // flashes "recomputed" on EVERY drag, even a sub-threshold one that doesn't flip the verdict.
@@ -119,6 +143,16 @@ export function WhatIfPanel({ deal }: { deal: Deal }) {
             {!dirty ? 'matches base' : flipped ? 'flips the recommendation' : 'recomputed · holds'}
           </span>
         </div>
+        {onAttach && (
+          <button
+            className="whatif__attach"
+            onClick={attach}
+            disabled={!dirty || attachedKey === scenarioKey}
+            title="Record this scenario in the audit trail — stressed drivers, resulting risk and recommendation"
+          >
+            {attachedKey === scenarioKey ? '✓ Scenario on the record' : '⎘ Attach scenario to audit trail'}
+          </button>
+        )}
         <div className="whatif__risk">
           <div className="whatif__risktrack" aria-hidden="true">
             <div

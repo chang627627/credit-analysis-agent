@@ -24,9 +24,16 @@ export function uid(prefix = 'id'): string {
   return `${prefix}_${counter}`;
 }
 
+/**
+ * Below this, a tool observation is "low" confidence AND the agent loop raises
+ * a needs-human flag on the run. One constant so the badge bucket, the flag
+ * rule, and the UI's explainer text can never disagree about the threshold.
+ */
+export const LOW_CONFIDENCE_FLOOR = 0.75;
+
 /** 0..1 -> "high" | "medium" | "low" confidence bucket. */
 export function confidenceBucket(c: number): 'high' | 'medium' | 'low' {
   if (c >= 0.9) return 'high';
-  if (c >= 0.75) return 'medium';
+  if (c >= LOW_CONFIDENCE_FLOOR) return 'medium';
   return 'low';
 }

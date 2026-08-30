@@ -203,7 +203,9 @@ export default function App() {
   // Global keyboard shortcuts. ⌘K always works; the palette consumes its own
   // keys; ⌘↵ works everywhere (the composer ignores meta+Enter); single-key
   // shortcuts require NO modifiers (⌘A/⌘R/⌘[ stay select-all/reload/back) and
-  // are excluded in typing contexts.
+  // are excluded in typing contexts. A/R live inside ApprovalGate now — they
+  // only exist while the gate is mounted, and R routes through the
+  // note-required flow instead of rejecting blind.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -222,18 +224,6 @@ export default function App() {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (status === 'awaiting_approval') {
-        if (e.key === 'a' || e.key === 'A') {
-          e.preventDefault();
-          agent.approve();
-          return;
-        }
-        if (e.key === 'r' || e.key === 'R') {
-          e.preventDefault();
-          agent.reject();
-          return;
-        }
-      }
       if (e.key === '[') {
         e.preventDefault();
         setNavCollapsed((v) => !v);
@@ -242,14 +232,33 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [busy, status, paletteOpen, agent.start, agent.approve, agent.reject, notify]);
+  }, [busy, paletteOpen, agent.start]);
+
+  // A countersigned ESCALATE needs a destination, not an ending: route it into
+  // the portfolio escalation queue (deduped per run) so senior review picks it up.
+  useEffect(() => {
+    if (status !== 'approved') return;
+    const pkg = agent.approvalPackage;
+    if (!pkg || pkg.recommendation !== 'escalate') return;
+    monitor.raise({
+      key: `${agent.selectedDealId}:countersign-escalate:run${agent.runId}`,
+      dealId: agent.selectedDealId,
+      dealName: agent.deals.find((d) => d.id === agent.selectedDealId)?.name ?? pkg.borrower,
+      severity: 'warning',
+      reason: `Memo ${pkg.memoId} countersigned as ESCALATE — routed for senior credit review`,
+      origin: 'countersign',
+    });
+    notify('Escalation routed to the Portfolio queue', 'good');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
 
   // Context-aware command palette: only currently-possible actions appear.
   const commands: Command[] = [
-    ...(status === 'awaiting_approval'
+    ...(status === 'awaiting_approval' && view === 'analysis'
       ? [
-          { id: 'approve', label: 'Countersign & approve', section: 'Decision', kbd: 'A', run: agent.approve },
-          { id: 'reject', label: 'Reject package', section: 'Decision', kbd: 'R', run: agent.reject },
+          // Approve only — reject/send-back require a reason typed at the gate,
+          // so the palette doesn't offer a one-keystroke way around the record.
+          { id: 'approve', label: 'Countersign & approve', section: 'Decision', kbd: 'A', run: () => agent.approve() },
         ]
       : []),
     ...(!busy
@@ -363,19 +372,35 @@ export default function App() {
                 )}
 
                 {status === 'awaiting_approval' && agent.approvalPackage && (
-                  <ApprovalGate pkg={agent.approvalPackage} onApprove={agent.approve} onReject={agent.reject} />
+                  <ApprovalGate
+                    pkg={agent.approvalPackage}
+                    onApprove={agent.approve}
+                    onReject={agent.reject}
+                    onRework={agent.requestRework}
+                  />
                 )}
 
                 {finished && agent.approvalPackage && (
                   <OutcomeBanner
                     approved={status === 'approved'}
                     pkg={agent.approvalPackage}
+                    note={agent.decisionNote}
                     onReset={handleReset}
                     onExport={handleExport}
+                    onOpenQueue={() => setView('portfolio')}
                   />
                 )}
 
-                {showWhatIf && currentDeal && <WhatIfPanel key={currentDeal.id} deal={currentDeal} />}
+                {showWhatIf && currentDeal && (
+                  <WhatIfPanel
+                    key={currentDeal.id}
+                    deal={currentDeal}
+                    onAttach={(label, detail) => {
+                      agent.logWhatIf(label, detail);
+                      notify('Scenario attached to the audit trail', 'good');
+                    }}
+                  />
+                )}
 
                 <MessageThread messages={agent.messages} />
               </div>

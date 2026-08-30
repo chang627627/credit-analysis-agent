@@ -8,6 +8,14 @@
 import type { AgentContext, ToolName, ToolResult } from './types';
 import { sleep } from './util';
 
+/**
+ * Confidence per observation. Uploaded documents score lower than the curated
+ * samples — simulated extraction is less certain on an unseen file — which is
+ * what exercises the loop's low-confidence flag rule (see LOW_CONFIDENCE_FLOOR).
+ */
+const conf = (ctx: AgentContext, base: number): number =>
+  ctx.deal.uploaded ? Math.round((base - 0.18) * 100) / 100 : base;
+
 export interface ToolDef {
   name: ToolName;
   label: string;
@@ -26,7 +34,7 @@ export const TOOLS: Record<ToolName, ToolDef> = {
     },
     run: async (ctx) => {
       await sleep(1100 / ctx.speed, ctx.signal);
-      return { data: ctx.deal.financials, confidence: 0.94, durationMs: 1100 };
+      return { data: ctx.deal.financials, confidence: conf(ctx, 0.94), durationMs: 1100 };
     },
   },
 
@@ -36,7 +44,7 @@ export const TOOLS: Record<ToolName, ToolDef> = {
     defaultArgs: { model: 'internal-pd-v3', inputs: 'extracted_financials' },
     run: async (ctx) => {
       await sleep(800 / ctx.speed, ctx.signal);
-      return { data: ctx.deal.risk, confidence: 0.88, durationMs: 800 };
+      return { data: ctx.deal.risk, confidence: conf(ctx, 0.88), durationMs: 800 };
     },
   },
 
@@ -46,7 +54,7 @@ export const TOOLS: Record<ToolName, ToolDef> = {
     defaultArgs: { package: 'proposed_term_sheet_v2' },
     run: async (ctx) => {
       await sleep(900 / ctx.speed, ctx.signal);
-      return { data: ctx.deal.covenants, confidence: 0.97, durationMs: 900 };
+      return { data: ctx.deal.covenants, confidence: conf(ctx, 0.97), durationMs: 900 };
     },
   },
 
@@ -61,7 +69,7 @@ export const TOOLS: Record<ToolName, ToolDef> = {
       await sleep(700 / ctx.speed, ctx.signal);
       return {
         data: { memoId: ctx.deal.memoId, sections: 5, attachments: ['audit_trail.json'] },
-        confidence: 0.91,
+        confidence: conf(ctx, 0.91),
         durationMs: 700,
       };
     },

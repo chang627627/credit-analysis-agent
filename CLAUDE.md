@@ -163,8 +163,11 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
 - **Single-key shortcuts must reject modifiers:** the A/R gate shortcuts guard with
   `if (e.metaKey || e.ctrlKey || e.altKey) return` — otherwise ⌘A (select-all) approves and
   ⌘R (reload) rejects a memo. Caught by adversarial review; keep the guard if editing shortcuts.
-- **Preview console buffer persists across reloads** — only a server restart clears it; old
-  HMR-window errors linger and look current.
+- **Preview console buffer persists across reloads AND server restarts** (it's per-tab); old
+  HMR-window errors linger and look current. Judge freshness by ORDER: entries before the
+  "WebSocket connection failed" burst (logged when a server stops) predate the restart.
+  A hook-count edit to `useCreditAgent`/`useMonitor` shows up as an App hook-order error
+  (custom-hook hooks count under App) — mid-HMR only; gone on fresh load.
 - **Backgrounded preview tab gets timer-throttled** (Chrome: down to ~1 timer/min) — the agent's
   simulated delays, monitor sweeps, and any in-page polling all crawl. If runs seem stuck during
   automated verification, it's throttling, not the app; verify with the tab focused.
@@ -283,6 +286,36 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       because a wider status pill wraps the agent name to 2 lines); `.acard__type` capped to one line.
       Net: heads/tiles/buttons all share the same Y across cards regardless of name-wrap or
       description length (verified kpisTop + actionsTop identical across all three cards).
+
+- [x] **The five gate/audit fixes** (self-audit found the design's real problems at the
+      workflow-semantics layer; all five shipped and verified live, both themes):
+      **(1) Reviewer note at the gate** — the human was the least-documented actor in a product
+      about documentation. The gate now has a note field: optional to approve, REQUIRED to
+      reject/send back (empty → inline hint + focus, no blind action; the R shortcut routes
+      through the same flow; the palette's one-keystroke Reject was removed). The note rides the
+      gate resolution (`GateDecision { verb, note }`) into `run_finished`, the audit trail, the
+      outcome banner (italic quote) and both JSON exports. A/R shortcuts moved INTO ApprovalGate
+      (mounted = active; same modifier/typing guards).
+      **(2) "Send back for rework"** — the third gate verb. The generator does NOT finish: the
+      gate loop re-enters, appends a "Revise per reviewer note · rev N" plan step
+      (`plan_updated` event), streams revision reasoning, re-runs the Memo Builder with
+      `reviewerNote` in its args, converts the note into a tracked needs-human flag on the memo,
+      and re-suspends at a "revision N" gate. Verified through TWO consecutive send-backs + a
+      countersign in one run. Reject stays terminal ("the deal is bad"); send-back = "the work
+      needs another pass".
+      **(3) Countersigned ESCALATE routes somewhere** — App effect raises a deduped
+      (`origin: 'countersign'`) item into the monitor's escalation queue via a new
+      `monitor.raise()`; outcome banner says so + "View escalation queue" chip; audit log
+      sources it as "countersign routing". ESCALATE no longer evaporates.
+      **(4) Confidence legibility** — `LOW_CONFIDENCE_FLOOR = 0.75` (one constant shared by the
+      badge bucket, the flag rule, and the UI copy). The loop now REALLY flags any observation
+      below the floor (needs-human); uploaded/synthesized deals get −0.18 confidence (unseen
+      docs parse worse) so the rule visibly fires on the upload path. Badge tooltip + a
+      one-line explainer under the gate metrics state the actual thresholds.
+      **(5) What-if scenarios attach to the record** — "Attach scenario to audit trail" button
+      (disabled at base / after attaching the same scenario) logs a `whatif`-kind audit entry
+      (drivers changed, risk/breach/recommendation deltas) with its own FlaskConical icon +
+      filter chip in AuditView; sensitivity analysis is no longer screen-only.
 
 ## Backlog (to-do)
 

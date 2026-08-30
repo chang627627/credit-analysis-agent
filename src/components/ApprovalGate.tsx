@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ApprovalPackage, Recommendation } from '../agent/types';
+import { LOW_CONFIDENCE_FLOOR } from '../agent/util';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { FlagPill } from './FlagPill';
 
@@ -11,17 +12,45 @@ const REC_LABEL: Record<Recommendation, string> = {
 
 /**
  * The human-in-the-loop gate. The agent loop is literally suspended (awaiting a
- * Promise) while this is on screen; nothing proceeds until a person clicks.
+ * Promise) while this is on screen; nothing proceeds until a person acts.
+ *
+ * Three verbs, one note. Approve countersigns the package (note optional);
+ * Reject refuses it and Send back re-enters the loop — both REQUIRE a note,
+ * because a human decision without a reason is the one hole a regulated audit
+ * trail can't have. The note rides the gate resolution into the event stream.
  */
 export function ApprovalGate({
   pkg,
   onApprove,
   onReject,
+  onRework,
 }: {
   pkg: ApprovalPackage;
-  onApprove: () => void;
-  onReject: () => void;
+  onApprove: (note?: string) => void;
+  onReject: (note: string) => void;
+  onRework: (note: string) => void;
 }) {
+  const [note, setNote] = useState('');
+  const [needNote, setNeedNote] = useState(false);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
+  const noteValRef = useRef(note);
+  noteValRef.current = note;
+
+  const demandNote = () => {
+    setNeedNote(true);
+    noteRef.current?.focus();
+  };
+  const tryReject = () => {
+    const n = noteValRef.current.trim();
+    if (!n) return demandNote();
+    onReject(n);
+  };
+  const tryRework = () => {
+    const n = noteValRef.current.trim();
+    if (!n) return demandNote();
+    onRework(n);
+  };
+
   // The agent just suspended on a consequential decision — bring the reviewer's
   // viewport AND keyboard focus to the gate so gate → A/R is a two-second flow.
   const ref = useRef<HTMLElement>(null);
@@ -33,6 +62,28 @@ export function ApprovalGate({
     if (tag !== 'TEXTAREA' && tag !== 'INPUT') ref.current?.focus({ preventScroll: true });
   }, []);
 
+  // A/R shortcuts live WITH the gate (they only exist while it's mounted).
+  // Guards: no modifiers (⌘A stays select-all, ⌘R stays reload) and never
+  // while typing. R with an empty note doesn't reject blind — it asks for the
+  // reason, same as the button.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') return;
+      if (e.key === 'a' || e.key === 'A') {
+        e.preventDefault();
+        onApprove(noteValRef.current.trim() || undefined);
+      } else if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        tryReject();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onApprove, onReject]);
+
   return (
     <section
       className="gate"
@@ -42,7 +93,9 @@ export function ApprovalGate({
       aria-label="Approval required — human decision needed"
     >
       <header className="gate__head">
-        <span className="gate__badge">human-in-the-loop</span>
+        <span className="gate__badge">
+          human-in-the-loop{pkg.revision > 1 ? ` · revision ${pkg.revision}` : ''}
+        </span>
         <h3 className="gate__title">Approval required</h3>
         <p className="gate__sub">
           The agent reached a consequential action and paused. It will not sign off on its own.
@@ -66,6 +119,10 @@ export function ApprovalGate({
           </div>
         ))}
       </div>
+      <p className="gate__confnote">
+        Confidence = simulated extraction certainty per observation · ≥90% high · 75–90% medium ·
+        &lt;{Math.round(LOW_CONFIDENCE_FLOOR * 100)}% is flagged for human verification.
+      </p>
 
       {pkg.flags.length > 0 && (
         <div className="gate__flags">
@@ -77,11 +134,37 @@ export function ApprovalGate({
 
       <p className="gate__summary">{pkg.summary}</p>
 
+      <label className="gate__notewrap">
+        <span className="gate__notelabel">
+          Reviewer note · goes on the record
+          <em> — optional to approve, required to reject or send back</em>
+        </span>
+        <textarea
+          ref={noteRef}
+          className={`gate__note${needNote ? ' gate__note--need' : ''}`}
+          rows={2}
+          value={note}
+          placeholder="e.g. EBITDA add-backs look aggressive — re-check the adjustments before I sign."
+          onChange={(e) => {
+            setNote(e.target.value);
+            if (needNote && e.target.value.trim()) setNeedNote(false);
+          }}
+        />
+        {needNote && (
+          <span className="gate__notehint" role="alert">
+            A reason is required for the record — add a note, then reject or send back.
+          </span>
+        )}
+      </label>
+
       <div className="gate__actions">
-        <button className="btn btn--reject" onClick={onReject}>
+        <button className="btn btn--reject" onClick={tryReject}>
           Reject <span className="kbd">R</span>
         </button>
-        <button className="btn btn--approve" onClick={onApprove}>
+        <button className="btn btn--rework" onClick={tryRework}>
+          ↩ Send back for rework
+        </button>
+        <button className="btn btn--approve" onClick={() => onApprove(note.trim() || undefined)}>
           Countersign &amp; approve <span className="kbd kbd--on-accent">A</span>
         </button>
       </div>

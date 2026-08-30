@@ -14,11 +14,11 @@
 // (approve / escalate / decline), all from the same loop.
 // ---------------------------------------------------------------------------
 
-import type { AgentContext, AgentEvent, ApprovalPackage, Flag, PlanStep, Recommendation, ToolCall, ToolName } from './types';
+import type { AgentContext, AgentEvent, ApprovalPackage, Flag, PlanStep, Recommendation, ToolCall, ToolName, ToolResult } from './types';
 import type { Deal } from './mockData';
 import { TOOLS } from './tools';
 import { decide } from './whatif';
-import { sleep, uid } from './util';
+import { LOW_CONFIDENCE_FLOOR, sleep, uid } from './util';
 
 /**
  * The decision rule, exported so the UI can preview a deal's computed outcome.
@@ -91,7 +91,21 @@ function deriveFlags(deal: Deal): Flag[] {
   return flags;
 }
 
-function buildPackage(deal: Deal, flags: Flag[]): ApprovalPackage {
+/**
+ * The "decide" rule for uncertainty itself: an observation below the confidence
+ * floor becomes a needs-human flag. Uncertainty is routed, never auto-passed.
+ */
+function lowConfidenceFlag(label: string, result: ToolResult): Flag | null {
+  if (result.confidence >= LOW_CONFIDENCE_FLOOR) return null;
+  return {
+    id: uid('flag'),
+    severity: 'warning',
+    message: `${label} returned ${Math.round(result.confidence * 100)}% confidence (floor ${Math.round(LOW_CONFIDENCE_FLOOR * 100)}%) — figures need human verification against the source.`,
+    needsHuman: true,
+  };
+}
+
+function buildPackage(deal: Deal, flags: Flag[], revision = 1, reviewerNotes: string[] = []): ApprovalPackage {
   const recommendation = recommendationFor(deal);
   const f = deal.financials;
   return {
@@ -100,6 +114,8 @@ function buildPackage(deal: Deal, flags: Flag[]): ApprovalPackage {
     facility: deal.document.facility,
     recommendation,
     riskRating: deal.risk.rating,
+    revision,
+    reviewerNotes,
     keyMetrics: [
       { label: 'Revenue (TTM)', value: `$${f.revenueTtm}M`, confidence: 0.94 },
       { label: 'Adj. EBITDA', value: `$${f.ebitdaTtm}M · ${f.ebitdaMarginPct}%`, confidence: 0.94 },
@@ -123,13 +139,15 @@ async function* streamThinking(stepId: string, text: string, ctx: AgentContext):
 
 export async function* runCreditAgent(ctx: AgentContext): AsyncGenerator<AgentEvent> {
   const { deal } = ctx;
-  yield { type: 'run_started', plan: PLAN, documentTitle: deal.document.title };
+  // local copy: reviewer send-backs append revision steps to THIS run's plan
+  const plan = [...PLAN];
+  yield { type: 'run_started', plan, documentTitle: deal.document.title };
   await sleep(300 / ctx.speed, ctx.signal);
 
   const collectedFlags: Flag[] = [];
 
-  for (let i = 0; i < PLAN.length; i++) {
-    const step = PLAN[i];
+  for (let i = 0; i < plan.length; i++) {
+    const step = plan[i];
     yield { type: 'step_started', stepId: step.id, index: i, title: step.title };
 
     // (a) stream reasoning
@@ -149,7 +167,14 @@ export async function* runCreditAgent(ctx: AgentContext): AsyncGenerator<AgentEv
     const result = await tool.run(ctx);
     yield { type: 'tool_result', stepId: step.id, call, result };
 
-    // (d) decide: derive flags from the observation
+    // (d) decide: derive flags from the observation — including from its
+    // confidence: a low-certainty reading is itself a reason to involve a human
+    const lowConf = lowConfidenceFlag(tool.label, result);
+    if (lowConf) {
+      collectedFlags.push(lowConf);
+      yield { type: 'flag', stepId: step.id, flag: lowConf };
+      await sleep(220 / ctx.speed, ctx.signal);
+    }
     if (step.toolName === 'check_covenants') {
       for (const flag of deriveFlags(deal)) {
         collectedFlags.push(flag);
@@ -162,12 +187,69 @@ export async function* runCreditAgent(ctx: AgentContext): AsyncGenerator<AgentEv
     await sleep(260 / ctx.speed, ctx.signal);
   }
 
-  // (e) human-in-the-loop gate. Register the approval promise BEFORE yielding the
-  // gate event so the resolver is ready when the UI renders the buttons.
-  const pkg = buildPackage(deal, collectedFlags);
-  const decisionPromise = ctx.requestApproval();
-  yield { type: 'awaiting_approval', package: pkg };
+  // (e) human-in-the-loop gate — a LOOP, not a one-shot. Approve/reject finish
+  // the run; "send back for rework" re-enters it: the reviewer's note becomes a
+  // tracked flag, a revision step appends to the plan, the memo is reassembled,
+  // and the agent suspends at the gate again. Register the approval promise
+  // BEFORE yielding the gate event so the resolver is ready when the UI renders.
+  const reviewerNotes: string[] = [];
+  let revision = 1;
+  let pkg = buildPackage(deal, collectedFlags);
 
-  const decision = await decisionPromise; // blocks until the human acts
-  yield { type: 'run_finished', outcome: decision, package: pkg };
+  for (;;) {
+    const decisionPromise = ctx.requestApproval();
+    yield { type: 'awaiting_approval', package: pkg };
+
+    const gate = await decisionPromise; // blocks until the human acts
+    if (gate.verb !== 'rework') {
+      yield { type: 'run_finished', outcome: gate.verb, package: pkg, note: gate.note };
+      return;
+    }
+
+    // --- send-back: the loop resumes with the reviewer's instruction ---------
+    revision += 1;
+    const note = gate.note?.trim() || 'Reviewer requested rework (no note given).';
+    reviewerNotes.push(note);
+
+    const stepId = `step_rework_${revision}`;
+    const reworkStep: PlanStep = {
+      id: stepId,
+      title: `Revise per reviewer note · rev ${revision}`,
+      toolName: 'assemble_approval_package',
+    };
+    plan.push(reworkStep);
+    yield { type: 'plan_updated', plan: [...plan] };
+    yield { type: 'step_started', stepId, index: plan.length - 1, title: reworkStep.title };
+
+    yield* streamThinking(
+      stepId,
+      `The reviewer sent this back: “${note}” The filed figures don't change on rework, so I'll fold the instruction into the record — it becomes a tracked flag on the memo — re-check the covenant tests against it, and reassemble the package as revision ${revision} for a fresh countersign.`,
+      ctx,
+    );
+
+    const tool = TOOLS.assemble_approval_package;
+    const call: ToolCall = {
+      id: uid('call'),
+      name: tool.name,
+      label: tool.label,
+      args: { ...tool.defaultArgs, revision, reviewerNote: note },
+    };
+    yield { type: 'tool_call', stepId, call };
+    const result = await tool.run(ctx);
+    yield { type: 'tool_result', stepId, call, result };
+
+    const noteFlag: Flag = {
+      id: uid('flag'),
+      severity: 'warning',
+      message: `Reviewer send-back (rev ${revision - 1}): ${note}`,
+      needsHuman: true,
+    };
+    collectedFlags.push(noteFlag);
+    yield { type: 'flag', stepId, flag: noteFlag };
+
+    yield { type: 'step_completed', stepId };
+    await sleep(260 / ctx.speed, ctx.signal);
+
+    pkg = buildPackage(deal, collectedFlags, revision, [...reviewerNotes]);
+  }
 }

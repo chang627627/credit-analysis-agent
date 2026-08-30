@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Info, Wrench, CornerDownLeft, AlertTriangle, CheckCircle2, Activity, type LucideIcon } from 'lucide-react';
+import { Info, Wrench, CornerDownLeft, AlertTriangle, CheckCircle2, Activity, FlaskConical, type LucideIcon } from 'lucide-react';
 import type { AuditHistoryEntry, AuditKind } from '../hooks/useCreditAgent';
 import type { EscalationItem } from '../agent/monitor';
 
@@ -23,6 +23,7 @@ const ICON: Record<RowKind, LucideIcon> = {
   result: CornerDownLeft,
   flag: AlertTriangle,
   human: CheckCircle2,
+  whatif: FlaskConical,
   monitor: Activity,
 };
 
@@ -32,6 +33,7 @@ const FILTERS: { id: 'all' | RowKind; label: string }[] = [
   { id: 'result', label: 'Results' },
   { id: 'flag', label: 'Flags' },
   { id: 'human', label: 'Human' },
+  { id: 'whatif', label: 'What-if' },
   { id: 'monitor', label: 'Monitor' },
 ];
 
@@ -71,7 +73,7 @@ export function AuditView({
       kind: 'monitor' as RowKind,
       label: `Escalation · ${e.severity}${e.status === 'acknowledged' ? ' · acknowledged' : ''}`,
       detail: e.reason,
-      source: `${e.dealName} · monitor`,
+      source: `${e.dealName} · ${e.origin === 'countersign' ? 'countersign routing' : 'monitor'}`,
     })),
   ].sort((a, b) => b.t - a.t || seq(b.id) - seq(a.id));
 

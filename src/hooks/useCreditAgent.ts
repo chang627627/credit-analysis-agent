@@ -11,9 +11,9 @@ import { useCallback, useRef, useState } from 'react';
 import type {
   AgentContext,
   AgentEvent,
-  ApprovalDecision,
   ApprovalPackage,
   Flag,
+  GateDecision,
   PlanStep,
   Recommendation,
   ToolCall,
@@ -49,7 +49,7 @@ export interface StepView {
   status: 'running' | 'done';
 }
 
-export type AuditKind = 'info' | 'tool' | 'result' | 'flag' | 'human';
+export type AuditKind = 'info' | 'tool' | 'result' | 'flag' | 'human' | 'whatif';
 
 export interface AuditEntry {
   id: string;
@@ -87,10 +87,20 @@ export interface CreditAgentApi {
   sendMessage: (text: string) => void;
   /** Optionally pass a deal id to select-and-run in one action (launchpad chips). */
   start: (dealId?: string) => void;
-  approve: () => void;
-  reject: () => void;
+  /** Countersign the package; the note (optional) goes on the record. */
+  approve: (note?: string) => void;
+  /** Refuse the package. The gate UI requires a reason — it goes on the record. */
+  reject: (note: string) => void;
+  /** Send the package back: the suspended loop RESUMES with the note. */
+  requestRework: (note: string) => void;
   reset: () => void;
   exportAudit: () => void;
+  /** The reviewer's note from the finishing decision (shown on the banner). */
+  decisionNote: string | null;
+  /** Monotonic id of the current/most recent run (0 before any run). */
+  runId: number;
+  /** Attach a what-if scenario to the audit trail (the sandbox becomes record). */
+  logWhatIf: (label: string, detail: string) => void;
 }
 
 export function useCreditAgent(): CreditAgentApi {
@@ -105,6 +115,8 @@ export function useCreditAgent(): CreditAgentApi {
   const [dealId, setDealId] = useState(DEALS[0].id);
   const [parsing, setParsing] = useState<ParsingState | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [decisionNote, setDecisionNote] = useState<string | null>(null);
+  const [runSeq, setRunSeq] = useState(0);
 
   const allDeals = [...DEALS, ...extraDeals];
   const deal = allDeals.find((d) => d.id === dealId) ?? DEALS[0];
@@ -112,7 +124,7 @@ export function useCreditAgent(): CreditAgentApi {
   allDealsRef.current = allDeals;
 
   // Mutable handles the loop reads/writes without re-rendering.
-  const approvalResolver = useRef<((d: ApprovalDecision) => void) | null>(null);
+  const approvalResolver = useRef<((d: GateDecision) => void) | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const runIdRef = useRef(0);
   const runDealNameRef = useRef(DEALS[0].name); // the deal of the CURRENT run (set in start)
@@ -170,11 +182,24 @@ export function useCreditAgent(): CreditAgentApi {
         case 'awaiting_approval':
           setApprovalPackage(ev.package);
           setStatus('awaiting_approval');
-          pushAudit({ kind: 'human', label: 'Awaiting human approval', detail: `recommendation: ${ev.package.recommendation}` });
+          pushAudit({
+            kind: 'human',
+            label: `Awaiting human approval${ev.package.revision > 1 ? ` · rev ${ev.package.revision}` : ''}`,
+            detail: `recommendation: ${ev.package.recommendation}`,
+          });
+          break;
+        case 'plan_updated':
+          setPlan(ev.plan);
+          pushAudit({ kind: 'info', label: 'Plan extended · reviewer send-back', detail: ev.plan[ev.plan.length - 1]?.title });
           break;
         case 'run_finished':
           setStatus(ev.outcome === 'approve' ? 'approved' : 'rejected');
-          pushAudit({ kind: 'human', label: ev.outcome === 'approve' ? 'Human APPROVED' : 'Human REJECTED' });
+          setDecisionNote(ev.note ?? null);
+          pushAudit({
+            kind: 'human',
+            label: ev.outcome === 'approve' ? 'Human APPROVED — countersigned' : 'Human REJECTED',
+            detail: ev.note ? `note: ${ev.note}` : 'no note',
+          });
           break;
       }
     },
@@ -189,6 +214,7 @@ export function useCreditAgent(): CreditAgentApi {
     setApprovalPackage(null);
     setAudit([]);
     setMessages([]);
+    setDecisionNote(null);
     setStatus('running');
 
     // resolve the deal directly so select-and-run is race-free
@@ -197,6 +223,7 @@ export function useCreditAgent(): CreditAgentApi {
       : dealRef.current;
     if (dealId) setDealId(dealId);
     runIdRef.current += 1;
+    setRunSeq(runIdRef.current);
     runDealNameRef.current = runDeal.name;
 
     const ac = new AbortController();
@@ -208,7 +235,7 @@ export function useCreditAgent(): CreditAgentApi {
         return speedRef.current;
       },
       requestApproval: () =>
-        new Promise<ApprovalDecision>((resolve) => {
+        new Promise<GateDecision>((resolve) => {
           approvalResolver.current = resolve;
         }),
       signal: ac.signal,
@@ -228,14 +255,23 @@ export function useCreditAgent(): CreditAgentApi {
     })();
   }, [apply, pushAudit]);
 
-  const approve = useCallback(() => {
-    approvalResolver.current?.('approve');
+  const approve = useCallback((note?: string) => {
+    approvalResolver.current?.({ verb: 'approve', note: note?.trim() || undefined });
     approvalResolver.current = null;
   }, []);
 
-  const reject = useCallback(() => {
-    approvalResolver.current?.('reject');
+  const reject = useCallback((note: string) => {
+    approvalResolver.current?.({ verb: 'reject', note: note.trim() });
     approvalResolver.current = null;
+  }, []);
+
+  // Send-back: resolve the gate with 'rework' — the generator does NOT finish,
+  // it appends a revision step and re-suspends. Status returns to 'running'.
+  const requestRework = useCallback((note: string) => {
+    if (!approvalResolver.current) return;
+    approvalResolver.current({ verb: 'rework', note: note.trim() });
+    approvalResolver.current = null;
+    setStatus('running');
   }, []);
 
   const reset = useCallback(() => {
@@ -246,6 +282,7 @@ export function useCreditAgent(): CreditAgentApi {
     setApprovalPackage(null);
     setAudit([]);
     setMessages([]);
+    setDecisionNote(null);
   }, []);
 
   // Switching deals clears the current transcript and returns to idle.
@@ -258,6 +295,7 @@ export function useCreditAgent(): CreditAgentApi {
     setApprovalPackage(null);
     setAudit([]);
     setMessages([]);
+    setDecisionNote(null);
   }, []);
 
   // Simulated document ingestion: derive a deal from the file name, then load it.
@@ -270,6 +308,7 @@ export function useCreditAgent(): CreditAgentApi {
     setApprovalPackage(null);
     setAudit([]);
     setMessages([]);
+    setDecisionNote(null);
     window.setTimeout(() => {
       const synthesized = synthesizeDealFromFile(file.name);
       setExtraDeals((prev) => [...prev, synthesized]);
@@ -294,6 +333,15 @@ export function useCreditAgent(): CreditAgentApi {
     [deal, status, approvalPackage],
   );
 
+  // A what-if scenario the analyst chose to put on the record — sensitivity
+  // analysis belongs in the memo file, not just on screen.
+  const logWhatIf = useCallback(
+    (label: string, detail: string) => {
+      pushAudit({ kind: 'whatif', label, detail });
+    },
+    [pushAudit],
+  );
+
   // Download the full run as a signed-off JSON record — the exportable audit
   // trail a regulated workflow would archive.
   const exportAudit = useCallback(() => {
@@ -303,6 +351,7 @@ export function useCreditAgent(): CreditAgentApi {
       facility: deal.document.facility,
       status,
       recommendation: approvalPackage?.recommendation ?? null,
+      reviewerNote: decisionNote,
       events: audit,
       package: approvalPackage,
     };
@@ -313,7 +362,7 @@ export function useCreditAgent(): CreditAgentApi {
     a.download = 'credit-analysis-audit.json';
     a.click();
     URL.revokeObjectURL(url);
-  }, [status, approvalPackage, audit, deal]);
+  }, [status, approvalPackage, audit, deal, decisionNote]);
 
   return {
     status,
@@ -336,7 +385,11 @@ export function useCreditAgent(): CreditAgentApi {
     start,
     approve,
     reject,
+    requestRework,
     reset,
     exportAudit,
+    decisionNote,
+    runId: runSeq,
+    logWhatIf,
   };
 }

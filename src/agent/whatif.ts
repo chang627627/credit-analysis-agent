@@ -211,6 +211,47 @@ export function findCure(deal: Deal): Cure | null {
   return null;
 }
 
+/** Covenant-threshold overrides the reviewer proposes at the gate. */
+export interface TermOverrides {
+  /** amended Max Total Leverage ceiling, e.g. 4.3 (x) */
+  leverageMax?: number;
+  /** amended Min Liquidity floor, e.g. 8 ($M) */
+  liquidityMin?: number;
+}
+
+export interface AmendedOutcome {
+  breaches: number;
+  recommendation: Recommendation;
+  /** names of covenants whose pass/breach status changed under the amendments */
+  changed: string[];
+}
+
+/**
+ * "Countersign as amended": re-test the deal's FILED covenant actuals against
+ * reviewer-amended thresholds and re-run the same `decide` rule. Pure — the
+ * gate previews the amended recommendation live as the reviewer edits terms.
+ */
+export function amendedOutcome(deal: Deal, overrides: TermOverrides): AmendedOutcome {
+  const changed: string[] = [];
+  let breaches = 0;
+  for (const c of deal.covenants) {
+    const kind = classify(c.name);
+    const { dir, value } = parseThreshold(c.threshold);
+    const actualM = c.actual.match(/[\d.]+/);
+    const actual = actualM ? parseFloat(actualM[0]) : NaN;
+    const threshold =
+      kind === 'leverage' && overrides.leverageMax !== undefined
+        ? overrides.leverageMax
+        : kind === 'liquidity' && overrides.liquidityMin !== undefined
+          ? overrides.liquidityMin
+          : value;
+    const pass = Number.isNaN(actual) ? c.status !== 'breach' : dir === 'max' ? actual <= threshold : actual >= threshold;
+    if (!pass) breaches += 1;
+    if (pass !== (c.status !== 'breach')) changed.push(c.name);
+  }
+  return { breaches, recommendation: decide(breaches, deal.risk.score), changed };
+}
+
 type Kind = 'leverage' | 'interest' | 'fixed' | 'liquidity' | 'other';
 
 /** Map a covenant to the ratio it tests, by name — robust across canned + uploaded deals. */

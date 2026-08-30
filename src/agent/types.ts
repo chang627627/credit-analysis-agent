@@ -14,6 +14,7 @@ export type Confidence = number; // 0..1
 export type ToolName =
   | 'extract_financials'
   | 'compute_risk_score'
+  | 'benchmark_peers'
   | 'check_covenants'
   | 'assemble_approval_package'
   | 'propose_restructure';
@@ -22,6 +23,10 @@ export interface PlanStep {
   id: string;
   title: string;
   toolName: ToolName;
+  /** Optional steps can be toggled off at the plan-review (intent) gate. */
+  optional?: boolean;
+  /** Set when the reviewer excluded this step from the approved plan. */
+  skipped?: boolean;
 }
 
 /** A decision by the agent to invoke a tool, with the arguments it chose. */
@@ -90,9 +95,21 @@ export type ApprovalDecision = 'approve' | 'reject';
  * decision without a reason is the one thing a regulated trail can't carry.
  */
 export type GateVerb = ApprovalDecision | 'rework';
+
+/** A term the reviewer changed at the gate before signing. */
+export interface Amendment {
+  label: string;
+  from: string;
+  to: string;
+}
+
 export interface GateDecision {
   verb: GateVerb;
   note?: string;
+  /** "Countersigned as amended": terms the reviewer edited before approving. */
+  amendments?: Amendment[];
+  /** Resolved by the autonomy policy (clean approval), not a human click. */
+  auto?: boolean;
 }
 
 /** The event stream. The UI is a pure function of the reduction of these. */
@@ -107,7 +124,14 @@ export type AgentEvent =
   | { type: 'awaiting_approval'; package: ApprovalPackage }
   /** The plan grew mid-run (a reviewer send-back appended a revision step). */
   | { type: 'plan_updated'; plan: PlanStep[] }
-  | { type: 'run_finished'; outcome: ApprovalDecision; package: ApprovalPackage; note?: string };
+  | {
+      type: 'run_finished';
+      outcome: ApprovalDecision;
+      package: ApprovalPackage;
+      note?: string;
+      amendments?: Amendment[];
+      auto?: boolean;
+    };
 
 /**
  * Everything the loop needs from the outside world. `requestApproval` is the
@@ -121,4 +145,9 @@ export interface AgentContext {
   requestApproval: () => Promise<GateDecision>;
   readonly speed: number;
   signal?: AbortSignal;
+  /**
+   * The step ids the reviewer approved at the intent gate. Omitted = full
+   * plan. Only steps marked `optional` may actually be excluded.
+   */
+  enabledStepIds?: string[];
 }

@@ -155,7 +155,8 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
 - **Sticky headers in a padded scroll container:** put the top padding INSIDE the sticky element
   (its background must cover the top edge), not on the scroll container — otherwise scrolled
   content peeks above it. (Fixed for `.plan`.)
-- **localStorage keys:** `theme` (`light` | `dark`, default `light`), `navCollapsed` (`0` | `1`).
+- **localStorage keys:** `theme` (`light` | `dark`, default `light`), `navCollapsed` (`0` | `1`),
+  `showReasoning` (`0` | `1`, collapse-on-complete override), `autonomy` (`gate` | `auto`).
 - **HMR false positive:** editing a hook's hook-count mid-session can throw "change in order of
   Hooks"; it's gone on a full reload. Verify on a fresh load, not mid-HMR.
 - **Driving via the preview tool:** reading the DOM synchronously right after a `.click()` races
@@ -372,6 +373,44 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       reduced-motion guard didn't zero `animation-delay` (staggered items appeared late — added);
       (5) flip-zone sampling left unpainted boundary bands (gapless painting + 140 samples).
       Also fixed live: reset/selectDeal/upload now restore the default plan (rework grows it).
+
+- [x] **"2026 conventions" wave** (web-researched against the mid-2025→Aug-2026 agent-product
+      field — Claude Code/Cursor/Devin/Jules/Copilot/LangGraph/Sierra/Harvey/Hebbia — then the
+      four gap-closers implemented + adversarially reviewed; 27 confirmed findings fixed):
+      **(1) Intent gate** — `start()` now opens a plan-review checklist (`PlanReview`, status
+      `plan_review`): optional steps toggleable (new optional step `benchmark_peers` +
+      "Peer Benchmarks" tool + comparables artifact), required steps locked, cancellable
+      auto-start countdown (÷speed, floor 3s); `approvePlan(ids, {auto})` stamps the approved
+      composition into the audit trail — countdown starts log as `info` "Plan auto-started ·
+      unattended countdown", NEVER as a human decision; skipped steps ghost in the PlanBar and
+      the loop `continue`s them; ⌘↵/palette approve the plan AS EDITED (state lifted to App so
+      view-switch remounts keep exclusions and a held countdown stays held); approvePlan
+      consumes `pendingDealRef` atomically (countdown+click can't double-launch).
+      **(2) Collapse-on-complete** — finished steps' reasoning folds to a data-derived summary
+      + duration chip (`stepSummary`), per-step re-expand, "show all reasoning" toggle
+      persisted; running step stays streaming.
+      **(3) Edit-before-approve ("countersigned as amended")** — gate "Amend terms" block:
+      leverage ceiling + liquidity floor inputs preview `amendedOutcome` (whatif.ts — same
+      `decide` rule on filed actuals, verified numerically: Atlas 4.30x waiver→APPROVE, 4.10x
+      holds, tighter liquidity honestly ADDS a breach, Cobalt uncurable); approve carries
+      `GateDecision.amendments` → banner/audit/signature read "countersigned as amended";
+      NaN-proof inputs (cleared → terms as filed); closing the editor DISCARDS overrides
+      (hidden amendments never ride along); palette approve signs the gate's live draft via
+      `gateDraftRef`; an amended-to-APPROVE escalate is NOT routed to the escalation queue.
+      **(4) Autonomy dial** — header `gate all / auto-clean` (persisted): auto mode
+      auto-countersigns ONLY clean first-pass approvals (APPROVE + zero flags + rev 1 + all
+      confidences ≥90%) via a visible 5s countdown with the policy trace; resolves with
+      `auto:true` → "AUTO · POLICY" badge, three-check "why", `/auto/` signature line distinct
+      from human ink, "AUTO-countersigned" audit label. Integrity guards from the review:
+      reject/rework/note-typing/amending ALL hold the countdown (a refusal attempt can never
+      auto-approve); flipping policy to gate-all disarms a live countdown; an explicit hold
+      survives view-switch remounts (App-owned `gateHold`).
+      Verdict context: the researched synthesis rated the trust core top-decile/ahead
+      (suspended gate, cure-on-rework, trace-to-source, flip zones have no public equivalent)
+      and named 3 conspicuous gaps — untouchable plan, never-folding reasoning, no policy
+      layer — all closed by this wave. Remaining researched wave-2 candidates: run replay
+      scrubber (best architecture flex), mid-run steering (backlog #7), maker-checker critique
+      pass, override-rationale + reviewer identity (EU AI Act Art. 14 / SR 26-2 hook).
 
 ## Backlog (to-do)
 

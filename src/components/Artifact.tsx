@@ -44,11 +44,50 @@ export function Artifact({ tool, data, cite }: { tool: ToolName; data: unknown; 
       return <RiskArtifact data={data as RiskScore} />;
     case 'check_covenants':
       return <CovenantsArtifact data={data as CovenantTest[]} />;
+    case 'benchmark_peers':
+      return <PeersArtifact data={data as PeersData} />;
     case 'assemble_approval_package':
       return <MemoArtifact data={data as MemoData} />;
     case 'propose_restructure':
       return <RestructureArtifact data={data as RestructureData} />;
   }
+}
+
+interface PeersData {
+  deal: { leverageX: number; interestCoverageX: number; ebitdaMarginPct: number };
+  peers: { cohort: string; leverageX: number; interestCoverageX: number; ebitdaMarginPct: number }[];
+  position: string;
+}
+
+/** Sector comparables (the optional plan step) — deal row first, highlighted. */
+function PeersArtifact({ data }: { data: PeersData }) {
+  const rows = [{ cohort: 'This deal', ...data.deal, isDeal: true }, ...data.peers.map((p) => ({ ...p, isDeal: false }))];
+  return (
+    <div className="art">
+      <div className="art__head">Peer benchmarks · simulated comparables</div>
+      <table className="ctable">
+        <thead>
+          <tr>
+            <th>Cohort</th>
+            <th>Leverage</th>
+            <th>Coverage</th>
+            <th>Margin</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.cohort} className={r.isDeal ? 'ctable__row--deal' : ''}>
+              <td>{r.cohort}</td>
+              <td className="ctable__mono">{r.leverageX.toFixed(2)}x</td>
+              <td className="ctable__mono">{r.interestCoverageX.toFixed(2)}x</td>
+              <td className="ctable__mono">{r.ebitdaMarginPct.toFixed(1)}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="art__peerpos">The deal is {data.position}.</p>
+    </div>
+  );
 }
 
 interface RestructureData {
@@ -79,8 +118,8 @@ function RestructureArtifact({ data }: { data: RestructureData }) {
     { k: 'Debt paydown', v: `$${data.debtPaydownM}M` },
     ...(data.liquidityTopUpM ? [{ k: 'To liquidity', v: `$${data.liquidityTopUpM}M` }] : []),
     { k: 'New total debt', v: `$${r.totalDebtM}M` },
-    { k: 'New leverage', v: `${r.leverageX}x`, tone: 'good' as const },
-    { k: 'New coverage', v: `${r.interestCoverageX}x` },
+    { k: 'New leverage', v: `${r.leverageX.toFixed(2)}x`, tone: 'good' as const },
+    { k: 'New coverage', v: `${r.interestCoverageX.toFixed(2)}x` },
     { k: 'New risk score', v: `${r.riskScore}` },
   ];
   return (

@@ -10,28 +10,30 @@ import type { StepView } from '../hooks/useCreditAgent';
  */
 export function PlanBar({ plan, steps }: { plan: PlanStep[]; steps: StepView[] }) {
   const doneCount = steps.filter((s) => s.status === 'done').length;
+  const runnable = plan.filter((p) => !p.skipped).length;
 
   return (
     <div className="plan">
       <div className="plan__head">
         <span className="plan__title">Plan</span>
         <span className="plan__count">
-          {doneCount}/{plan.length} steps
+          {doneCount}/{runnable} steps
         </span>
       </div>
       <ol className="plan__list">
         {plan.map((p, i) => {
           const sv = steps.find((s) => s.id === p.id);
-          const cls = sv?.status === 'done' ? 'done' : sv ? 'active' : 'pending';
+          const cls = p.skipped ? 'skipped' : sv?.status === 'done' ? 'done' : sv ? 'active' : 'pending';
           const rework = p.id.startsWith('step_rework') ? ' plan__item--rework' : '';
           return (
             <li
               key={p.id}
               className={`plan__item plan__item--${cls}${rework}`}
               style={{ '--i': i } as React.CSSProperties}
+              title={p.skipped ? 'Excluded at plan review' : undefined}
             >
               <span className="plan__num">
-                {cls === 'done' ? <Check size={11} strokeWidth={2.5} aria-label="done" /> : i + 1}
+                {cls === 'done' ? <Check size={11} strokeWidth={2.5} aria-label="done" /> : p.skipped ? '–' : i + 1}
               </span>
               <span className="plan__label">{p.title}</span>
             </li>

@@ -75,6 +75,27 @@ export function AgentStream({
     target?.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'center' });
   }, [trace]);
 
+  // "Show all reasoning" — persisted preference over the collapse-on-complete
+  // default (finished thinking folds to a summary chip)
+  const [showAllReasoning, setShowAllReasoning] = useState(() => {
+    try {
+      return localStorage.getItem('showReasoning') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleReasoning = () => {
+    setShowAllReasoning((v) => {
+      try {
+        localStorage.setItem('showReasoning', v ? '0' : '1');
+      } catch {
+        /* private mode */
+      }
+      return !v;
+    });
+  };
+  const anyDone = steps.some((s) => s.status === 'done');
+
   const streaming = steps.some((s) => s.status === 'running');
   const showPill = awayUnseen !== null && streaming;
 
@@ -87,8 +108,15 @@ export function AgentStream({
 
   return (
     <div className="stream" ref={streamRef}>
+      {anyDone && (
+        <div className="stream__tools">
+          <button className="linkbtn" onClick={toggleReasoning} aria-pressed={showAllReasoning}>
+            {showAllReasoning ? 'fold finished reasoning' : 'show all reasoning'}
+          </button>
+        </div>
+      )}
       {steps.map((s) => (
-        <StepCard key={s.id} step={s} cite={cite} trace={trace} />
+        <StepCard key={s.id} step={s} cite={cite} trace={trace} showAllReasoning={showAllReasoning} />
       ))}
       {showPill && (
         <button className="stream__live" onClick={jumpToLive}>

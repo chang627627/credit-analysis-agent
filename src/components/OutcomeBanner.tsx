@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { ArrowRight, CheckCircle2, Download, RotateCcw, XCircle } from 'lucide-react';
-import type { ApprovalPackage } from '../agent/types';
+import { ArrowRight, CheckCircle2, Download, RotateCcw, ShieldCheck, XCircle } from 'lucide-react';
+import type { Amendment, ApprovalPackage } from '../agent/types';
 
 /**
  * The second signature drawing itself onto the memo — the product's name as a
@@ -22,6 +22,8 @@ export function OutcomeBanner({
   approved,
   pkg,
   note,
+  amendments,
+  auto = false,
   onReset,
   onExport,
   onOpenQueue,
@@ -30,12 +32,17 @@ export function OutcomeBanner({
   pkg: ApprovalPackage;
   /** The reviewer's note recorded with the decision (null if none was given). */
   note: string | null;
+  /** Terms the reviewer amended before signing ("countersigned as amended"). */
+  amendments?: Amendment[] | null;
+  /** The autonomy policy resolved this approval (clean-approval auto-countersign). */
+  auto?: boolean;
   onReset: () => void;
   onExport: () => void;
   /** Present when a countersigned ESCALATE was routed to the escalation queue. */
   onOpenQueue?: () => void;
 }) {
   const routed = approved && pkg.recommendation === 'escalate';
+  const amendedTitle = amendments && amendments.length > 0;
   // decision time, fixed at mount — the moment the human acted
   const signedAt = useMemo(
     () => new Date().toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short', year: 'numeric' }),
@@ -48,11 +55,34 @@ export function OutcomeBanner({
           {approved ? <CheckCircle2 size={20} strokeWidth={1.75} /> : <XCircle size={20} strokeWidth={1.75} />}
         </span>
         <div className="outcome__text">
-          <strong>{approved ? 'Approved by human reviewer' : 'Rejected by human reviewer'}</strong>
+          <strong>
+            {auto
+              ? 'Auto-countersigned under policy'
+              : approved
+                ? amendedTitle
+                  ? 'Approved — countersigned as amended'
+                  : 'Approved by human reviewer'
+                : 'Rejected by human reviewer'}
+            {auto && (
+              <span className="outcome__autobadge">
+                <ShieldCheck size={11} strokeWidth={2} aria-hidden="true" /> AUTO · POLICY
+              </span>
+            )}
+          </strong>
           <span>
             {pkg.borrower} · {pkg.facility} · memo {pkg.memoId}
             {pkg.revision > 1 ? ` · rev ${pkg.revision}` : ''} committed to the audit trail
           </span>
+          {auto && (
+            <span className="outcome__structure">
+              Why this auto-approved · recommendation APPROVE ✓ · zero flags ✓ · confidence ≥90% ✓
+            </span>
+          )}
+          {amendments?.map((a) => (
+            <span className="outcome__structure" key={a.label}>
+              Amended · {a.label} {a.from} → {a.to}
+            </span>
+          ))}
           {pkg.restructure && (
             <span className="outcome__structure">Revised structure · {pkg.restructure.summary}</span>
           )}
@@ -75,10 +105,18 @@ export function OutcomeBanner({
         </div>
         <div className="sig">
           <span className="sig__pad">
-            {approved ? <SignatureStroke /> : <span className="sig__declined">Declined</span>}
+            {auto ? (
+              <span className="sig__ink">/auto/ clean-approval policy</span>
+            ) : approved ? (
+              <SignatureStroke />
+            ) : (
+              <span className="sig__declined">Declined</span>
+            )}
           </span>
           <span className="sig__label">
-            {approved ? 'Countersigned by' : 'Refused by'} · Human reviewer · {signedAt}
+            {auto
+              ? `Auto-countersigned under policy · supervised · ${signedAt}`
+              : `${approved ? (amendedTitle ? 'Countersigned as amended by' : 'Countersigned by') : 'Refused by'} · Human reviewer · ${signedAt}`}
           </span>
         </div>
       </div>

@@ -1,8 +1,11 @@
-import { Moon, Sun } from 'lucide-react';
+import { Moon, ShieldCheck, Sun } from 'lucide-react';
 import type { RunStatus } from '../hooks/useCreditAgent';
+
+export type AutonomyMode = 'gate' | 'auto';
 
 const STATUS_LABEL: Record<RunStatus, string> = {
   idle: 'Idle',
+  plan_review: 'Reviewing plan',
   running: 'Running',
   awaiting_approval: 'Awaiting approval',
   approved: 'Approved',
@@ -22,6 +25,8 @@ export function Header({
   theme,
   onToggleTheme,
   onOpenPalette,
+  autonomy,
+  onAutonomy,
 }: {
   status: RunStatus;
   speed: number;
@@ -31,8 +36,10 @@ export function Header({
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
   onOpenPalette: () => void;
+  autonomy: AutonomyMode;
+  onAutonomy: (m: AutonomyMode) => void;
 }) {
-  const busy = status === 'running' || status === 'awaiting_approval';
+  const busy = status === 'plan_review' || status === 'running' || status === 'awaiting_approval';
 
   return (
     <header className="topbar">
@@ -59,6 +66,29 @@ export function Header({
       >
         {theme === 'light' ? <Moon size={16} strokeWidth={1.75} /> : <Sun size={16} strokeWidth={1.75} />}
       </button>
+
+      {/* autonomy policy: what the agent may resolve without a click.
+          Breaches ALWAYS hard-gate; "auto" covers clean approvals only. */}
+      <div
+        className="autonomy"
+        title="Autonomy policy — auto-countersigns only clean approvals (APPROVE, zero flags, confidence ≥90%); breaches always hard-gate"
+      >
+        <ShieldCheck size={13} strokeWidth={1.75} aria-hidden="true" />
+        <button
+          className={`autonomy__opt${autonomy === 'gate' ? ' autonomy__opt--on' : ''}`}
+          onClick={() => onAutonomy('gate')}
+          aria-pressed={autonomy === 'gate'}
+        >
+          gate all
+        </button>
+        <button
+          className={`autonomy__opt${autonomy === 'auto' ? ' autonomy__opt--on' : ''}`}
+          onClick={() => onAutonomy('auto')}
+          aria-pressed={autonomy === 'auto'}
+        >
+          auto-clean
+        </button>
+      </div>
 
       <div className="speed" title="Demo speed — also affects in-flight delays">
         <label htmlFor="speed">speed</label>

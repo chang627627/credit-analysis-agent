@@ -1,15 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCreditAgent } from './hooks/useCreditAgent';
 import type { ChatMessage } from './hooks/useCreditAgent';
 import { useMonitor } from './hooks/useMonitor';
-import type { Recommendation, ToolName } from './agent/types';
+import type { Amendment, Recommendation, ToolName } from './agent/types';
 import type { TraceTarget } from './components/StepCard';
+import { getPlan } from './agent/runAgent';
 import { PortfolioView } from './components/PortfolioView';
 import { AuditView } from './components/AuditView';
 import { AgentsView } from './components/AgentsView';
 import { DealsView } from './components/DealsView';
 import type { Cite } from './components/Artifact';
 import { Header, MOD_KEY } from './components/Header';
+import type { AutonomyMode } from './components/Header';
+import { PlanReview } from './components/PlanReview';
 import { NavSidebar } from './components/NavSidebar';
 import { DocumentPanel } from './components/DocumentPanel';
 import { PlanBar } from './components/PlanBar';
@@ -97,7 +100,24 @@ export default function App() {
   const agent = useCreditAgent();
   const { status } = agent;
   const finished = status === 'approved' || status === 'rejected';
-  const busy = status === 'running' || status === 'awaiting_approval' || agent.parsing !== null;
+  const busy =
+    status === 'plan_review' || status === 'running' || status === 'awaiting_approval' || agent.parsing !== null;
+
+  // autonomy policy: what may resolve without a click (persisted; default gate-all)
+  const [autonomy, setAutonomy] = useState<AutonomyMode>(() => {
+    try {
+      return localStorage.getItem('autonomy') === 'auto' ? 'auto' : 'gate';
+    } catch {
+      return 'gate';
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem('autonomy', autonomy);
+    } catch {
+      /* private mode */
+    }
+  }, [autonomy]);
   // The full deal behind the current package — what the what-if panel stresses.
   const currentDeal = agent.dealsFull.find((d) => d.id === agent.selectedDealId);
   const showWhatIf = status === 'awaiting_approval' || finished;
@@ -157,17 +177,54 @@ export default function App() {
     }, 320);
   };
 
+  // Intent-gate draft state lives HERE, not in PlanReview: switching views and
+  // returning must not re-check excluded steps or re-arm a held countdown.
+  // Reset whenever the intent gate closes (run started / cancelled / new deal).
+  const [planEnabledIds, setPlanEnabledIds] = useState<string[]>(() => getPlan().map((p) => p.id));
+  const [planHeld, setPlanHeld] = useState(false);
+  useEffect(() => {
+    if (status !== 'plan_review') {
+      setPlanEnabledIds(getPlan().map((p) => p.id));
+      setPlanHeld(false);
+    }
+  }, [status]);
+  const togglePlanStep = (id: string) => {
+    setPlanEnabledIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  // Gate holds + drafts that must survive a view-switch remount of the gate
+  const [gateHold, setGateHold] = useState(false);
+  useEffect(() => {
+    if (status !== 'awaiting_approval') setGateHold(false);
+  }, [status]);
+  const gateDraftRef = useRef<{ note?: string; amendments: Amendment[] }>({ amendments: [] });
+
+  // the autonomy policy may resolve ONLY a clean first-pass approval — and it
+  // does so visibly, via the gate's cancellable countdown
+  const autoEligible =
+    autonomy === 'auto' &&
+    !gateHold && // an explicit "review manually" survives view-switch remounts
+    status === 'awaiting_approval' &&
+    !!agent.approvalPackage &&
+    agent.approvalPackage.recommendation === 'approve' &&
+    agent.approvalPackage.flags.length === 0 &&
+    agent.approvalPackage.revision === 1 &&
+    agent.approvalPackage.keyMetrics.every((m) => m.confidence >= 0.9);
+
   // ambient status in the tab title — the between-tabs "is it still running?"
   const doneSteps = agent.steps.filter((s) => s.status === 'done').length;
+  const runnableSteps = agent.plan.filter((p) => !p.skipped).length;
   useEffect(() => {
     if (status === 'running') {
-      document.title = `● Step ${Math.min(doneSteps + 1, agent.plan.length)}/${agent.plan.length} · Countersign`;
+      document.title = `● Step ${Math.min(doneSteps + 1, runnableSteps)}/${runnableSteps} · Countersign`;
     } else if (status === 'awaiting_approval') {
       document.title = '⏸ Awaiting countersign · Countersign';
+    } else if (status === 'plan_review') {
+      document.title = '☑ Plan review · Countersign';
     } else {
       document.title = 'Countersign — agentic credit analysis (demo)';
     }
-  }, [status, doneSteps, agent.plan.length]);
+  }, [status, doneSteps, runnableSteps]);
 
   const docHidden = () => window.matchMedia('(max-width: 1100px)').matches;
   const cite: Cite = {
@@ -255,7 +312,12 @@ export default function App() {
       }
       if (paletteOpen) return;
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-        if (!busy) {
+        if (status === 'plan_review') {
+          // power path: approves the plan AS EDITED on screen, never the full
+          // plan over a visibly excluded step
+          e.preventDefault();
+          agent.approvePlan(planEnabledIds);
+        } else if (!busy) {
           e.preventDefault();
           agent.start();
         }
@@ -272,7 +334,7 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [busy, paletteOpen, agent.start]);
+  }, [busy, status, paletteOpen, agent.start, agent.approvePlan, planEnabledIds]);
 
   // A countersigned ESCALATE needs a destination, not an ending: route it into
   // the portfolio escalation queue (deduped per run) so senior review picks it up.
@@ -280,6 +342,10 @@ export default function App() {
     if (status !== 'approved') return;
     const pkg = agent.approvalPackage;
     if (!pkg || pkg.recommendation !== 'escalate') return;
+    // countersigned AS AMENDED: the amended terms resolved the escalation at
+    // the gate (the amendment itself is the record) — routing the memo onward
+    // as an escalation would contradict what the reviewer just signed
+    if (agent.decisionAmendments && agent.decisionAmendments.length > 0) return;
     monitor.raise({
       key: `${agent.selectedDealId}:countersign-escalate:run${agent.runId}`,
       dealId: agent.selectedDealId,
@@ -298,7 +364,27 @@ export default function App() {
       ? [
           // Approve only — reject/send-back require a reason typed at the gate,
           // so the palette doesn't offer a one-keystroke way around the record.
-          { id: 'approve', label: 'Countersign & approve', section: 'Decision', kbd: 'A', run: () => agent.approve() },
+          // Signs the gate's LIVE draft (note + amendments), never a bare approve.
+          {
+            id: 'approve',
+            label: 'Countersign & approve',
+            section: 'Decision',
+            kbd: 'A',
+            run: () => agent.approve(gateDraftRef.current.note, { amendments: gateDraftRef.current.amendments }),
+          },
+        ]
+      : []),
+    ...(status === 'plan_review'
+      ? [
+          {
+            id: 'approve-plan',
+            label: 'Approve plan & run',
+            section: 'Decision',
+            kbd: `${MOD_KEY}↵`,
+            // approves the plan AS EDITED on screen
+            run: () => agent.approvePlan(planEnabledIds),
+          },
+          { id: 'cancel-plan', label: 'Cancel plan review', section: 'Decision', run: agent.cancelPlan },
         ]
       : []),
     ...(!busy
@@ -371,6 +457,8 @@ export default function App() {
         theme={theme}
         onToggleTheme={toggleTheme}
         onOpenPalette={() => setPaletteOpen(true)}
+        autonomy={autonomy}
+        onAutonomy={setAutonomy}
       />
 
       <main className={`grid${navCollapsed ? ' grid--nav-collapsed' : ''}`}>
@@ -407,6 +495,18 @@ export default function App() {
                     deals={agent.deals}
                     onPickAndRun={(id) => agent.start(id)}
                   />
+                ) : status === 'plan_review' ? (
+                  <PlanReview
+                    plan={agent.plan}
+                    dealName={agent.deals.find((d) => d.id === agent.selectedDealId)?.name ?? 'this deal'}
+                    speed={agent.speed}
+                    enabledIds={planEnabledIds}
+                    held={planHeld}
+                    onToggle={togglePlanStep}
+                    onHold={() => setPlanHeld(true)}
+                    onApprove={agent.approvePlan}
+                    onCancel={agent.cancelPlan}
+                  />
                 ) : (
                   <AgentStream steps={agent.steps} cite={cite} trace={trace} />
                 )}
@@ -414,11 +514,15 @@ export default function App() {
                 {status === 'awaiting_approval' && agent.approvalPackage && (
                   <ApprovalGate
                     pkg={agent.approvalPackage}
+                    deal={currentDeal}
                     onApprove={agent.approve}
                     onReject={agent.reject}
                     onRework={handleRework}
                     onTrace={handleTrace}
                     leaving={gateLeaving}
+                    autoEligible={autoEligible}
+                    onHold={() => setGateHold(true)}
+                    draftRef={gateDraftRef}
                   />
                 )}
 
@@ -427,6 +531,8 @@ export default function App() {
                     approved={status === 'approved'}
                     pkg={agent.approvalPackage}
                     note={agent.decisionNote}
+                    amendments={agent.decisionAmendments}
+                    auto={agent.decisionAuto}
                     onReset={handleReset}
                     onExport={handleExport}
                     onOpenQueue={() => setView('portfolio')}

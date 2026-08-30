@@ -206,10 +206,12 @@ button {
 /* micro glyphs: 1.5 on Lucide's 24-unit grid renders ~0.6–0.8px at 10–13px —
    hairline-faint. 2 lands them at ~1px, the same optical weight the 16px icons
    get from 1.5. The Moon and other 16px+ icons stay on the refined knob. */
+.lucide[width="9"],
 .lucide[width="10"],
 .lucide[width="11"],
 .lucide[width="12"],
-.lucide[width="13"] {
+.lucide[width="13"],
+.lucide[width="14"] {
   stroke-width: 2;
 }
 
@@ -4290,6 +4292,309 @@ mark.cited {
 .hbar__cap,
 .tool__elapsed {
   font-variant-numeric: tabular-nums;
+}
+
+/* --- the intent gate: approve the plan before anything runs -------------- */
+.planreview {
+  margin: 10px auto 0;
+  max-width: 560px;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--card-shadow);
+  padding: 20px;
+  animation: rise 0.3s var(--ease-out) both;
+}
+.planreview__title {
+  margin: 10px 0 4px;
+  font-size: 18px;
+}
+.planreview__sub {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+.planreview__list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.planreview__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+  cursor: pointer;
+  transition: border-color var(--dur-1) var(--ease-out), opacity var(--dur-1) var(--ease-out);
+}
+.planreview__item--off .planreview__row {
+  opacity: 0.5;
+}
+.planreview__item--off .planreview__label {
+  text-decoration: line-through;
+}
+.planreview__row input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+.planreview__row input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+}
+.planreview__label {
+  flex: 1;
+  font-size: 12.5px;
+  color: var(--text);
+}
+.planreview__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.planreview__tag--req {
+  color: var(--text-faint);
+  background: var(--chip, var(--panel));
+  border: 1px solid var(--border);
+}
+.planreview__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.planreview__hold {
+  margin-right: auto;
+  font-variant-numeric: tabular-nums;
+}
+.planreview__held {
+  margin-right: auto;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+/* --- collapse-on-complete: finished reasoning folds to a summary chip ---- */
+.stream__tools {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 2px;
+}
+.step__fold {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  font-size: 12px;
+  color: var(--text-dim);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 11px 4px 8px;
+  margin: 2px 0 8px;
+  cursor: pointer;
+  transition: border-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.step__fold:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.step__foldchev {
+  display: flex;
+  align-items: center;
+  color: var(--text-faint);
+  transition: transform var(--dur-1) var(--ease-out);
+}
+.step__foldchev--open {
+  transform: rotate(90deg);
+}
+.step__folddur {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- gate: autonomy-policy countdown banner ------------------------------ */
+.gate__auto {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+}
+.gate__autoicon {
+  display: flex;
+  color: var(--accent-text);
+  flex-shrink: 0;
+}
+.gate__autotext {
+  flex: 1;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.gate__autohold {
+  flex-shrink: 0;
+  background: var(--panel); /* solid frame on the tinted banner (dark gotcha) */
+}
+
+/* --- gate: amend terms before signing ------------------------------------ */
+.gate__amend {
+  margin: -6px 0 14px;
+}
+.gate__amendtoggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.gate__amendbody {
+  margin-top: 8px;
+  border: 1px dashed var(--border-strong); /* scratchpad grammar, like what-if */
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.gate__amendrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.gate__amendlabel {
+  font-size: 12.5px;
+  color: var(--text);
+}
+.gate__amendctl {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.gate__amendctl input[type="number"] {
+  width: 74px;
+  font: inherit;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 5px 8px;
+  font-variant-numeric: tabular-nums;
+  transition: border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
+}
+.gate__amendctl input[type="number"]:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.gate__amendctl em {
+  font-style: normal;
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+.gate__amendout {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  border-top: 1px solid var(--border);
+  padding-top: 9px;
+}
+.gate__amendout .rec {
+  font-size: 10px;
+  padding: 2px 8px;
+}
+.gate__amendout em {
+  font-style: normal;
+  color: var(--text-faint);
+}
+
+/* --- header: autonomy policy control ------------------------------------- */
+.autonomy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-faint);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 3px 4px 3px 9px;
+}
+.autonomy__opt {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  padding: 4px 9px;
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.autonomy__opt--on {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+/* --- plan: steps excluded at the intent gate ----------------------------- */
+.plan__item--skipped {
+  opacity: 0.45;
+}
+.plan__item--skipped .plan__label {
+  text-decoration: line-through;
+}
+
+/* --- peers artifact ------------------------------------------------------ */
+.ctable__row--deal {
+  background: var(--accent-soft);
+}
+.ctable__row--deal td:first-child {
+  font-weight: 600;
+  color: var(--accent-text);
+}
+.art__peerpos {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+/* --- outcome: AUTO policy badge ------------------------------------------ */
+.outcome__autobadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 2px 8px;
+  vertical-align: 1px;
 }
 
 /* reduced motion: snap everything to its final state — keep this rule LAST */

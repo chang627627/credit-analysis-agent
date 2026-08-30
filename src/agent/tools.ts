@@ -49,6 +49,31 @@ export const TOOLS: Record<ToolName, ToolDef> = {
     },
   },
 
+  benchmark_peers: {
+    name: 'benchmark_peers',
+    label: 'Peer Benchmarks',
+    defaultArgs: { universe: 'sector comparables (n=14)', metrics: ['leverage', 'coverage', 'margin'] },
+    // Optional plan step — deterministic simulated comparables derived from the
+    // deal's own figures, so the table is coherent for any deal (uploads too).
+    run: async (ctx) => {
+      await sleep(850 / ctx.speed, ctx.signal);
+      const f = ctx.deal.financials;
+      const r1 = (n: number) => Math.round(n * 10) / 10;
+      const r2 = (n: number) => Math.round(n * 100) / 100;
+      const peers = [
+        { cohort: 'Top quartile', leverageX: r2(f.leverageX * 0.72), interestCoverageX: r2(f.interestCoverageX * 1.55), ebitdaMarginPct: r1(f.ebitdaMarginPct * 1.3) },
+        { cohort: 'Sector median', leverageX: r2(f.leverageX * 0.93), interestCoverageX: r2(f.interestCoverageX * 1.12), ebitdaMarginPct: r1(f.ebitdaMarginPct * 1.04) },
+        { cohort: 'Bottom quartile', leverageX: r2(f.leverageX * 1.22), interestCoverageX: r2(f.interestCoverageX * 0.78), ebitdaMarginPct: r1(f.ebitdaMarginPct * 0.76) },
+      ];
+      const vsMedian = f.leverageX > peers[1].leverageX ? 'more levered than the sector median' : 'less levered than the sector median';
+      return {
+        data: { deal: { leverageX: f.leverageX, interestCoverageX: f.interestCoverageX, ebitdaMarginPct: f.ebitdaMarginPct }, peers, position: vsMedian },
+        confidence: conf(ctx, 0.86),
+        durationMs: 850,
+      };
+    },
+  },
+
   check_covenants: {
     name: 'check_covenants',
     label: 'Covenant Tester',

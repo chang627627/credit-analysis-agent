@@ -34,6 +34,7 @@ export function recommendationFor(deal: Deal): Recommendation {
 const PLAN: PlanStep[] = [
   { id: 'step_extract', title: 'Extract financials from the CIM', toolName: 'extract_financials' },
   { id: 'step_risk', title: 'Compute risk score & rating', toolName: 'compute_risk_score' },
+  { id: 'step_peers', title: 'Benchmark against sector peers', toolName: 'benchmark_peers', optional: true },
   { id: 'step_covenants', title: 'Test covenant compliance', toolName: 'check_covenants' },
   { id: 'step_package', title: 'Assemble approval package', toolName: 'assemble_approval_package' },
 ];
@@ -49,6 +50,8 @@ function thinkingFor(tool: ToolName, deal: Deal): string {
       return "I'll ground everything in the source document first — pulling revenue, EBITDA, leverage, coverage and liquidity straight from the memorandum rather than relying on priors.";
     case 'compute_risk_score':
       return 'With the financials extracted I can score the credit. Leverage and coverage dominate here, so I weight those most heavily and map the result onto the internal rating scale.';
+    case 'benchmark_peers':
+      return 'The reviewer kept peer benchmarking in the plan, so I\'ll place the credit in its sector context — leverage, coverage and margin against the comparable set — before testing covenants.';
     case 'check_covenants':
       return 'Now the part that actually gates the deal: testing each proposed covenant against the extracted figures. A single breach changes the recommendation.';
     case 'propose_restructure':
@@ -212,8 +215,13 @@ async function* streamThinking(stepId: string, text: string, ctx: AgentContext):
 
 export async function* runCreditAgent(ctx: AgentContext): AsyncGenerator<AgentEvent> {
   const { deal } = ctx;
-  // local copy: reviewer send-backs append revision steps to THIS run's plan
-  const plan = [...PLAN];
+  // local copy: reviewer send-backs append revision steps to THIS run's plan.
+  // The intent gate may have excluded optional steps — they stay in the plan
+  // (ghosted in the UI) but the loop skips them; only `optional` can be skipped.
+  const plan: PlanStep[] = PLAN.map((p) => ({
+    ...p,
+    skipped: p.optional === true && ctx.enabledStepIds !== undefined && !ctx.enabledStepIds.includes(p.id),
+  }));
   yield { type: 'run_started', plan, documentTitle: deal.document.title };
   await sleep(300 / ctx.speed, ctx.signal);
 
@@ -228,6 +236,7 @@ export async function* runCreditAgent(ctx: AgentContext): AsyncGenerator<AgentEv
 
   for (let i = 0; i < plan.length; i++) {
     const step = plan[i];
+    if (step.skipped) continue; // excluded at the intent gate
     yield { type: 'step_started', stepId: step.id, index: i, title: step.title };
 
     // (a) stream reasoning
@@ -284,7 +293,14 @@ export async function* runCreditAgent(ctx: AgentContext): AsyncGenerator<AgentEv
 
     const gate = await decisionPromise; // blocks until the human acts
     if (gate.verb !== 'rework') {
-      yield { type: 'run_finished', outcome: gate.verb, package: pkg, note: gate.note };
+      yield {
+        type: 'run_finished',
+        outcome: gate.verb,
+        package: pkg,
+        note: gate.note,
+        amendments: gate.amendments,
+        auto: gate.auto,
+      };
       return;
     }
 

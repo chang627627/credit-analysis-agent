@@ -76,6 +76,7 @@
 
   --radius: 10px;
   --radius-sm: 6px;
+  --radius-xs: 4px;
 
   /* motion tokens */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -196,9 +197,20 @@ button {
 }
 
 /* Lucide icons — one knob for the whole app's icon weight. 1.5 reads refined;
-   Lucide's default 2 (and our old 1.75) renders the Moon crescent chunky. */
+   Lucide's default 2 (and our old 1.75) renders the Moon crescent chunky.
+   vertical-align seats inline icons on the optical baseline next to text. */
 .lucide {
   stroke-width: 1.5;
+  vertical-align: -0.125em;
+}
+/* micro glyphs: 1.5 on Lucide's 24-unit grid renders ~0.6–0.8px at 10–13px —
+   hairline-faint. 2 lands them at ~1px, the same optical weight the 16px icons
+   get from 1.5. The Moon and other 16px+ icons stay on the refined knob. */
+.lucide[width="10"],
+.lucide[width="11"],
+.lucide[width="12"],
+.lucide[width="13"] {
+  stroke-width: 2;
 }
 
 /* Placeholders — without this they fall back to a UA grey that's barely legible
@@ -287,7 +299,7 @@ textarea::placeholder {
   align-items: center;
   gap: 11px;
   padding: 9px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   border: 0;
   background: transparent;
   color: var(--text-dim);
@@ -349,7 +361,7 @@ textarea::placeholder {
   background: var(--accent-soft);
   color: var(--accent-text);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   flex-shrink: 0;
 }
 .nav__userinfo {
@@ -374,7 +386,7 @@ textarea::placeholder {
 .nav__toggle {
   width: 26px;
   height: 26px;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   border: 0;
   background: transparent;
   color: var(--text-faint);
@@ -432,7 +444,7 @@ textarea::placeholder {
   place-items: center;
   width: 36px;
   height: 36px;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   background: var(--accent-soft);
   color: var(--accent-text);
   font-size: 20px;
@@ -471,7 +483,80 @@ textarea::placeholder {
 
 .speed input[type="range"] {
   width: 90px;
-  accent-color: var(--accent);
+}
+
+/* range inputs — custom chrome to match the system (was UA-default + accent-color).
+   Track = the same 999px rail language as .gauge__track; the filled lower track is
+   driven by --fill, set inline by the controlled components; thumb = accent with a
+   --bg ring. All tokens, both themes, both engines. */
+.speed input[type="range"],
+.driver-ctl input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  accent-color: var(--accent); /* fallback for engines without the pseudos */
+  cursor: pointer;
+}
+.speed input[type="range"]::-webkit-slider-runnable-track,
+.driver-ctl input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent) var(--fill, 0%), var(--border-strong) 0);
+}
+.speed input[type="range"]::-moz-range-track,
+.driver-ctl input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent) var(--fill, 0%), var(--border-strong) 0);
+}
+.speed input[type="range"]::-webkit-slider-thumb,
+.driver-ctl input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px; /* (4px track − 14px thumb) / 2 */
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  box-shadow: var(--shadow-xs);
+  transition: background var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
+}
+.speed input[type="range"]::-moz-range-thumb,
+.driver-ctl input[type="range"]::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  box-shadow: var(--shadow-xs);
+  transition: background var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
+}
+.speed input[type="range"]:hover::-webkit-slider-thumb,
+.driver-ctl input[type="range"]:hover::-webkit-slider-thumb {
+  background: var(--accent-hover);
+}
+.speed input[type="range"]:hover::-moz-range-thumb,
+.driver-ctl input[type="range"]:hover::-moz-range-thumb {
+  background: var(--accent-hover);
+}
+/* focus: the same quiet accent-soft ring the gate note uses, on the thumb —
+   not the global rectangle outline around the whole slider box */
+.speed input[type="range"]:focus-visible,
+.driver-ctl input[type="range"]:focus-visible {
+  outline: none;
+}
+.speed input[type="range"]:focus-visible::-webkit-slider-thumb,
+.driver-ctl input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.speed input[type="range"]:focus-visible::-moz-range-thumb,
+.driver-ctl input[type="range"]:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .speed__val {
@@ -650,7 +735,7 @@ textarea::placeholder {
 .plan__title {
   font-family: var(--mono);
   font-size: 10.5px;
-  letter-spacing: 1.4px;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
   color: var(--text-faint);
 }
@@ -725,7 +810,7 @@ textarea::placeholder {
   /* No top padding here — the sticky PLAN bar owns the top spacing so its
      background covers the full top edge (otherwise scrolled content peeks
      above it through the padding strip). */
-  padding: 0 22px 24px;
+  padding: 0 24px 24px;
 }
 
 .plan {
@@ -810,7 +895,7 @@ textarea::placeholder {
   grid-template-columns: 28px 1fr;
   gap: 12px;
   padding: 6px 0 18px;
-  animation: rise 0.32s ease both;
+  animation: rise 0.32s var(--ease-out) both;
 }
 .step__rail {
   display: flex;
@@ -857,7 +942,7 @@ textarea::placeholder {
 }
 .step__title {
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 700;
   margin-bottom: 6px;
 }
 .step__thinking {
@@ -986,7 +1071,7 @@ textarea::placeholder {
   color: var(--text-dim);
   background: var(--panel);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 2px 7px;
   cursor: pointer;
   opacity: 0;
@@ -1015,7 +1100,7 @@ textarea::placeholder {
   color: var(--code-text);
   background: var(--code-bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 9px 11px;
   overflow-x: auto;
   white-space: pre;
@@ -1057,7 +1142,7 @@ textarea::placeholder {
   line-height: 1.45;
   margin: 6px 0;
   border: 1px solid;
-  animation: rise 0.3s ease both;
+  animation: rise 0.3s var(--ease-out) both;
 }
 .flag__icon {
   font-size: 12px;
@@ -1067,7 +1152,7 @@ textarea::placeholder {
 }
 .flag__tag {
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 10px;
   letter-spacing: 0.6px;
   text-transform: uppercase;
   padding: 2px 7px;
@@ -1134,7 +1219,7 @@ textarea::placeholder {
   display: inline-block;
   font-family: var(--mono);
   font-size: 10px;
-  letter-spacing: 1.5px;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
   color: var(--accent-text);
   background: var(--accent-soft);
@@ -1309,7 +1394,7 @@ textarea::placeholder {
   padding: 16px 18px;
   border-radius: var(--radius);
   border: 1px solid;
-  animation: rise 0.34s ease both;
+  animation: rise 0.34s var(--ease-out) both;
 }
 .outcome__row {
   display: flex;
@@ -1331,7 +1416,7 @@ textarea::placeholder {
   height: 34px;
   border-radius: 50%;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 700;
   flex-shrink: 0;
 }
 .outcome--approved .outcome__icon {
@@ -1366,6 +1451,10 @@ textarea::placeholder {
   font-family: inherit;
   color: var(--accent-text);
 }
+.outcome__text .outcome__structure {
+  font-family: inherit;
+  color: var(--text-dim);
+}
 
 /* ------------------------------------------------------------ empty state */
 
@@ -1386,7 +1475,7 @@ textarea::placeholder {
 }
 .empty p {
   font-size: 13.5px;
-  line-height: 1.7;
+  line-height: 1.6;
   color: var(--text-dim);
   margin-bottom: 22px;
 }
@@ -1437,8 +1526,8 @@ textarea::placeholder {
   display: flex;
   gap: 9px;
   padding: 7px 8px;
-  border-radius: 6px;
-  animation: rise 0.25s ease both;
+  border-radius: var(--radius-sm);
+  animation: rise 0.25s var(--ease-out) both;
 }
 .audit__row:hover {
   background: var(--hover-tint);
@@ -1458,7 +1547,7 @@ textarea::placeholder {
 }
 .audit__time {
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 10px;
   color: var(--text-faint);
 }
 .audit__label {
@@ -1574,7 +1663,7 @@ textarea::placeholder {
 
 .art {
   margin: 2px 0 12px;
-  animation: rise 0.3s ease both;
+  animation: rise 0.3s var(--ease-out) both;
 }
 .art__head {
   display: flex;
@@ -1582,7 +1671,7 @@ textarea::placeholder {
   gap: 8px;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
   color: var(--text-faint);
   margin-bottom: 8px;
@@ -1662,7 +1751,7 @@ textarea::placeholder {
 .gauge__score {
   font-family: var(--mono);
   font-size: 24px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text);
 }
 .gauge__score small {
@@ -1848,7 +1937,7 @@ textarea::placeholder {
   font-weight: 600;
   cursor: pointer;
   padding: 2px 4px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 .linkbtn:hover {
   background: var(--accent-soft);
@@ -1874,13 +1963,15 @@ textarea::placeholder {
 
 .whatif {
   margin-top: 14px;
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
+  /* sandbox frame: DASHED hairline = scratchpad, not the record. (A solid teal
+     left spine was tried and rejected as a heavy stray line.) The accent badge
+     in the head carries the color; the frame stays quiet. */
+  border: 1px dashed var(--border-strong);
   border-radius: var(--radius);
   background: var(--panel);
   padding: 18px 20px;
   box-shadow: var(--card-shadow);
-  animation: rise 0.35s ease both;
+  animation: rise 0.35s var(--ease-out) both;
 }
 .whatif__head {
   display: flex;
@@ -1892,7 +1983,7 @@ textarea::placeholder {
   display: inline-block;
   font-family: var(--mono);
   font-size: 10px;
-  letter-spacing: 1.5px;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
   color: var(--accent-text);
   background: var(--accent-soft);
@@ -2112,8 +2203,6 @@ textarea::placeholder {
 }
 .driver-ctl input[type="range"] {
   width: 100%;
-  accent-color: var(--accent);
-  cursor: pointer;
 }
 .driver-ctl__foot {
   display: flex;
@@ -2125,7 +2214,7 @@ textarea::placeholder {
 .whatif__seclabel {
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
   color: var(--text-faint);
   margin-bottom: 8px;
@@ -2235,7 +2324,7 @@ textarea::placeholder {
   width: 100%;
   text-align: left;
   padding: 8px 10px;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   border: 1px solid transparent;
   background: transparent;
   cursor: pointer;
@@ -2263,7 +2352,7 @@ textarea::placeholder {
 }
 .deal__tag {
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-faint);
@@ -2286,7 +2375,7 @@ textarea::placeholder {
   flex-shrink: 0;
   width: 34px;
   height: 34px;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border-strong);
   background: var(--panel);
   color: var(--text);
@@ -2294,6 +2383,8 @@ textarea::placeholder {
   font-size: 15px;
   display: grid;
   place-items: center;
+  transition: background var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out),
+    opacity var(--dur-1) var(--ease-out);
 }
 .composer__attach:hover:not(:disabled) {
   border-color: var(--accent);
@@ -2302,7 +2393,11 @@ textarea::placeholder {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--on-accent);
-  font-weight: 800;
+  font-weight: 700;
+}
+.composer__send:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 .composer__attach:disabled,
 .composer__send:disabled {
@@ -2318,14 +2413,16 @@ textarea::placeholder {
   color: var(--text);
   background: var(--panel);
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 9px 12px;
   line-height: 1.45;
+  transition: border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
 }
+/* same quiet accent ring as the gate note — the app's one focus language for text fields */
 .composer__input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 /* message thread */
@@ -2341,7 +2438,7 @@ textarea::placeholder {
   display: flex;
   gap: 8px;
   max-width: 88%;
-  animation: rise 0.25s ease both;
+  animation: rise 0.25s var(--ease-out) both;
 }
 .msg--user {
   align-self: flex-end;
@@ -2353,7 +2450,7 @@ textarea::placeholder {
 .msg__avatar {
   width: 24px;
   height: 24px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--accent-soft);
   color: var(--accent-text);
   display: grid;
@@ -2365,7 +2462,7 @@ textarea::placeholder {
   font-size: 13px;
   line-height: 1.5;
   padding: 9px 13px;
-  border-radius: 12px;
+  border-radius: var(--radius);
 }
 .msg--user .msg__bubble {
   background: var(--accent);
@@ -2398,7 +2495,7 @@ textarea::placeholder {
   background: var(--panel);
   border: 1px solid var(--border-strong);
   border-bottom-width: 2px;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
 }
 .kbd--on-accent {
   color: var(--on-accent);
@@ -2420,7 +2517,7 @@ textarea::placeholder {
   padding: 6px 8px;
   background: transparent;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 .palettebtn:hover {
@@ -2479,7 +2576,7 @@ textarea::placeholder {
 }
 .palette__section {
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 10px;
   letter-spacing: 1.2px;
   text-transform: uppercase;
   color: var(--text-faint);
@@ -2509,7 +2606,7 @@ textarea::placeholder {
 }
 .palette__hint {
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 10px;
   color: var(--text-faint);
   letter-spacing: 0.5px;
 }
@@ -2554,7 +2651,7 @@ textarea::placeholder {
   color: var(--text);
   background: var(--panel);
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius: var(--radius);
   box-shadow: inset 0 1px 0 var(--edge), var(--shadow-md);
   animation: rise 0.25s var(--ease-out) both;
 }
@@ -2625,7 +2722,7 @@ textarea::placeholder {
 .empty__tag {
   font-style: normal;
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.5px;
   padding: 2px 7px;
@@ -2902,7 +2999,7 @@ textarea::placeholder {
 }
 
 .pdelta {
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 700;
   margin-left: 4px;
 }
@@ -3205,7 +3302,7 @@ mark.cited {
   align-items: baseline;
   gap: 10px;
   padding: 8px 10px;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   font-size: 12.5px;
 }
 .arow:hover {
@@ -3310,7 +3407,7 @@ mark.cited {
   width: 38px;
   height: 38px;
   flex-shrink: 0;
-  border-radius: 10px;
+  border-radius: var(--radius);
   font-size: 18px;
   color: var(--accent-text);
   background: var(--accent-soft);
@@ -3331,7 +3428,7 @@ mark.cited {
 .acard__type {
   font-family: var(--mono);
   font-size: 10px;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
   color: var(--text-faint);
   white-space: nowrap;
@@ -3407,7 +3504,7 @@ mark.cited {
   background: var(--panel-2);
 }
 .astat__k {
-  font-size: 9.5px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-faint);
@@ -3446,7 +3543,7 @@ mark.cited {
 }
 .arun__rec {
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 999px;
@@ -3603,9 +3700,9 @@ mark.cited {
 }
 .dcard__rec {
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
   padding: 2px 7px;
   border-radius: 999px;
 }
@@ -3652,12 +3749,556 @@ mark.cited {
   }
 }
 
+/* =========================================================================
+   UI elevation pass — flip zones, headroom bars, trace-to-source, gate
+   choreography, rework rewind, signature block, plan current, serif CIM,
+   reader-respecting stream. Later rules deliberately override earlier ones
+   at equal specificity; the reduced-motion guard below still comes last.
+   ========================================================================= */
+
+/* --- the CIM as a typeset instrument (same family as the app — a serif
+       variant was tried and rejected: one typeface everywhere) ------------ */
+.doc__body {
+  counter-reset: clause;
+}
+.doc__body p {
+  position: relative;
+  padding-left: 26px;
+}
+.doc__body p::before {
+  counter-increment: clause;
+  content: counter(clause, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 4px;
+  font: 500 10px var(--mono);
+  letter-spacing: 0.5px;
+  color: var(--text-faint);
+}
+.doc__body p:first-of-type {
+  font-size: 13px;
+  color: var(--text);
+}
+.drop__icon {
+  display: flex;
+  justify-content: center;
+}
+
+/* --- plan: cascade in, one connective current underneath ---------------- */
+.plan__item {
+  animation: rise 0.3s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+/* a reviewer send-back returns work upstream: slide in from the right, flash amber */
+.plan__item--rework {
+  animation: plan-return 0.35s var(--ease-out) both, plan-flash 1.2s var(--ease-out) 1;
+}
+@keyframes plan-return {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+}
+@keyframes plan-flash {
+  0%,
+  45% {
+    border-color: var(--warn);
+    background: var(--warn-soft);
+  }
+}
+
+/* --- stream: ink flows down the rail ------------------------------------
+   (a gated dim-the-stream effect was tried and rejected: the transcript
+   stays full-contrast while the human decides) */
+.step__rail::before {
+  transform-origin: top;
+  animation: rail-draw var(--dur-3) var(--ease-out) both;
+}
+@keyframes rail-draw {
+  from {
+    transform: scaleY(0);
+  }
+}
+/* the segment feeding the running step carries the current */
+.step:has(+ .step--running) .step__rail::before {
+  background: linear-gradient(180deg, var(--good), var(--accent));
+}
+
+/* floating way back to the live edge (shown only when scrolled away mid-run) */
+.stream__live {
+  position: sticky;
+  bottom: 12px;
+  align-self: center;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--accent-text);
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 6px 13px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  animation: rise 0.25s var(--ease-out);
+}
+.stream__live:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* --- tool inspector: the drawer unfolds, the chevron turns -------------- */
+.tool__reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-2) var(--ease-out);
+}
+.tool__reveal[data-open] {
+  grid-template-rows: 1fr;
+  border-top: 1px solid var(--border);
+}
+.tool__reveal > .tool__body {
+  overflow: hidden;
+  min-height: 0;
+  border-top: 0;
+  /* padding must collapse WITH the 0fr row — a padded box can't reach height 0,
+     and the leftover strip leaks the first line ("args →") past the card edge */
+  transition: padding-top var(--dur-2) var(--ease-out), padding-bottom var(--dur-2) var(--ease-out);
+}
+.tool__reveal:not([data-open]) > .tool__body {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.tool__chevron {
+  display: flex;
+  align-items: center;
+  width: 12px;
+  transition: transform var(--dur-1) var(--ease-out);
+}
+.tool__head[aria-expanded="true"] .tool__chevron {
+  transform: rotate(90deg);
+}
+.kv__copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+/* a gate figure traced back here: one ring flash on the observation */
+.tool--traced {
+  animation: trace-flash 1.4s var(--ease-out) 1;
+}
+@keyframes trace-flash {
+  0%,
+  45% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 40%, transparent);
+    border-color: var(--accent);
+  }
+}
+
+/* --- gate: announce, then go still; recede upstream on send-back -------- */
+.gate {
+  /* seam ignites with one fast sweep, hands off to the slow idle rotation;
+     glow pulses twice and RESTS — calm for the human who has to read */
+  animation:
+    rise 0.4s var(--ease-out) both,
+    spin-border 0.7s var(--ease-out) 1,
+    spin-border 6s linear 0.7s infinite,
+    glow 2.4s ease-in-out 2;
+}
+.gate:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.gate--leaving {
+  animation: gate-recede 0.32s var(--ease-out) both;
+  pointer-events: none;
+}
+@keyframes gate-recede {
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.985);
+  }
+}
+
+/* every figure the human signs is a provenance link */
+.metric--trace {
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
+}
+.metric--trace:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  transform: translateY(-1px);
+}
+
+/* the revised-structure line under the recommendation */
+.gate__structure {
+  margin: 8px 0 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+/* the Structuring Engine's honest "no cure" answer */
+.art__nocure {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--bad-text);
+  border-left: 2px solid var(--bad);
+  padding-left: 10px;
+}
+
+/* what changed since rev 1 — the send-back thread as a diff */
+.gate__diff {
+  margin: -2px 0 14px;
+  border: 1px solid var(--warn);
+  border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  overflow: hidden;
+}
+.gate__diffeyebrow {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--warn-text);
+  padding: 7px 12px 5px;
+}
+.gate__diffrow {
+  display: flex;
+  gap: 10px;
+  padding: 6px 12px 7px;
+  background: var(--warn-soft);
+  border-top: 1px solid var(--warn-soft);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.gate__diffgut {
+  font-family: var(--mono);
+  font-weight: 700;
+  color: var(--warn-text);
+}
+.gate__difftext em {
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--warn-text);
+}
+
+/* --- what-if: the decision boundary painted on the track ---------------- */
+.whatif__zonekey {
+  font-style: normal;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 8px;
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--text-faint);
+}
+.driver-ctl__zones {
+  position: relative;
+  display: block;
+  height: 5px;
+  margin-top: 2px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+.driver-ctl__zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+.driver-ctl__zone--approve {
+  background: color-mix(in srgb, var(--good) 45%, var(--panel));
+}
+.driver-ctl__zone--escalate {
+  background: color-mix(in srgb, var(--warn) 45%, var(--panel));
+}
+.driver-ctl__zone--decline {
+  background: color-mix(in srgb, var(--bad) 45%, var(--panel));
+}
+/* a notch where the recommendation flips */
+.driver-ctl__flip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--bg);
+}
+
+/* --- covenant headroom: distance to the threshold, not just pass/fail --- */
+.hbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+  min-width: 96px;
+}
+.hbar__track {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border);
+}
+.hbar__fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  transition: width var(--dur-2) var(--ease-out);
+}
+.hbar__fill--pass {
+  background: var(--good);
+}
+.hbar__fill--breach {
+  background: var(--bad);
+}
+.hbar__tick {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--text-dim);
+  transform: translateX(-1px);
+}
+.hbar__cap {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.hbar__cap--bad {
+  color: var(--bad-text);
+}
+/* typeset the money: numeric columns read right-aligned, threshold vs actual */
+.ctable th:nth-child(2),
+.ctable th:nth-child(3),
+.ctable td.ctable__mono {
+  text-align: right;
+}
+.ctable__actual {
+  min-width: 150px;
+}
+
+/* --- outcome: the countersignature lands like a seal -------------------- */
+.outcome__icon {
+  position: relative;
+  animation: stamp var(--dur-2) var(--ease-out) both;
+}
+@keyframes stamp {
+  from {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+.outcome__icon::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  animation: stamp-ring 0.5s var(--ease-out) 0.15s both;
+}
+.outcome--approved .outcome__icon::after {
+  --ring-c: color-mix(in srgb, var(--good) 40%, transparent);
+}
+.outcome--rejected .outcome__icon::after {
+  --ring-c: color-mix(in srgb, var(--bad) 40%, transparent);
+}
+@keyframes stamp-ring {
+  from {
+    box-shadow: 0 0 0 0 var(--ring-c);
+  }
+  to {
+    box-shadow: 0 0 0 16px transparent;
+  }
+}
+
+/* the signature block — the product's name as a moment */
+.sigblock {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  padding: 14px 16px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel); /* solid on the tinted banner (dark-mode gotcha) */
+}
+.sig {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+}
+.sig__pad {
+  display: flex;
+  align-items: flex-end;
+  height: 38px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--border-strong);
+}
+.sig__ink {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  color: var(--text);
+}
+.sig__stroke {
+  width: 132px;
+  height: 34px;
+  overflow: visible;
+}
+.sig__stroke path {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: sig-draw 0.9s var(--ease-out) 0.35s forwards;
+}
+@keyframes sig-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.sig__declined {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--bad-text);
+  border: 1.5px solid var(--bad);
+  background: var(--bad-soft);
+  border-radius: 4px;
+  padding: 3px 10px;
+  margin-bottom: 4px;
+  transform: rotate(-2.5deg);
+  animation: stamp-settle 0.35s var(--ease-out) both;
+}
+@keyframes stamp-settle {
+  from {
+    opacity: 0;
+    transform: rotate(-2.5deg) scale(1.45);
+  }
+}
+.sig__label {
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* --- component polish pass (audit-driven, pure visual) ------------------- */
+
+/* meter rails converge on the gauge's --border-strong (the --border versions
+   are dark-invisible against the panel — the documented dark-mode trap) */
+.whatif__risktrack,
+.hbar__track,
+.driver-ctl__zones {
+  background: var(--border-strong);
+}
+
+/* entrance fill-mode: `both` pins the final keyframe's transform FOREVER,
+   silently killing the hover lift on these cards. `backwards` keeps the
+   pre-delay start state and releases the element after the animation. */
+.art__cards .fcard,
+.gate__metrics .metric {
+  animation-fill-mode: backwards;
+}
+
+/* balance the fixed-count card grids — no more 4+1 / 5+1 orphan rows */
+.gate {
+  container-type: inline-size;
+}
+@container (min-width: 760px) {
+  .gate__metrics {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+.art {
+  container-type: inline-size;
+}
+@container (min-width: 900px) {
+  .art__cards {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+/* hover states that snapped while every peer eases */
+.tool__head,
+.linkbtn,
+.palettebtn,
+.stream__live,
+.art__src {
+  transition: background var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+
+/* provenance hover parity: citable figures get the same ring as trace metrics */
+.fcard--cite {
+  transition: border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
+}
+.fcard--cite:hover {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  transform: translateY(-1px);
+}
+
+/* chips can carry a leading Lucide icon now */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* the escalation severity icon centers like the audit rows' icon does */
+.esc__icon {
+  align-self: center;
+}
+
+/* the theme toggle's bare icon centers optically */
+.btn--icon {
+  display: inline-grid;
+  place-items: center;
+}
+
+/* the diff-strip separator was a 16%-alpha border — the dark-vanishing case */
+.gate__diffrow {
+  border-top-color: color-mix(in srgb, var(--warn) 30%, transparent);
+}
+
+/* numbers that update live or sit in columns don't wobble */
+.pdelta,
+.arow__time,
+.auditview__count,
+.hbar__cap,
+.tool__elapsed {
+  font-variant-numeric: tabular-nums;
+}
+
 /* reduced motion: snap everything to its final state — keep this rule LAST */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important; /* staggers/delays would leave content invisible-then-late */
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }

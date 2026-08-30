@@ -1,5 +1,22 @@
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { useMemo } from 'react';
+import { ArrowRight, CheckCircle2, Download, RotateCcw, XCircle } from 'lucide-react';
 import type { ApprovalPackage } from '../agent/types';
+
+/**
+ * The second signature drawing itself onto the memo — the product's name as a
+ * moment. An abstract flourish (deliberately not a legible name); the text
+ * lines beneath remain the accessible record.
+ */
+function SignatureStroke() {
+  return (
+    <svg className="sig__stroke" viewBox="0 0 132 34" aria-hidden="true" focusable="false">
+      <path
+        d="M6 24 C 16 4, 24 30, 34 15 S 50 5, 58 20 S 74 30, 88 12 c 6 -8, 10 -1, 14 4 s 14 4, 24 -4"
+        pathLength={1}
+      />
+    </svg>
+  );
+}
 
 export function OutcomeBanner({
   approved,
@@ -19,6 +36,11 @@ export function OutcomeBanner({
   onOpenQueue?: () => void;
 }) {
   const routed = approved && pkg.recommendation === 'escalate';
+  // decision time, fixed at mount — the moment the human acted
+  const signedAt = useMemo(
+    () => new Date().toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short', year: 'numeric' }),
+    [],
+  );
   return (
     <section className={`outcome outcome--${approved ? 'approved' : 'rejected'}`}>
       <div className="outcome__row">
@@ -31,6 +53,9 @@ export function OutcomeBanner({
             {pkg.borrower} · {pkg.facility} · memo {pkg.memoId}
             {pkg.revision > 1 ? ` · rev ${pkg.revision}` : ''} committed to the audit trail
           </span>
+          {pkg.restructure && (
+            <span className="outcome__structure">Revised structure · {pkg.restructure.summary}</span>
+          )}
           {note && <span className="outcome__note">Reviewer note · “{note}”</span>}
           {routed && (
             <span className="outcome__routed">
@@ -40,19 +65,37 @@ export function OutcomeBanner({
         </div>
       </div>
 
+      {/* the signature block: agent pre-signed, the human's line completes now */}
+      <div className="sigblock">
+        <div className="sig">
+          <span className="sig__pad">
+            <span className="sig__ink">/s/ Countersign · memo {pkg.memoId}</span>
+          </span>
+          <span className="sig__label">Prepared by · Countersign credit analyst</span>
+        </div>
+        <div className="sig">
+          <span className="sig__pad">
+            {approved ? <SignatureStroke /> : <span className="sig__declined">Declined</span>}
+          </span>
+          <span className="sig__label">
+            {approved ? 'Countersigned by' : 'Refused by'} · Human reviewer · {signedAt}
+          </span>
+        </div>
+      </div>
+
       {/* Suggested next steps — the follow-up-chips pattern from ChatGPT / Perplexity. */}
       <div className="suggest">
         <span className="suggest__label">Next</span>
         {routed && onOpenQueue && (
           <button className="chip" onClick={onOpenQueue}>
-            → View escalation queue
+            <ArrowRight size={12} strokeWidth={1.75} aria-hidden="true" /> View escalation queue
           </button>
         )}
         <button className="chip" onClick={onExport}>
-          ↓ Export audit trail
+          <Download size={12} strokeWidth={1.75} aria-hidden="true" /> Export audit trail
         </button>
         <button className="chip" onClick={onReset}>
-          ↻ Run another deal
+          <RotateCcw size={12} strokeWidth={1.75} aria-hidden="true" /> Run another deal
         </button>
       </div>
     </section>

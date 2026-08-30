@@ -6,6 +6,7 @@
 // ---------------------------------------------------------------------------
 
 import type { AgentContext, ToolName, ToolResult } from './types';
+import { findCure } from './whatif';
 import { sleep } from './util';
 
 /**
@@ -55,6 +56,53 @@ export const TOOLS: Record<ToolName, ToolDef> = {
     run: async (ctx) => {
       await sleep(900 / ctx.speed, ctx.signal);
       return { data: ctx.deal.covenants, confidence: conf(ctx, 0.97), durationMs: 900 };
+    },
+  },
+
+  propose_restructure: {
+    name: 'propose_restructure',
+    label: 'Structuring Engine',
+    defaultArgs: {
+      objective: 'clear the covenant package',
+      instrument: 'sponsor equity contribution',
+      policyLimit: 'contribution ≤ 35% of total debt',
+    },
+    // Runs the same pure cure search the what-if model exposes: the smallest
+    // equity contribution whose revised structure makes `decide` say approve.
+    run: async (ctx) => {
+      await sleep(950 / ctx.speed, ctx.signal);
+      const cure = findCure(ctx.deal);
+      if (!cure) {
+        return {
+          data: {
+            viable: false,
+            searched: 'equity contributions up to 35% of total debt (paydown and liquidity splits)',
+            reason: 'no structure within policy limits clears the covenant package',
+          },
+          confidence: conf(ctx, 0.92),
+          durationMs: 950,
+        };
+      }
+      const o = cure.outcome;
+      return {
+        data: {
+          viable: true,
+          contributionM: cure.contribution,
+          debtPaydownM: cure.debtPaydown,
+          liquidityTopUpM: cure.liquidityTopUp,
+          revised: {
+            totalDebtM: cure.scenario.debt,
+            leverageX: Math.round(o.ratios.leverageX * 100) / 100,
+            interestCoverageX: Math.round(o.ratios.interestCoverageX * 100) / 100,
+            liquidityM: cure.scenario.liquidity,
+            riskScore: o.risk.score,
+          },
+          breachesRemaining: o.breaches,
+          decidedBy: 'same decide() rule as the analysis and the what-if panel',
+        },
+        confidence: conf(ctx, 0.9),
+        durationMs: 950,
+      };
     },
   },
 

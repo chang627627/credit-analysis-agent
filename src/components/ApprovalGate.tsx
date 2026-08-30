@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ApprovalPackage, Recommendation } from '../agent/types';
+import { CornerUpLeft } from 'lucide-react';
+import type { ApprovalPackage, Recommendation, ToolName } from '../agent/types';
 import { LOW_CONFIDENCE_FLOOR } from '../agent/util';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { FlagPill } from './FlagPill';
@@ -24,17 +25,28 @@ export function ApprovalGate({
   onApprove,
   onReject,
   onRework,
+  onTrace,
+  leaving = false,
 }: {
   pkg: ApprovalPackage;
   onApprove: (note?: string) => void;
   onReject: (note: string) => void;
   onRework: (note: string) => void;
+  /** Trace a gate figure back to the tool observation that produced it. */
+  onTrace?: (source: ToolName) => void;
+  /** Send-back choreography: the gate recedes upstream before the loop resumes. */
+  leaving?: boolean;
 }) {
   const [note, setNote] = useState('');
   const [needNote, setNeedNote] = useState(false);
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const noteValRef = useRef(note);
   noteValRef.current = note;
+  // once the send-back is committed (gate receding), NO other verb may fire —
+  // an A keypress in that window would silently convert the rework into an
+  // approval and record the rework note as the countersign note
+  const leavingRef = useRef(leaving);
+  leavingRef.current = leaving;
 
   const demandNote = () => {
     setNeedNote(true);
@@ -68,6 +80,7 @@ export function ApprovalGate({
   // reason, same as the button.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (leavingRef.current) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') return;
@@ -86,7 +99,7 @@ export function ApprovalGate({
 
   return (
     <section
-      className="gate"
+      className={`gate${leaving ? ' gate--leaving' : ''}`}
       ref={ref}
       tabIndex={-1}
       role="region"
@@ -103,26 +116,67 @@ export function ApprovalGate({
       </header>
 
       <div className="gate__rec">
-        <span className="gate__receyebrow">On the filed figures · final</span>
+        <span className="gate__receyebrow">
+          {pkg.restructure ? `On the proposed revised structure · rev ${pkg.revision}` : 'On the filed figures · final'}
+        </span>
         <div className="gate__recrow">
           <span className={`rec rec--${pkg.recommendation}`}>{REC_LABEL[pkg.recommendation]}</span>
           <span className="gate__rating">Risk rating · {pkg.riskRating}</span>
         </div>
+        {pkg.restructure && (
+          <p className="gate__structure">Structure change · {pkg.restructure.summary}</p>
+        )}
       </div>
 
       <div className="gate__metrics">
-        {pkg.keyMetrics.map((m) => (
-          <div className="metric" key={m.label}>
-            <span className="metric__label">{m.label}</span>
-            <span className="metric__value">{m.value}</span>
-            <ConfidenceBadge value={m.confidence} />
-          </div>
-        ))}
+        {pkg.keyMetrics.map((m) => {
+          const inner = (
+            <>
+              <span className="metric__label">{m.label}</span>
+              <span className="metric__value">{m.value}</span>
+              <ConfidenceBadge value={m.confidence} />
+            </>
+          );
+          // every figure the human signs is one click from the observation
+          // that produced it — same provenance grammar as the document cites
+          return onTrace && m.source ? (
+            <button
+              className="metric metric--trace"
+              key={m.label}
+              onClick={() => onTrace(m.source!)}
+              title="Trace to the tool observation that produced this figure"
+              aria-label={`${m.label} ${m.value} — trace to source observation`}
+            >
+              {inner}
+            </button>
+          ) : (
+            <div className="metric" key={m.label}>
+              {inner}
+            </div>
+          );
+        })}
       </div>
       <p className="gate__confnote">
         Confidence = simulated extraction certainty per observation · ≥90% high · 75–90% medium ·
         &lt;{Math.round(LOW_CONFIDENCE_FLOOR * 100)}% is flagged for human verification.
       </p>
+
+      {/* revision diff: what the record GAINED since rev 1 — the send-back
+          thread rendered like a code diff, so a returning gate never looks
+          identical to the one that was sent back */}
+      {pkg.reviewerNotes.length > 0 && (
+        <div className="gate__diff">
+          <span className="gate__diffeyebrow">Changed since rev 1 · reviewer thread</span>
+          {pkg.reviewerNotes.map((n, i) => (
+            <div className="gate__diffrow" key={i}>
+              <span className="gate__diffgut" aria-hidden="true">+</span>
+              <span className="gate__difftext">
+                <em>Send-back · rev {i + 1}</em> — “{n}”
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {pkg.flags.length > 0 && (
         <div className="gate__flags">
@@ -158,13 +212,17 @@ export function ApprovalGate({
       </label>
 
       <div className="gate__actions">
-        <button className="btn btn--reject" onClick={tryReject}>
+        <button className="btn btn--reject" onClick={tryReject} disabled={leaving}>
           Reject <span className="kbd">R</span>
         </button>
-        <button className="btn btn--rework" onClick={tryRework}>
-          ↩ Send back for rework
+        <button className="btn btn--rework" onClick={tryRework} disabled={leaving}>
+          <CornerUpLeft size={13} strokeWidth={1.75} aria-hidden="true" /> Send back for rework
         </button>
-        <button className="btn btn--approve" onClick={() => onApprove(note.trim() || undefined)}>
+        <button
+          className="btn btn--approve"
+          onClick={() => onApprove(note.trim() || undefined)}
+          disabled={leaving}
+        >
           Countersign &amp; approve <span className="kbd kbd--on-accent">A</span>
         </button>
       </div>

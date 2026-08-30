@@ -317,6 +317,62 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       (drivers changed, risk/breach/recommendation deltas) with its own FlaskConical icon +
       filter chip in AuditView; sensitivity analysis is no longer screen-only.
 
+- [x] **UI elevation pass** (multi-lens design panel: 2 ground auditors → 5 idea lenses → 3
+      adversarial judges over 32 ideas; then implemented in 3 chunks). SHIPPED:
+      flip-zone slider tracks (pure `flipZonesFor` sweep paints APPROVE/ESCALATE/DECLINE zones
+      + boundary notches under every what-if slider — gapless: each zone paints through to the
+      next zone's start); covenant **headroom bars** (shared `HeadroomBar`, distance-to-threshold
+      with tick + "0.26x over / $4.2M room" captions, in the memo artifact AND the live what-if
+      table); **trace-to-source** (every gate metric is a button → scrolls to + opens + flashes
+      the tool observation that produced it; `KeyMetric.source`); **honest confidences** (gate
+      metrics read real per-tool confidences via `confByTool`, no more hardcoded 0.90–0.96);
+      gate-arrival choreography (seam ignites one fast sweep → slow idle; glow pulses ×2 then
+      RESTS; `.gate:focus-visible` ring); **countersign stamp** + **Signature Block** (agent line
+      pre-signed `/s/ Countersign`, human line draws an SVG ink flourish on approve / DECLINED
+      stamp on reject, timestamp label); **revision diff strip** at the gate (reviewerNotes
+      thread as +gutter diff rows); **rework rewind** (gate recedes 320ms before the loop resumes;
+      amber revision plan item slides in); plan cascade (items stagger in, keyed by `runId`);
+      reader-respecting auto-follow (pin-to-bottom only while pinned — INSTANT scrollTop jumps,
+      never smooth: a smooth follow reads its own animation frames as reader scroll and unpins
+      itself — plus a sticky "live · N new" pill) + ambient tab title (● Step 2/4 / ⏸ Awaiting
+      countersign); tool-inspector unfold (grid-rows 0fr→1fr + `inert` when closed; collapsed
+      padding must collapse WITH the row or it leaks the first line); Lucide sweep for remaining
+      stream/button glyphs.
+      **REJECTED by the user (do not resurrect):** serif "document voice" for the CIM (one
+      typeface everywhere); dim-the-stream-at-the-gate hover effect; the plan progress line
+      (full-width teal rule at 100%); the what-if teal left spine (replaced with a DASHED
+      hairline frame = scratchpad semantics).
+- [x] **Send-back now produces a signable revision** (the "get a new one that can pass"
+      scenario): a send-back is treated as authorization to restructure within policy —
+      `findCure` in whatif.ts pure-searches the smallest sponsor-equity contribution (paydown /
+      liquidity split, capped at 35% of debt) that makes the SAME `decide` rule return approve;
+      a new `propose_restructure` tool ("Structuring Engine") runs it in-stream with a
+      restructure artifact; `buildRevisedPackage` re-gates on the REVISED figures
+      (`pkg.restructure`, eyebrow "On the proposed revised structure · rev N", metrics trace to
+      the Structuring Engine). Atlas flips ESCALATE→APPROVE on exactly $6.0M equity (leverage
+      lands on 4.00x — minimal cure); Meridian reaffirms; **Cobalt provably has no cure within
+      the cap** → honest "search exhausted policy limits" warning and the DECLINE stands.
+- [x] **Component polish pass** (5-lens pure-visual audit, 38 fixes applied): full cross-engine
+      custom range-slider chrome (track/fill via `--fill` inline var, ringed thumb, hover/focus
+      ring — the last UA-default controls); micro-icon stroke restored (CSS `stroke-width`
+      OVERRIDES the svg attribute, so the global 1.5 knob was flattening ≤13px icons — fixed
+      with `[width="10"–"13"] { stroke-width: 2 }`); radius fully tokenized (+`--radius-xs`);
+      sub-10px type floor raised to 10px; eyebrow tracking converged to 1.2px; weights 800/650→700;
+      rise curves unified on var(--ease-out); `fill-mode: both` → `backwards` on card entrances
+      (both PINS the final keyframe transform forever and kills hover lifts); gate metrics
+      one-row-of-5 / financials one-row-of-6 via container queries; FlagPill/chips/export/deals
+      glyphs → Lucide; meter rails on --border-strong; composer focus/hover parity; tabular-nums
+      completion.
+- [x] **Adversarial review of the elevation diff** (3 find lenses → skeptic verification; 11
+      candidates → 5 confirmed, all fixed): (1) the 320ms gate-recede window left A/R keys +
+      palette approve LIVE — an approve there silently discarded the send-back and recorded the
+      rework note as the countersign note (guarded: keydown + buttons + palette all respect
+      `leaving`); (2) smooth auto-follow unpinning itself (→ instant jumps); (3) stale trace
+      target re-opening inspectors on the next run (cleared on `runId` change); (4) the
+      reduced-motion guard didn't zero `animation-delay` (staggered items appeared late — added);
+      (5) flip-zone sampling left unpainted boundary bands (gapless painting + 140 samples).
+      Also fixed live: reset/selectDeal/upload now restore the default plan (rework grows it).
+
 ## Backlog (to-do)
 
 Items 1–6 + the Agents roster are DONE (kept for the record). Remaining work grouped by type.

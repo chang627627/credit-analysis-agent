@@ -15,7 +15,8 @@ export type ToolName =
   | 'extract_financials'
   | 'compute_risk_score'
   | 'check_covenants'
-  | 'assemble_approval_package';
+  | 'assemble_approval_package'
+  | 'propose_restructure';
 
 export interface PlanStep {
   id: string;
@@ -52,6 +53,8 @@ export interface KeyMetric {
   label: string;
   value: string;
   confidence: Confidence;
+  /** Which tool observation produced this figure — the trace-to-source target. */
+  source?: ToolName;
 }
 
 export type Recommendation = 'approve' | 'decline' | 'escalate';
@@ -70,6 +73,12 @@ export interface ApprovalPackage {
   revision: number;
   /** Send-back notes from prior rework cycles, oldest first. */
   reviewerNotes: string[];
+  /**
+   * Present when this revision proposes a restructure (found by the cure
+   * search on a send-back) — the package's figures are then the REVISED
+   * structure, not the filed figures, and the gate labels them as such.
+   */
+  restructure?: { contribution: number; summary: string };
 }
 
 export type ApprovalDecision = 'approve' | 'reject';

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Upload } from 'lucide-react';
 import type { Deal } from '../agent/mockData';
 import type { ParsingState } from '../hooks/useCreditAgent';
 
@@ -106,7 +107,9 @@ export function DocumentPanel({
           </div>
         ) : (
           <>
-            <span className="drop__icon">⬆</span>
+            <span className="drop__icon">
+              <Upload size={18} strokeWidth={1.5} aria-hidden="true" />
+            </span>
             <strong>Drop a CIM (PDF)</strong>
             <span>
               or click to browse · <em>extraction is simulated</em>

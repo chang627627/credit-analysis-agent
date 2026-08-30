@@ -7,10 +7,12 @@
 // ---------------------------------------------------------------------------
 
 import { useMemo, useState } from 'react';
+import { Check, Paperclip, RotateCcw } from 'lucide-react';
 import type { Deal } from '../agent/mockData';
 import type { Recommendation } from '../agent/types';
-import { baselineScenario, driversFor, evaluate } from '../agent/whatif';
-import type { Driver, Scenario } from '../agent/whatif';
+import { baselineScenario, driversFor, evaluate, flipZonesFor } from '../agent/whatif';
+import type { Driver, FlipZone, Scenario } from '../agent/whatif';
+import { HeadroomBar } from './HeadroomBar';
 
 const REC_LABEL: Record<Recommendation, string> = {
   approve: 'APPROVE',
@@ -44,6 +46,15 @@ export function WhatIfPanel({
 
   const dirty = (Object.keys(scenario) as (keyof Scenario)[]).some((k) => scenario[k] !== base[k]);
   const flipped = live.recommendation !== baseOutcome.recommendation;
+
+  // The decision boundary, painted on each track: sweep every driver (holding
+  // the others at the current scenario) and shade the track by the resulting
+  // recommendation. Zones honestly recompute when the OTHER drivers move.
+  const zonesByKey = useMemo(() => {
+    const map = {} as Record<Driver['key'], FlipZone[]>;
+    for (const d of drivers) map[d.key] = flipZonesFor(deal, scenario, d);
+    return map;
+  }, [deal, drivers, scenario]);
 
   // Attach-to-record: sensitivity analysis belongs in the memo file, not just
   // on screen. Disabled at base (nothing stressed) and after attaching the
@@ -82,7 +93,7 @@ export function WhatIfPanel({
           <h3 className="whatif__title">What would change this decision?</h3>
         </div>
         <button className="whatif__reset" onClick={reset} disabled={!dirty}>
-          ↺ Reset to base case
+          <RotateCcw size={11} strokeWidth={1.75} aria-hidden="true" /> Reset to base case
         </button>
       </div>
       <p className="whatif__sub">
@@ -94,13 +105,21 @@ export function WhatIfPanel({
 
       {/* Inputs first — the sliders sit ABOVE the live outcome so cause (drag) and effect
           (recommendation) share an eye-line. */}
-      <div className="whatif__seclabel">Inputs · drag to stress</div>
+      <div className="whatif__seclabel">
+        Inputs · drag to stress
+        <em className="whatif__zonekey">track shading = the decision at that value</em>
+      </div>
       <div className="whatif__grid">
         {drivers.map((d) => {
           const v = scenario[d.key];
           const delta = v - d.base;
           const good = d.higherBetter ? delta > 0 : delta < 0;
           const deltaTone = delta === 0 ? '' : good ? ' driver-ctl__delta--good' : ' driver-ctl__delta--bad';
+          const span = d.max - d.min;
+          const zones = zonesByKey[d.key] ?? [];
+          const zoneText = zones
+            .map((z) => `${REC_LABEL[z.rec]} from ${fmtValue(d, z.from)} to ${fmtValue(d, z.to)}`)
+            .join('; ');
           return (
             <label className="driver-ctl" key={d.key}>
               <span className="driver-ctl__top">
@@ -118,7 +137,29 @@ export function WhatIfPanel({
                 value={v}
                 onChange={(e) => set(d.key, parseFloat(e.target.value))}
                 aria-label={`${d.label}: ${fmtValue(d, v)}`}
+                style={{ '--fill': `${((v - d.min) / span) * 100}%` } as React.CSSProperties}
               />
+              {/* flip zones: the decision boundary painted under the thumb.
+                  Each zone paints THROUGH to the next zone's start so the
+                  track is gapless — no unpainted band at the boundary. */}
+              <span className="driver-ctl__zones" aria-hidden="true">
+                {zones.map((z, zi) => {
+                  const end = zones[zi + 1]?.from ?? d.max;
+                  return (
+                    <span
+                      key={z.from}
+                      className={`driver-ctl__zone driver-ctl__zone--${z.rec}`}
+                      style={{
+                        left: `${((z.from - d.min) / span) * 100}%`,
+                        width: `${((end - z.from) / span) * 100}%`,
+                      }}
+                    >
+                      {zi > 0 && <span className="driver-ctl__flip" />}
+                    </span>
+                  );
+                })}
+              </span>
+              <span className="sr-only">{`Decision zones for ${d.label}: ${zoneText}`}</span>
               <span className="driver-ctl__foot">
                 <span>{fmtValue(d, d.min)}</span>
                 <span>{fmtValue(d, d.max)}</span>
@@ -150,7 +191,15 @@ export function WhatIfPanel({
             disabled={!dirty || attachedKey === scenarioKey}
             title="Record this scenario in the audit trail — stressed drivers, resulting risk and recommendation"
           >
-            {attachedKey === scenarioKey ? '✓ Scenario on the record' : '⎘ Attach scenario to audit trail'}
+            {attachedKey === scenarioKey ? (
+              <>
+                <Check size={11} strokeWidth={2} aria-hidden="true" /> Scenario on the record
+              </>
+            ) : (
+              <>
+                <Paperclip size={11} strokeWidth={1.75} aria-hidden="true" /> Attach scenario to audit trail
+              </>
+            )}
           </button>
         )}
         <div className="whatif__risk">
@@ -190,7 +239,10 @@ export function WhatIfPanel({
             <tr key={c.name} className={c.status === 'breach' ? 'ctable__row--breach' : ''}>
               <td>{c.name}</td>
               <td className="ctable__mono">{c.threshold}</td>
-              <td className="ctable__mono">{c.actual}</td>
+              <td className="ctable__mono ctable__actual">
+                {c.actual}
+                <HeadroomBar threshold={c.threshold} actual={c.actual} />
+              </td>
               <td>
                 <span className={`cstatus cstatus--${c.status}`}>
                   {c.status === 'breach' ? 'BREACH' : 'PASS'}

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useCreditAgent } from './hooks/useCreditAgent';
 import type { ChatMessage } from './hooks/useCreditAgent';
 import { useMonitor } from './hooks/useMonitor';
-import type { Recommendation } from './agent/types';
+import type { Recommendation, ToolName } from './agent/types';
+import type { TraceTarget } from './components/StepCard';
 import { PortfolioView } from './components/PortfolioView';
 import { AuditView } from './components/AuditView';
 import { AgentsView } from './components/AgentsView';
@@ -124,11 +125,49 @@ export default function App() {
 
   // click-through provenance: artifact figures highlight their source sentence
   const [citedValues, setCitedValues] = useState<string[]>([]);
+  // trace-to-source: a gate figure jumps to the tool observation behind it
+  const [trace, setTrace] = useState<TraceTarget | null>(null);
+  // send-back choreography: keep the gate mounted while it recedes upstream
+  const [gateLeaving, setGateLeaving] = useState(false);
   // one chokepoint: ANY deal change (picker, palette, launchpad chip, upload)
   // invalidates citations — stale strings on a new document = false provenance
   useEffect(() => {
     setCitedValues([]);
+    setTrace(null);
   }, [agent.selectedDealId]);
+  // a stale trace target must not re-open inspectors on the NEXT run
+  useEffect(() => {
+    setTrace(null);
+  }, [agent.runId]);
+
+  const handleTrace = (tool: ToolName) => {
+    setTrace((t) => ({ tool, tick: (t?.tick ?? 0) + 1 }));
+  };
+
+  const handleRework = (note: string) => {
+    if (gateLeaving) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      agent.requestRework(note);
+      return;
+    }
+    setGateLeaving(true);
+    window.setTimeout(() => {
+      agent.requestRework(note);
+      setGateLeaving(false);
+    }, 320);
+  };
+
+  // ambient status in the tab title — the between-tabs "is it still running?"
+  const doneSteps = agent.steps.filter((s) => s.status === 'done').length;
+  useEffect(() => {
+    if (status === 'running') {
+      document.title = `● Step ${Math.min(doneSteps + 1, agent.plan.length)}/${agent.plan.length} · Countersign`;
+    } else if (status === 'awaiting_approval') {
+      document.title = '⏸ Awaiting countersign · Countersign';
+    } else {
+      document.title = 'Countersign — agentic credit analysis (demo)';
+    }
+  }, [status, doneSteps, agent.plan.length]);
 
   const docHidden = () => window.matchMedia('(max-width: 1100px)').matches;
   const cite: Cite = {
@@ -153,6 +192,7 @@ export default function App() {
   };
   const handleReset = () => {
     setCitedValues([]);
+    setTrace(null);
     agent.reset();
   };
 
@@ -254,7 +294,7 @@ export default function App() {
 
   // Context-aware command palette: only currently-possible actions appear.
   const commands: Command[] = [
-    ...(status === 'awaiting_approval' && view === 'analysis'
+    ...(status === 'awaiting_approval' && view === 'analysis' && !gateLeaving
       ? [
           // Approve only — reject/send-back require a reason typed at the gate,
           // so the palette doesn't offer a one-keystroke way around the record.
@@ -359,7 +399,7 @@ export default function App() {
 
             <section className="workspace">
               <div className="workspace__scroll">
-                <PlanBar plan={agent.plan} steps={agent.steps} />
+                <PlanBar key={`plan-${agent.runId}`} plan={agent.plan} steps={agent.steps} />
 
                 {status === 'idle' ? (
                   <EmptyState
@@ -368,7 +408,7 @@ export default function App() {
                     onPickAndRun={(id) => agent.start(id)}
                   />
                 ) : (
-                  <AgentStream steps={agent.steps} cite={cite} />
+                  <AgentStream steps={agent.steps} cite={cite} trace={trace} />
                 )}
 
                 {status === 'awaiting_approval' && agent.approvalPackage && (
@@ -376,7 +416,9 @@ export default function App() {
                     pkg={agent.approvalPackage}
                     onApprove={agent.approve}
                     onReject={agent.reject}
-                    onRework={agent.requestRework}
+                    onRework={handleRework}
+                    onTrace={handleTrace}
+                    leaving={gateLeaving}
                   />
                 )}
 

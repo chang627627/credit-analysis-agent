@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Info, Wrench, CornerDownLeft, AlertTriangle, CheckCircle2, Activity, FlaskConical, type LucideIcon } from 'lucide-react';
+import { Info, Wrench, CornerDownLeft, AlertTriangle, CheckCircle2, Activity, Download, FlaskConical, type LucideIcon } from 'lucide-react';
 import type { AuditHistoryEntry, AuditKind } from '../hooks/useCreditAgent';
 import type { EscalationItem } from '../agent/monitor';
 
@@ -91,7 +91,7 @@ export function AuditView({
         </div>
         <div className="portfolio__controls">
           <button className="btn" onClick={onExport} disabled={rows.length === 0}>
-            ↓ Export JSON
+            <Download size={13} strokeWidth={1.75} aria-hidden="true" /> Export JSON
           </button>
         </div>
       </header>

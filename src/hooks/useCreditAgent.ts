@@ -278,6 +278,7 @@ export function useCreditAgent(): CreditAgentApi {
     abortRef.current?.abort();
     approvalResolver.current = null;
     setStatus('idle');
+    setPlan(getPlan()); // rework may have grown the plan — restore the default
     setSteps([]);
     setApprovalPackage(null);
     setAudit([]);
@@ -291,6 +292,7 @@ export function useCreditAgent(): CreditAgentApi {
     approvalResolver.current = null;
     setDealId(id);
     setStatus('idle');
+    setPlan(getPlan());
     setSteps([]);
     setApprovalPackage(null);
     setAudit([]);
@@ -304,6 +306,7 @@ export function useCreditAgent(): CreditAgentApi {
     approvalResolver.current = null;
     setParsing({ name: file.name });
     setStatus('idle');
+    setPlan(getPlan());
     setSteps([]);
     setApprovalPackage(null);
     setAudit([]);

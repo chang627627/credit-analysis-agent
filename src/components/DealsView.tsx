@@ -8,7 +8,7 @@
 // ---------------------------------------------------------------------------
 
 import { useMemo } from 'react';
-import { Upload } from 'lucide-react';
+import { Check, Upload, X } from 'lucide-react';
 import type { Deal } from '../agent/mockData';
 import type { RunStatus } from '../hooks/useCreditAgent';
 import type { AuditHistoryEntry } from '../hooks/useCreditAgent';
@@ -129,7 +129,15 @@ export function DealsView({
                       </span>
                       {decision && (
                         <span className={`dcard__decision dcard__decision--${decision}`}>
-                          {decision === 'approved' ? '✓ countersigned' : '✕ rejected'}
+                          {decision === 'approved' ? (
+                            <>
+                              <Check size={11} strokeWidth={2} aria-hidden="true" /> countersigned
+                            </>
+                          ) : (
+                            <>
+                              <X size={11} strokeWidth={2} aria-hidden="true" /> rejected
+                            </>
+                          )}
                         </span>
                       )}
                     </div>

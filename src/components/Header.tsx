@@ -70,6 +70,7 @@ export function Header({
           step={0.5}
           value={speed}
           onChange={(e) => onSpeed(Number(e.target.value))}
+          style={{ '--fill': `${((speed - 0.5) / 3.5) * 100}%` } as React.CSSProperties}
         />
         <span className="speed__val">{speed}×</span>
       </div>

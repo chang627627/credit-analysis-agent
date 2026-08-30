@@ -9,6 +9,7 @@ import { FileText, Link2 } from 'lucide-react';
 import type { ToolName } from '../agent/types';
 import type { CovenantTest, ExtractedFinancials, RiskScore } from '../agent/mockData';
 import { useCountUp } from '../hooks/useCountUp';
+import { HeadroomBar } from './HeadroomBar';
 
 interface MemoData {
   memoId: string;
@@ -45,7 +46,56 @@ export function Artifact({ tool, data, cite }: { tool: ToolName; data: unknown; 
       return <CovenantsArtifact data={data as CovenantTest[]} />;
     case 'assemble_approval_package':
       return <MemoArtifact data={data as MemoData} />;
+    case 'propose_restructure':
+      return <RestructureArtifact data={data as RestructureData} />;
   }
+}
+
+interface RestructureData {
+  viable: boolean;
+  contributionM?: number;
+  debtPaydownM?: number;
+  liquidityTopUpM?: number;
+  revised?: { totalDebtM: number; leverageX: number; interestCoverageX: number; liquidityM: number; riskScore: number };
+  searched?: string;
+  reason?: string;
+}
+
+/** The Structuring Engine's answer: the minimal cure, or an honest "no cure". */
+function RestructureArtifact({ data }: { data: RestructureData }) {
+  if (!data.viable || !data.revised) {
+    return (
+      <div className="art">
+        <div className="art__head">Restructure search · simulated</div>
+        <p className="art__nocure">
+          No viable structure within policy limits — searched {data.searched}. {data.reason}.
+        </p>
+      </div>
+    );
+  }
+  const r = data.revised;
+  const cards = [
+    { k: 'Sponsor equity', v: `$${data.contributionM}M` },
+    { k: 'Debt paydown', v: `$${data.debtPaydownM}M` },
+    ...(data.liquidityTopUpM ? [{ k: 'To liquidity', v: `$${data.liquidityTopUpM}M` }] : []),
+    { k: 'New total debt', v: `$${r.totalDebtM}M` },
+    { k: 'New leverage', v: `${r.leverageX}x`, tone: 'good' as const },
+    { k: 'New coverage', v: `${r.interestCoverageX}x` },
+    { k: 'New risk score', v: `${r.riskScore}` },
+  ];
+  return (
+    <div className="art">
+      <div className="art__head">Proposed restructure · simulated</div>
+      <div className="art__cards">
+        {cards.map((c, i) => (
+          <div className={`fcard${c.tone ? ` fcard--${c.tone}` : ''}`} key={c.k} style={{ '--i': i } as React.CSSProperties}>
+            <span className="fcard__k">{c.k}</span>
+            <span className="fcard__v">{c.v}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function FinancialsArtifact({ data, cite }: { data: ExtractedFinancials; cite?: Cite }) {
@@ -174,7 +224,10 @@ function CovenantsArtifact({ data }: { data: CovenantTest[] }) {
             <tr key={c.name} className={c.status === 'breach' ? 'ctable__row--breach' : ''}>
               <td>{c.name}</td>
               <td className="ctable__mono">{c.threshold}</td>
-              <td className="ctable__mono">{c.actual}</td>
+              <td className="ctable__mono ctable__actual">
+                {c.actual}
+                <HeadroomBar threshold={c.threshold} actual={c.actual} />
+              </td>
               <td>
                 <span className={`cstatus cstatus--${c.status}`}>
                   {c.status === 'breach' ? 'BREACH' : 'PASS'}

@@ -13,13 +13,13 @@ colors:
   bg-2: "#f4f6f9"
   panel: "#ffffff"
   panel-2: "#f4f6f9"
-  border: "#e5e8ef"
+  border: "#dfe3ea"
   border-strong: "#d3d9e2"
   hover-tint: "rgba(15, 30, 50, 0.04)"
   chip-bg: "rgba(15, 30, 50, 0.06)"
   text: "#0f2436"
   text-dim: "#51607a"
-  text-faint: "#8a96a8"
+  text-faint: "#66727f"
   good: "#16a34a"
   good-hover: "#128a3e"
   good-soft: "rgba(22, 163, 74, 0.12)"
@@ -41,93 +41,93 @@ colors:
 typography:
   page-title:
     fontFamily: Inter
-    fontSize: 20px
-    fontWeight: 700
+    fontSize: 22px
+    fontWeight: 600
     lineHeight: 1.25
     letterSpacing: -0.024em
   section-title:
     fontFamily: Inter
     fontSize: 18px
-    fontWeight: 700
+    fontWeight: 600
     lineHeight: 1.25
-    letterSpacing: -0.024em
+    letterSpacing: -0.014em
   card-title:
     fontFamily: Inter
-    fontSize: 17px
-    fontWeight: 700
+    fontSize: 18px
+    fontWeight: 600
     lineHeight: 1.3
-    letterSpacing: -0.024em
+    letterSpacing: -0.014em
   doc-title:
     fontFamily: Inter
-    fontSize: 16px
+    fontSize: 15px
     fontWeight: 600
     lineHeight: 1.35
-    letterSpacing: -0.024em
+    letterSpacing: -0.008em
   brand:
     fontFamily: Inter
     fontSize: 15px
-    fontWeight: 700
+    fontWeight: 600
     lineHeight: 1.2
-    letterSpacing: 0.2px
+    letterSpacing: -0.008em
   step-title:
     fontFamily: Inter
-    fontSize: 14px
-    fontWeight: 700
+    fontSize: 15px
+    fontWeight: 600
     lineHeight: 1.35
-    letterSpacing: -0.024em
+    letterSpacing: -0.008em
   body:
     fontFamily: Inter
     fontSize: 13px
     fontWeight: 400
     lineHeight: 1.55
-    letterSpacing: -0.008em
+    letterSpacing: normal
   body-sm:
     fontFamily: Inter
-    fontSize: 12.5px
+    fontSize: 12px
     fontWeight: 400
     lineHeight: 1.55
-    letterSpacing: -0.008em
+    letterSpacing: normal
   caption:
     fontFamily: Inter
     fontSize: 12px
     fontWeight: 400
     lineHeight: 1.5
-    letterSpacing: -0.008em
+    letterSpacing: normal
   field-label:
     fontFamily: Inter
-    fontSize: 10.5px
-    fontWeight: 600
-    lineHeight: 1.3
-    letterSpacing: 0.6px
-  eyebrow:
-    fontFamily: Geist Mono
-    fontSize: 10px
+    fontSize: 12px
     fontWeight: 500
     lineHeight: 1.3
-    letterSpacing: 1.2px
+    letterSpacing: normal
+  eyebrow:
+    fontFamily: Geist Mono
+    fontSize: 11px
+    fontWeight: 500
+    lineHeight: 1.3
+    letterSpacing: 0.06em
   mono-data:
     fontFamily: Geist Mono
-    fontSize: 11.5px
+    fontSize: 12px
     fontWeight: 400
     lineHeight: 1.55
     letterSpacing: 0
   mono-badge:
     fontFamily: Geist Mono
-    fontSize: 10px
-    fontWeight: 700
+    fontSize: 11px
+    fontWeight: 600
     lineHeight: 1.2
-    letterSpacing: 0.5px
+    letterSpacing: 0.06em
   button:
     fontFamily: Inter
     fontSize: 13px
-    fontWeight: 600
+    fontWeight: 500
     lineHeight: 1.2
-    letterSpacing: -0.008em
+    letterSpacing: normal
 
 rounded:
-  xs: 4px
-  sm: 6px
-  md: 10px
+  xs: 6px
+  sm: 8px
+  md: 12px
   pill: 999px
   full: 50%
 
@@ -285,7 +285,7 @@ It is never decoration. Functional meaning belongs to the pass/warn/breach triad
 (`{colors.good}` / `{colors.warn}` / `{colors.bad}`), which stays strictly separate from teal.
 
 Every number in the product — metrics, thresholds, timestamps, confidence, memo ids — sets in
-**Geist Mono with tabular-nums**. Micro-taxonomy (eyebrows, badges) is uppercase mono at 10px
+**Geist Mono with tabular-nums**. Micro-taxonomy (eyebrows, badges) is uppercase mono at 11px
 with +1.2px tracking, deliberately contrasting the negative-tracked Inter headings above it.
 
 **Key Characteristics:**
@@ -347,11 +347,11 @@ depth moves from shadows to the **surface ladder** plus a faint top-edge highlig
 | bg-2 | #f4f6f9 | #0d0f11 | |
 | panel | #ffffff | #111315 | surface-1 |
 | panel-2 | #f4f6f9 | #16181b | surface-2 |
-| border | #e5e8ef | #20232a | |
+| border | #dfe3ea | #20232a | light hairline sits ~10 L below the canvas |
 | border-strong | #d3d9e2 | #31353d | |
 | text | #0f2436 | #f3f5f6 | |
 | text-dim | #51607a | #8b929d | |
-| text-faint | #8a96a8 | #777e8a | lifted for ~AA on panel |
+| text-faint | #66727f | #777e8a | both clear WCAG AA (light 4.91:1 on white, 4.53:1 on bg-2) |
 | accent | #0f7d8c | #2bb8cc | brighter teal for near-black |
 | accent-hover | #0b6573 | #4dccdd | hover goes LIGHTER in dark |
 | accent-soft | rgba(15,125,140,.10) | rgba(43,184,204,.16) | |
@@ -373,7 +373,7 @@ depth moves from shadows to the **surface ladder** plus a faint top-edge highlig
 
 ### Font Family
 
-- **Inter** — the single UI voice; fallback `SF Pro Display, -apple-system, system-ui, Segoe UI, Roboto`. Loaded at 400/500/600/700. `font-feature-settings: "cv11"` (single-story a), `font-optical-sizing: auto`, antialiased.
+- **Inter** — the single UI voice; fallback `SF Pro Display, -apple-system, system-ui, Segoe UI, Roboto`. Loaded at 400/500/600 — weight 700 is deliberately unused (display ceiling 600). `font-feature-settings: "cv11"` (single-story a), `font-optical-sizing: auto`, antialiased.
 - **Geist Mono** — fallback `JetBrains Mono, ui-monospace, SF Mono, Menlo`. Carries every number, threshold, timestamp, id, eyebrow, badge, and JSON block. Numeric UI always sets `font-variant-numeric: tabular-nums`.
 - There is **no serif**. A serif "document voice" for the source memo was prototyped and rejected: one typeface family everywhere.
 
@@ -381,7 +381,7 @@ depth moves from shadows to the **surface ladder** plus a faint top-edge highlig
 
 | Token | Size | Weight | Tracking | Use |
 |---|---|---|---|---|
-| `{typography.page-title}` | 20px | 700 | −0.024em | Launchpad headline |
+| `{typography.page-title}` | 22px | 600 | −0.024em | Launchpad headline |
 | `{typography.section-title}` | 18px | 700 | −0.024em | Gate title, screen titles ("Approve the plan") |
 | `{typography.card-title}` | 17px | 700 | −0.024em | Panel titles (what-if) |
 | `{typography.doc-title}` | 16px | 600 | −0.024em | Document titles |

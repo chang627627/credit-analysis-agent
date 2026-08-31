@@ -447,6 +447,35 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       filter bars, sortable columns, date pickers, donuts — scale cosplay at 3–5 deals.
       (Verification note: phantom gate actions during browser automation were stale-coordinate
       clicks from the driving tool, confirmed by a hands-off control run — app exonerated.)
+- [x] **The real "2026" pass** (research-grounded, token-level). Pulled 15 actual `DESIGN.md` files
+      (Linear, Vercel, Raycast, Superhuman, Cursor, Stripe, Revolut, Wise, Sentry, Claude, VoltAgent,
+      Supabase, Warp, PostHog, Notion) and measured our CSS against them in OKLCH/WCAG. **The research
+      REFUTED two intuitions** — worth remembering: (a) "borderless cards are 2026" is FALSE, 15/15
+      use 1px hairlines on card edges; what left is the DROP SHADOW (7/15 ship zero box-shadows), and
+      the dated tell is border AND shadow together; (b) "headings should be bigger" is FALSE in-app —
+      nobody exceeds 1.5x h1:body and ours was already 1.38–1.54x. Also: their 16px body is MARKETING
+      body; our 13px in-app body is correct. SHIPPED: **weight ladder shifted down one rung**
+      (700 x35 → 0; now 400/500/600 — 8 references explicitly forbid 700 in UI chrome; shifting the
+      whole ladder preserves every existing hierarchy decision while removing the heaviness);
+      **type floor + 6-step scale** (was 17 distinct sizes incl. half-pixels 10.5/11.5/12.5/13.5 and
+      113 declarations below 12px → now exactly 11/12/13/15/18/22, no half-pixels — no reference
+      system has one); **--text-faint AA BUG FIXED** (#8a96a8 was **3.00:1 on white / 2.77 on --bg-2 —
+      failing AA** on ~50 rules at 10px; → #66727f = 4.91/4.53. The dark audit had lifted dark and
+      never re-checked light); **light card shadow removed** (`--card-shadow: none`) and the light
+      hairline strengthened #e5e8ef → #dfe3ea (≈10 L below white, matching Supabase/Cursor);
+      **size-dependent tracking ramp** (the global `body { letter-spacing: -0.008em }` was leaking
+      negative tracking onto every 11px label → now normal, with −0.024em@22 / −0.014em@18 /
+      −0.008em@15 and ZERO below 15px); **uppercase rescoped 32 → 23** (9 field-label/table-header
+      rules dropped caps entirely — JSX text was already properly cased; 20 eyebrows normalized from
+      8 ad-hoc tracking values to one 0.06em recipe; status tokens `.flag__tag` / `.deal__tag` /
+      `.sig__declined` untouched, caps carry meaning there); **radius ladder shifted up**
+      (--radius-sm is used 45x vs --radius 11x, i.e. the 6px CONTROL radius was doing CONTAINER duty
+      — inverted vs 14/15 references → 12/8/6); **tabular-nums** extended to every column figure
+      (Stripe: "money without tnum breaks the quiet financial-data signature"); container-query
+      thresholds lowered to match the containers' real CONTENT-box widths (they measure content, not
+      clientWidth, so 760/900 never fired). Verified both themes + AA recomputed in both.
+      NOT changed (already at/above standard): the dark surface ladder, in-app type ratio, card
+      borders, 13px body, motion tokens, accent discipline.
 - [x] **DESIGN.md + design-preview.html** — the design system documented in the
       VoltAgent/awesome-design-md (Google Stitch) format: YAML front matter with machine-readable
       token maps (`colors` = light default, `typography`, `rounded`, `spacing`, `components` with

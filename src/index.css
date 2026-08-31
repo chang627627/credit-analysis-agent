@@ -19,7 +19,7 @@
   --app-bg: linear-gradient(180deg, #ffffff 0%, #f3f5f8 100%);
   --topbar-bg: rgba(255, 255, 255, 0.85);
 
-  --border: #e5e8ef;
+  --border: #dfe3ea;
   --border-strong: #d3d9e2;
   --hover-tint: rgba(15, 30, 50, 0.04);
   --chip-bg: rgba(15, 30, 50, 0.06);
@@ -27,7 +27,7 @@
   /* text · graphite-navy ink */
   --text: #0f2436;
   --text-dim: #51607a;
-  --text-faint: #8a96a8;
+  --text-faint: #66727f; /* AA on white (4.91) AND --bg-2 (4.53); was #8a96a8 = 3.00 FAIL */
 
   /* accent · signature deep teal */
   --accent: #0f7d8c;
@@ -65,7 +65,7 @@
   --shadow-xs: 0 1px 1px rgba(15, 36, 54, 0.04);
   --shadow-sm: 0 1px 2px rgba(15, 36, 54, 0.04), 0 2px 8px -4px rgba(15, 36, 54, 0.06);
   --shadow-md: 0 2px 4px rgba(15, 36, 54, 0.04), 0 8px 24px -12px rgba(15, 36, 54, 0.12);
-  --card-shadow: var(--shadow-xs);
+  --card-shadow: none;
 
   /* ambient canvas texture */
   --ambient: rgba(15, 125, 140, 0.05);
@@ -74,9 +74,12 @@
   --mono: "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   --sans: "Inter", "SF Pro Display", -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
 
-  --radius: 10px;
-  --radius-sm: 6px;
-  --radius-xs: 4px;
+  /* Radius ladder shifted up one rung. --radius-sm is used 45x vs --radius 11x — i.e. it does
+     CONTAINER duty — so the old 6px control radius was making every panel read hard-cornered.
+     Containers must exceed controls (true in 14/15 reference systems). */
+  --radius: 12px; /* panels, large containers */
+  --radius-sm: 8px; /* cards, buttons */
+  --radius-xs: 6px; /* inputs, chips */
 
   /* motion tokens */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -164,20 +167,26 @@ body {
   text-rendering: optimizeLegibility;
   font-optical-sizing: auto;
   font-feature-settings: "cv11"; /* Inter single-story a — the refined Linear/Vercel cut */
-  letter-spacing: -0.008em;
+  /* NO global negative tracking: it leaks onto every 11-12px label and reads cramped.
+     Tracking is a function of SIZE — see the ramp below. */
+  letter-spacing: normal;
 }
 
-/* Linear's signature: aggressive negative tracking on display/headings. */
-.doc__title,
+/* Tracking ramp — negative tracking is a function of SIZE and stops at body size
+   (Linear's ramp: -0.4px@22 → -0.05px@16 → 0@14 → 0@12). Below 15px: none. */
+.empty h2 {
+  letter-spacing: -0.024em; /* 22px */
+}
 .gate__title,
-.empty h2,
+.portfolio__title,
+.whatif__title {
+  letter-spacing: -0.014em; /* 18px */
+}
+.doc__title,
 .brand__text strong,
 .outcome__text strong,
-.step__title,
-.portfolio__title,
-.whatif__title,
-.acard__name {
-  letter-spacing: -0.024em;
+.step__title {
+  letter-spacing: -0.008em; /* 15px */
 }
 
 /* Faint top-edge highlight on lifted panels — Linear's "pixel-rendered" feel (dark only). */
@@ -282,8 +291,8 @@ textarea::placeholder {
 }
 .nav__section {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 1.2px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-faint);
 }
@@ -306,7 +315,7 @@ textarea::placeholder {
   background: transparent;
   color: var(--text-dim);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   text-align: left;
   transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
@@ -336,8 +345,8 @@ textarea::placeholder {
 }
 .nav__badge {
   font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--text-dim);
   background: var(--chip-bg);
   border-radius: 999px;
@@ -363,7 +372,7 @@ textarea::placeholder {
   background: var(--accent-soft);
   color: var(--accent-text);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   flex-shrink: 0;
 }
 .nav__userinfo {
@@ -372,10 +381,10 @@ textarea::placeholder {
   line-height: 1.25;
 }
 .nav__userinfo strong {
-  font-size: 12.5px;
+  font-size: 12px;
 }
 .nav__userinfo span {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-faint);
 }
 
@@ -393,7 +402,7 @@ textarea::placeholder {
   background: transparent;
   color: var(--text-faint);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 15px;
   display: grid;
   place-items: center;
   transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
@@ -449,7 +458,7 @@ textarea::placeholder {
   border-radius: var(--radius-sm);
   background: var(--accent-soft);
   color: var(--accent-text);
-  font-size: 20px;
+  font-size: 22px;
   border: 1px solid var(--accent-soft);
 }
 
@@ -573,7 +582,7 @@ textarea::placeholder {
   padding: 5px 11px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   border: 1px solid var(--border-strong);
   color: var(--text-dim);
   background: var(--panel-2);
@@ -702,7 +711,7 @@ textarea::placeholder {
   width: 100%;
   font-family: var(--sans);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text);
   background: var(--panel);
   border: 1px solid var(--border-strong);
@@ -727,7 +736,7 @@ textarea::placeholder {
   right: 11px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-faint);
   pointer-events: none;
 }
@@ -736,14 +745,14 @@ textarea::placeholder {
 .audit__tag,
 .plan__title {
   font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: 1.2px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-faint);
 }
 
 .doc__title {
-  font-size: 16px;
+  font-size: 15px;
   margin: 10px 0 14px;
   line-height: 1.35;
 }
@@ -760,20 +769,18 @@ textarea::placeholder {
   gap: 2px;
 }
 .doc__meta dt {
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
+  font-size: 11px;
   color: var(--text-faint);
 }
 .doc__meta dd {
   margin: 0;
   font-size: 13px;
   color: var(--text);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .doc__body {
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.65;
   color: var(--text-dim);
   border-top: 1px solid var(--border);
@@ -850,7 +857,7 @@ textarea::placeholder {
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--panel-2);
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-faint);
   transition: background var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out),
     border-color var(--dur-2) var(--ease-out);
@@ -863,8 +870,8 @@ textarea::placeholder {
   border-radius: 50%;
   background: var(--border);
   color: var(--text-dim);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   flex-shrink: 0;
 }
 .plan__item--active {
@@ -922,7 +929,7 @@ textarea::placeholder {
   display: grid;
   place-items: center;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   background: var(--panel);
   border: 1px solid var(--border-strong);
   color: var(--text-dim);
@@ -943,8 +950,8 @@ textarea::placeholder {
   min-width: 0;
 }
 .step__title {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
   margin-bottom: 6px;
 }
 .step__thinking {
@@ -1022,12 +1029,12 @@ textarea::placeholder {
 }
 .tool__chevron {
   color: var(--text-faint);
-  font-size: 10px;
+  font-size: 11px;
   width: 10px;
 }
 .tool__name {
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--accent-text);
 }
 .tool__label {
@@ -1069,7 +1076,7 @@ textarea::placeholder {
   top: 22px;
   right: 8px;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-dim);
   background: var(--panel);
   border: 1px solid var(--border-strong);
@@ -1089,15 +1096,13 @@ textarea::placeholder {
 }
 .kv__k {
   font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: 0.5px;
+  font-size: 11px;
   color: var(--text-faint);
-  text-transform: uppercase;
 }
 .kv__v {
   margin: 0;
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.55;
   color: var(--code-text);
   background: var(--code-bg);
@@ -1112,8 +1117,8 @@ textarea::placeholder {
 
 .conf {
   font-family: var(--mono);
-  font-size: 10.5px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   padding: 2px 7px;
   border-radius: 999px;
   border: 1px solid transparent;
@@ -1140,7 +1145,7 @@ textarea::placeholder {
   gap: 9px;
   padding: 9px 12px;
   border-radius: var(--radius-sm);
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.45;
   margin: 6px 0;
   border: 1px solid;
@@ -1154,7 +1159,7 @@ textarea::placeholder {
 }
 .flag__tag {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.6px;
   text-transform: uppercase;
   padding: 2px 7px;
@@ -1220,8 +1225,8 @@ textarea::placeholder {
 .gate__badge {
   display: inline-block;
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 1.2px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--accent-text);
   background: var(--accent-soft);
@@ -1247,8 +1252,8 @@ textarea::placeholder {
 }
 .gate__receyebrow {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 1px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-faint);
 }
@@ -1261,7 +1266,7 @@ textarea::placeholder {
 .rec {
   font-family: var(--mono);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   padding: 5px 12px;
   border-radius: var(--radius-sm);
   letter-spacing: 0.4px;
@@ -1286,7 +1291,7 @@ textarea::placeholder {
 
 .gate__metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
   gap: 8px;
   margin-bottom: 14px;
 }
@@ -1300,14 +1305,12 @@ textarea::placeholder {
   background: var(--panel-2);
 }
 .metric__label {
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
+  font-size: 11px;
   color: var(--text-faint);
 }
 .metric__value {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   font-family: var(--mono);
 }
 .metric .conf {
@@ -1340,9 +1343,7 @@ textarea::placeholder {
   margin: 0 0 14px;
 }
 .gate__notelabel {
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
+  font-size: 11px;
   color: var(--text-faint);
 }
 .gate__notelabel em {
@@ -1376,7 +1377,7 @@ textarea::placeholder {
 }
 /* live provenance chip: the note on screen is an agent draft (edited or not) */
 .gate__notetag {
-  font-size: 10px;
+  font-size: 11px;
   text-transform: none;
   letter-spacing: 0.2px;
   white-space: nowrap;
@@ -1451,8 +1452,8 @@ textarea::placeholder {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
   flex-shrink: 0;
 }
 .outcome--approved .outcome__icon {
@@ -1470,7 +1471,7 @@ textarea::placeholder {
   gap: 3px;
 }
 .outcome__text strong {
-  font-size: 14px;
+  font-size: 15px;
 }
 .outcome__text span {
   font-size: 12px;
@@ -1513,10 +1514,10 @@ textarea::placeholder {
 }
 .empty h2 {
   margin: 14px 0 10px;
-  font-size: 20px;
+  font-size: 22px;
 }
 .empty p {
-  font-size: 13.5px;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--text-dim);
   margin-bottom: 22px;
@@ -1525,7 +1526,7 @@ textarea::placeholder {
   color: var(--accent-text);
   font-style: normal;
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 /* ---------------------------------------------------------------- audit */
@@ -1589,16 +1590,16 @@ textarea::placeholder {
 }
 .audit__time {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-faint);
 }
 .audit__label {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .audit__detail {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-dim);
   word-break: break-word;
   line-height: 1.45;
@@ -1712,8 +1713,8 @@ textarea::placeholder {
   align-items: center;
   gap: 8px;
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-faint);
   margin-bottom: 8px;
@@ -1723,7 +1724,7 @@ textarea::placeholder {
   align-items: center;
   gap: 4px;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   text-transform: none;
   letter-spacing: 0;
   color: var(--accent-text);
@@ -1736,7 +1737,7 @@ textarea::placeholder {
 /* financial cards */
 .art__cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
   gap: 8px;
 }
 .fcard {
@@ -1749,19 +1750,17 @@ textarea::placeholder {
   background: var(--panel-2);
 }
 .fcard__k {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-size: 11px;
   color: var(--text-faint);
 }
 .fcard__v {
   font-family: var(--mono);
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--text);
 }
 .fcard__sub {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-dim);
 }
 .fcard--bad {
@@ -1792,19 +1791,19 @@ textarea::placeholder {
 }
 .gauge__score {
   font-family: var(--mono);
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: 600;
   color: var(--text);
 }
 .gauge__score small {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-faint);
 }
 .gauge__rating {
   font-family: var(--mono);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   padding: 3px 9px;
   border-radius: 999px;
 }
@@ -1842,7 +1841,7 @@ textarea::placeholder {
 }
 .gauge__scale {
   margin-top: 6px;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-faint);
   font-family: var(--mono);
 }
@@ -1868,8 +1867,8 @@ textarea::placeholder {
 }
 .driver__impact {
   font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   padding: 2px 8px;
   border-radius: 999px;
   white-space: nowrap;
@@ -1899,11 +1898,9 @@ textarea::placeholder {
 }
 .ctable th {
   text-align: left;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-size: 11px;
   color: var(--text-faint);
-  font-weight: 600;
+  font-weight: 500;
   padding: 8px 12px;
   background: var(--panel-2);
   border-bottom: 1px solid var(--border);
@@ -1918,7 +1915,7 @@ textarea::placeholder {
 }
 .ctable__mono {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-dim);
 }
 .ctable__row--breach {
@@ -1926,8 +1923,8 @@ textarea::placeholder {
 }
 .cstatus {
   font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   padding: 2px 8px;
   border-radius: 999px;
 }
@@ -1957,7 +1954,7 @@ textarea::placeholder {
 }
 .art__memotitle {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
 }
 .art__memometa {
   font-size: 11px;
@@ -1976,7 +1973,7 @@ textarea::placeholder {
   border: 0;
   color: var(--accent-text);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   padding: 2px 4px;
   border-radius: var(--radius-sm);
@@ -1995,9 +1992,9 @@ textarea::placeholder {
   padding-top: 12px;
 }
 .suggest__label {
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.06em;
   color: var(--text-faint);
 }
 
@@ -2024,8 +2021,8 @@ textarea::placeholder {
 .whatif__badge {
   display: inline-block;
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 1.2px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--accent-text);
   background: var(--accent-soft);
@@ -2035,12 +2032,12 @@ textarea::placeholder {
 }
 .whatif__title {
   margin: 9px 0 0;
-  font-size: 17px;
+  font-size: 18px;
 }
 .whatif__reset {
   flex-shrink: 0;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--accent-text);
   background: transparent;
   border: 1px solid var(--border-strong);
@@ -2062,7 +2059,7 @@ textarea::placeholder {
   align-self: flex-start;
   margin-top: 10px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--accent-text);
   background: transparent;
   border: 1px solid var(--border-strong);
@@ -2081,18 +2078,18 @@ textarea::placeholder {
 }
 .whatif__sub {
   margin: 8px 0 16px;
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.55;
   color: var(--text-dim);
 }
 .whatif__sub em {
   font-style: normal;
   color: var(--text);
-  font-weight: 600;
+  font-weight: 500;
 }
 .whatif__sim {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-faint);
 }
 .whatif__outcome {
@@ -2107,8 +2104,8 @@ textarea::placeholder {
 }
 .whatif__eyebrow {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 1px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--accent-text);
 }
@@ -2128,16 +2125,16 @@ textarea::placeholder {
 }
 .whatif__arrow {
   font-family: var(--mono);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-faint);
 }
 .whatif__verdicttag {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-dim);
 }
 .whatif__verdicttag--flip {
   color: var(--warn-text);
-  font-weight: 600;
+  font-weight: 500;
 }
 /* re-keyed by `bump` on every drag → the outcome visibly recomputes, even sub-threshold.
    The global prefers-reduced-motion guard neutralises this animation. */
@@ -2212,7 +2209,7 @@ textarea::placeholder {
 .driver-ctl__label {
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.06em;
   color: var(--text-faint);
 }
 .driver-ctl__valwrap {
@@ -2222,14 +2219,14 @@ textarea::placeholder {
 }
 .driver-ctl__val {
   font-family: var(--mono);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--text);
 }
 .driver-ctl__delta {
   font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   padding: 1px 6px;
   border-radius: 999px;
   background: var(--chip-bg);
@@ -2250,20 +2247,20 @@ textarea::placeholder {
   display: flex;
   justify-content: space-between;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-faint);
 }
 .whatif__seclabel {
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-faint);
   margin-bottom: 8px;
 }
 .chip {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text);
   background: var(--panel);
   border: 1px solid var(--border-strong);
@@ -2310,7 +2307,7 @@ textarea::placeholder {
   color: var(--accent-text);
 }
 .drop strong {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--text);
 }
 .drop span {
@@ -2333,7 +2330,7 @@ textarea::placeholder {
   min-width: 0;
 }
 .drop__parsing strong {
-  font-size: 12.5px;
+  font-size: 12px;
 }
 .drop__parsing span {
   font-size: 11px;
@@ -2353,9 +2350,9 @@ textarea::placeholder {
   padding-bottom: 16px;
 }
 .deals__label {
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.06em;
   color: var(--text-faint);
   margin-bottom: 5px;
 }
@@ -2371,8 +2368,8 @@ textarea::placeholder {
   background: transparent;
   cursor: pointer;
   color: var(--text-dim);
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
 }
 .deal:hover:not(:disabled) {
   background: var(--hover-tint);
@@ -2394,7 +2391,7 @@ textarea::placeholder {
 }
 .deal__tag {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-faint);
@@ -2435,7 +2432,7 @@ textarea::placeholder {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--on-accent);
-  font-weight: 700;
+  font-weight: 600;
 }
 .composer__send:hover:not(:disabled) {
   background: var(--accent-hover);
@@ -2530,8 +2527,8 @@ textarea::placeholder {
   min-width: 17px;
   padding: 2px 5px;
   font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 500;
   line-height: 1;
   color: var(--text-dim);
   background: var(--panel);
@@ -2606,7 +2603,7 @@ textarea::placeholder {
   background: transparent;
   color: var(--text);
   font-family: var(--sans);
-  font-size: 14px;
+  font-size: 15px;
   padding: 14px 16px;
 }
 .palette__input:focus-visible {
@@ -2618,8 +2615,8 @@ textarea::placeholder {
 }
 .palette__section {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 1.2px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-faint);
   padding: 8px 10px 4px;
@@ -2648,14 +2645,14 @@ textarea::placeholder {
 }
 .palette__hint {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-faint);
   letter-spacing: 0.5px;
 }
 .palette__empty {
   padding: 18px;
   text-align: center;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--text-faint);
 }
 .palette__foot {
@@ -2663,7 +2660,7 @@ textarea::placeholder {
   gap: 14px;
   padding: 9px 14px;
   border-top: 1px solid var(--border);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-faint);
 }
 .palette__foot span {
@@ -2688,8 +2685,8 @@ textarea::placeholder {
   gap: 9px;
   max-width: 360px;
   padding: 10px 14px;
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--text);
   background: var(--panel);
   border: 1px solid var(--border-strong);
@@ -2737,8 +2734,8 @@ textarea::placeholder {
   margin: 0 0 22px;
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-sm);
-  font-size: 11.5px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--text-dim);
 }
 .empty__loop li {
@@ -2751,7 +2748,7 @@ textarea::placeholder {
   font-weight: 400;
 }
 .empty__hint {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-faint);
   margin: 16px 0 10px;
 }
@@ -2764,8 +2761,8 @@ textarea::placeholder {
 .empty__tag {
   font-style: normal;
   font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   letter-spacing: 0.5px;
   padding: 2px 7px;
   border-radius: 999px;
@@ -2885,7 +2882,7 @@ textarea::placeholder {
 }
 .portfolio__sub {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--text-dim);
   max-width: 520px;
 }
@@ -2900,8 +2897,8 @@ textarea::placeholder {
   gap: 7px;
   padding: 5px 11px;
   border-radius: 999px;
-  font-size: 11.5px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   font-family: var(--mono);
   border: 1px solid var(--border-strong);
   color: var(--text-dim);
@@ -2934,15 +2931,13 @@ textarea::placeholder {
   box-shadow: inset 0 1px 0 var(--edge), var(--card-shadow);
 }
 .pstat__k {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
+  font-size: 11px;
   color: var(--text-faint);
 }
 .pstat__v {
   font-family: var(--mono);
-  font-size: 21px;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .pstat--good .pstat__v {
@@ -2962,7 +2957,7 @@ textarea::placeholder {
   display: inline-flex;
   align-items: baseline;
   gap: 5px;
-  font-size: 10.5px;
+  font-size: 11px;
 }
 .pstat__d em {
   font-style: normal;
@@ -2986,15 +2981,13 @@ textarea::placeholder {
 .ptable {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12.5px;
+  font-size: 12px;
 }
 .ptable th {
   text-align: left;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-size: 11px;
   color: var(--text-faint);
-  font-weight: 600;
+  font-weight: 500;
   padding: 9px 12px;
   background: var(--panel-2);
   border-bottom: 1px solid var(--border);
@@ -3036,14 +3029,14 @@ textarea::placeholder {
   color: var(--text);
 }
 .ptable__deal strong {
-  font-size: 12.5px;
+  font-size: 12px;
   white-space: nowrap;
 }
 .ptable__deal:hover strong {
   color: var(--accent-text);
 }
 .ptable__deal span {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-dim);
   white-space: nowrap;
   overflow: hidden;
@@ -3052,8 +3045,8 @@ textarea::placeholder {
 }
 
 .pdelta {
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   margin-left: 4px;
 }
 .pdelta--bad {
@@ -3091,8 +3084,8 @@ textarea::placeholder {
 
 .health {
   font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   padding: 3px 9px;
   border-radius: 999px;
   white-space: nowrap;
@@ -3134,15 +3127,15 @@ textarea::placeholder {
 }
 .queue__tag {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 1.2px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-faint);
 }
 .queue__count {
   font-family: var(--mono);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--bad-text);
   background: var(--bad-soft);
   border-radius: 999px;
@@ -3188,12 +3181,12 @@ textarea::placeholder {
   color: var(--warn-text);
 }
 .esc__deal {
-  font-size: 12.5px;
+  font-size: 12px;
   flex: 1;
 }
 .esc__time {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
 }
@@ -3211,7 +3204,7 @@ textarea::placeholder {
 }
 .btn--sm {
   padding: 5px 10px;
-  font-size: 11.5px;
+  font-size: 12px;
 }
 /* Escalation actions sit on a tinted (red/amber) card — give them a solid surface
    so the frame stays readable. A transparent ghost button's border vanishes against
@@ -3257,7 +3250,7 @@ textarea::placeholder {
 mark.cited {
   background: var(--accent-soft);
   color: var(--accent-text);
-  font-weight: 600;
+  font-weight: 500;
   border-radius: 3px;
   padding: 0 3px;
   box-shadow: 0 0 0 1px var(--accent-soft);
@@ -3337,7 +3330,7 @@ mark.cited {
 .auditview__count {
   font-style: normal;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-faint);
   margin-left: 6px;
 }
@@ -3357,14 +3350,14 @@ mark.cited {
   gap: 10px;
   padding: 8px 10px;
   border-radius: var(--radius-sm);
-  font-size: 12.5px;
+  font-size: 12px;
 }
 .arow:hover {
   background: var(--hover-tint);
 }
 .arow__time {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-faint);
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
@@ -3405,18 +3398,18 @@ mark.cited {
   gap: 2px;
 }
 .arow__label {
-  font-weight: 600;
+  font-weight: 500;
 }
 .arow__detail {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-dim);
   word-break: break-word;
   line-height: 1.45;
 }
 .arow__source {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-faint);
   white-space: nowrap;
   flex-shrink: 0;
@@ -3481,8 +3474,8 @@ mark.cited {
 }
 .acard__type {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.5px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-faint);
   white-space: nowrap;
@@ -3497,7 +3490,7 @@ mark.cited {
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   border: 1px solid var(--border-strong);
   color: var(--text-dim);
   background: var(--panel-2);
@@ -3534,7 +3527,7 @@ mark.cited {
 }
 .acard__desc {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.55;
   color: var(--text-dim);
   /* reserve the tallest description's height (~4 lines) so the KPI tiles line up
@@ -3558,15 +3551,13 @@ mark.cited {
   background: var(--panel-2);
 }
 .astat__k {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-size: 11px;
   color: var(--text-faint);
 }
 .astat__v {
   font-family: var(--mono);
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3580,25 +3571,25 @@ mark.cited {
   border-top: 1px solid var(--border);
 }
 .acard__runslabel {
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.06em;
   color: var(--text-faint);
 }
 .arun {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11.5px;
+  font-size: 12px;
 }
 .arun__deal {
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text);
 }
 .arun__rec {
   font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   padding: 1px 6px;
   border-radius: 999px;
 }
@@ -3620,7 +3611,7 @@ mark.cited {
 .arun__decision {
   color: var(--text-dim);
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
 }
 .arun__decision--approved {
   color: var(--good-text);
@@ -3664,22 +3655,22 @@ mark.cited {
 }
 .bcol__label {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.01em;
 }
 .bcol__count {
   font-family: var(--mono);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-dim);
   background: var(--chip-bg);
   padding: 1px 8px;
   border-radius: 999px;
 }
 .bcol__hint {
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.06em;
   color: var(--text-faint);
   margin-bottom: 6px;
 }
@@ -3692,7 +3683,7 @@ mark.cited {
   margin: 4px 0;
   text-align: center;
   color: var(--text-faint);
-  font-size: 14px;
+  font-size: 15px;
 }
 .bcol--analysis .bcol__label {
   color: var(--accent-text);
@@ -3729,7 +3720,7 @@ mark.cited {
 }
 .dcard__name {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   margin-right: auto;
 }
 .dcard__uploaded {
@@ -3742,7 +3733,7 @@ mark.cited {
 }
 .dcard__facility {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-faint);
 }
 .dcard__foot {
@@ -3754,8 +3745,8 @@ mark.cited {
 }
 .dcard__rec {
   font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   letter-spacing: 0.5px;
   padding: 2px 7px;
   border-radius: 999px;
@@ -3773,8 +3764,8 @@ mark.cited {
   background: var(--bad-soft);
 }
 .dcard__decision {
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 500;
   font-family: var(--mono);
 }
 .dcard__decision--approved {
@@ -3785,8 +3776,8 @@ mark.cited {
 }
 .dcard__lev {
   font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--text-dim);
   background: var(--chip-bg);
   padding: 2px 7px;
@@ -3888,8 +3879,8 @@ mark.cited {
   align-items: center;
   gap: 5px;
   font-family: var(--mono);
-  font-size: 10.5px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 500;
   color: var(--accent-text);
   background: var(--panel);
   border: 1px solid var(--border-strong);
@@ -4001,7 +3992,7 @@ mark.cited {
 /* the Structuring Engine's honest "no cure" answer */
 .art__nocure {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.55;
   color: var(--bad-text);
   border-left: 2px solid var(--bad);
@@ -4020,8 +4011,8 @@ mark.cited {
 .gate__diffeyebrow {
   display: block;
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 1px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--warn-text);
   padding: 7px 12px 5px;
@@ -4032,12 +4023,12 @@ mark.cited {
   padding: 6px 12px 7px;
   background: var(--warn-soft);
   border-top: 1px solid var(--warn-soft);
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.5;
 }
 .gate__diffgut {
   font-family: var(--mono);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--warn-text);
 }
 .gate__difftext em {
@@ -4053,7 +4044,7 @@ mark.cited {
   text-transform: none;
   letter-spacing: 0;
   margin-left: 8px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 400;
   color: var(--text-faint);
 }
@@ -4130,7 +4121,7 @@ mark.cited {
 }
 .hbar__cap {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-faint);
   white-space: nowrap;
 }
@@ -4231,7 +4222,7 @@ mark.cited {
 .sig__declined {
   font-family: var(--mono);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 2.5px;
   text-transform: uppercase;
   color: var(--bad-text);
@@ -4252,8 +4243,8 @@ mark.cited {
 .sig__label {
   margin-top: 6px;
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.8px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-faint);
 }
@@ -4280,7 +4271,7 @@ mark.cited {
 .gate {
   container-type: inline-size;
 }
-@container (min-width: 760px) {
+@container (min-width: 660px) {
   .gate__metrics {
     grid-template-columns: repeat(5, 1fr);
   }
@@ -4288,7 +4279,7 @@ mark.cited {
 .art {
   container-type: inline-size;
 }
-@container (min-width: 900px) {
+@container (min-width: 640px) {
   .art__cards {
     grid-template-columns: repeat(6, 1fr);
   }
@@ -4401,7 +4392,7 @@ mark.cited {
 }
 .planreview__label {
   flex: 1;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--text);
 }
 .planreview__tag {
@@ -4409,8 +4400,8 @@ mark.cited {
   align-items: center;
   gap: 3px;
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.5px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--accent-text);
   background: var(--accent-soft);
@@ -4435,7 +4426,7 @@ mark.cited {
 .planreview__held {
   margin-right: auto;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-faint);
 }
 
@@ -4475,7 +4466,7 @@ mark.cited {
 }
 .step__folddur {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-faint);
   font-variant-numeric: tabular-nums;
 }
@@ -4539,7 +4530,7 @@ mark.cited {
   flex-wrap: wrap;
 }
 .gate__amendlabel {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--text);
 }
 .gate__amendctl {
@@ -4568,7 +4559,7 @@ mark.cited {
 }
 .gate__amendctl em {
   font-style: normal;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-faint);
 }
 .gate__amendout {
@@ -4579,7 +4570,7 @@ mark.cited {
   padding-top: 9px;
 }
 .gate__amendout .rec {
-  font-size: 10px;
+  font-size: 11px;
   padding: 2px 8px;
 }
 .gate__amendout em {
@@ -4599,8 +4590,8 @@ mark.cited {
 }
 .autonomy__opt {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.5px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-dim);
   background: transparent;
@@ -4628,12 +4619,12 @@ mark.cited {
   background: var(--accent-soft);
 }
 .ctable__row--deal td:first-child {
-  font-weight: 600;
+  font-weight: 500;
   color: var(--accent-text);
 }
 .art__peerpos {
   margin: 8px 0 0;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-faint);
 }
 
@@ -4644,7 +4635,7 @@ mark.cited {
   gap: 4px;
   margin-left: 8px;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.5px;
   color: var(--accent-text);
   background: var(--accent-soft);
@@ -4684,4 +4675,26 @@ mark.cited {
     -webkit-text-fill-color: currentColor;
     color: var(--text-dim);
   }
+}
+
+/* --- Financial typesetting -----------------------------------------------
+   Every figure a reader compares down a column gets tabular figures, so digits
+   align and a changing value doesn't reflow its neighbours. Stripe's rule:
+   money without `tnum` breaks the quiet financial-data signature. Large
+   standalone display figures keep proportional figures (dataviz rule), so
+   .gauge__score and .empty__icon are deliberately excluded. */
+.metric__value,
+.fcard__v,
+.pstat__v,
+.astat__v,
+.ptable__mono,
+.driver-ctl__val,
+.whatif__risk,
+.esc__time,
+.ctable td,
+.ptable td,
+.kv__v,
+.headroom__cap,
+.doc__meta dd {
+  font-variant-numeric: tabular-nums;
 }

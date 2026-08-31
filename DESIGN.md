@@ -566,7 +566,7 @@ with a 2px `{colors.bg}` ring.
 ## Known Gaps
 
 - Front matter documents the **light** (default) theme; dark values live in the Dark Theme table above.
-- A visual catalog ships as `design-preview.html` (repo root — open directly in a browser): swatches, type scale, shapes, controls, and component specimens rendered explicitly in BOTH themes. The running app is the living catalog.
+- A visual catalog ships at **`/designsystem`** (source: `public/designsystem/index.html`; live at [credit-analysis-agent.vercel.app/designsystem](https://credit-analysis-agent.vercel.app/designsystem)): swatches, type scale, shapes, controls, and component specimens rendered explicitly in BOTH themes side by side. The running app is the living catalog.
 - Spacing is a working rhythm (4px base) rather than a strict enforced scale; some interiors use 9/11/13px optical values.
 - Print styles and mobile (<480px) layouts are not designed — this is a desktop demo product.
 - The `◧` Countersign brandmark is identity, not part of the icon system (Lucide everywhere else).

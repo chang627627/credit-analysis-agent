@@ -304,6 +304,8 @@ textarea::placeholder {
   flex-direction: column;
   gap: 2px;
 }
+/* Applied to both <button> and <a> (the design-system link), so it must undo the
+   UA anchor defaults too — otherwise the one link renders underlined and blue. */
 .nav__item {
   width: 100%;
   display: flex;
@@ -314,6 +316,7 @@ textarea::placeholder {
   border: 0;
   background: transparent;
   color: var(--text-dim);
+  text-decoration: none;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;

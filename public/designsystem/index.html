@@ -257,6 +257,13 @@
   .foot { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border);
     font-family: var(--mono); font-size: 11px; color: var(--text-faint);
     display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .scale { display: flex; flex-direction: column; gap: 8px; }
+  .srow { display: flex; align-items: center; gap: 12px; }
+  .srow code { min-width: 28px; text-align: right; font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+  .sbar { height: 12px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+  .srow p { margin: 0; font-size: 12px; color: var(--text-dim); }
+  .note { margin: 16px 0 0; font-size: 12px; line-height: 1.55; color: var(--text-dim);
+    border-top: 1px solid var(--border); padding-top: 12px; }
 </style>
 
 <div class="wrap">
@@ -276,7 +283,21 @@
   </header>
 
   <section>
-    <div class="sechead"><h2>Color</h2><span>every value is a CSS token; re-skinning is a token swap</span></div>
+    <div class="sechead"><h2>Overview</h2><span>what the system is for, and the three ideas it runs on</span></div>
+    <div class="laws">
+      <p><b>Atmosphere.</b> A dense, quiet instrument panel for a consequential decision. Light-first cool
+         neutrals and graphite-navy ink; nothing decorative competes with the data.</p>
+      <p><b>One accent with one meaning.</b> Deep teal marks <b>live, active, traceable</b> — never decoration.
+         Green/amber/red are reserved for <b>pass / warn / breach</b> and never mix with teal.</p>
+      <p><b>The record is monospaced.</b> Every figure a reader compares is mono with tabular figures, so
+         digits align down a column and a changing value never reflows its neighbours.</p>
+      <p><b>Depth by surface, not shadow.</b> Light leans on a strengthened hairline; dark leans on a
+         four-step surface ladder plus a faint top edge. Shadows are reserved for true overlays.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead"><h2>Colors</h2><span>every value is a CSS token; re-skinning is a token swap</span></div>
     <div class="boards">
       <div class="board board--light">
         <p class="board__tag">Light · default</p>
@@ -348,37 +369,61 @@
   </section>
 
   <section>
-    <div class="sechead"><h2>Typography</h2><span>Inter (cv11) + Geist Mono · tabular-nums on every number</span></div>
+    <div class="sechead"><h2>Typography</h2><span>Inter (cv11) + Geist Mono · six steps: 11 / 12 / 13 / 15 / 18 / 22 · weight ceiling 600</span></div>
     <div class="board" style="background:var(--panel)">
-      <div class="typerow"><code>page-title · 20/700 · −0.024em</code><div class="t-page">Agentic credit analysis</div></div>
-      <div class="typerow"><code>section-title · 18/700</code><div class="t-sect">Approval required</div></div>
-      <div class="typerow"><code>card-title · 17/700</code><div class="t-card">What would change this decision?</div></div>
-      <div class="typerow"><code>step-title · 14/700</code><div class="t-step">Test covenant compliance</div></div>
-      <div class="typerow"><code>body · 13/400 · −0.008em</code><div class="t-body">The agent reached a consequential action and paused. It will not sign off on its own.</div></div>
-      <div class="typerow"><code>field-label · 10.5/600 · +0.6px</code><div class="t-label">Total leverage</div></div>
-      <div class="typerow"><code>eyebrow · mono 10 · +1.2px</code><div class="t-eyebrow">Human-in-the-loop · Revision 2</div></div>
-      <div class="typerow"><code>mono-data · 11.5 · tnum</code><div class="t-mono">$22.6M · 17.6% &nbsp; leverage 4.26x vs ≤ 4.00x &nbsp; memo CAM-2026-0417</div></div>
-      <div class="typerow"><code>mono-badge · 10/700 · +0.5px</code><div class="t-badge">PASS &nbsp; BREACH &nbsp; 94% &nbsp; AUTO · POLICY</div></div>
+      <div class="typerow"><code>page-title · 22/600 · −0.024em</code><div class="t-page">Agentic credit analysis</div></div>
+      <div class="typerow"><code>section-title · 18/600 · −0.014em</code><div class="t-sect">Approval required</div></div>
+      <div class="typerow"><code>card-title · 18/600 · −0.014em</code><div class="t-card">What would change this decision?</div></div>
+      <div class="typerow"><code>step-title · 15/600 · −0.008em</code><div class="t-step">Test covenant compliance</div></div>
+      <div class="typerow"><code>body · 13/400 · tracking 0</code><div class="t-body">The agent reached a consequential action and paused. It will not sign off on its own.</div></div>
+      <div class="typerow"><code>field-label · 12/500 · sentence case</code><div class="t-label">Total leverage</div></div>
+      <div class="typerow"><code>eyebrow · mono 11/500 · +0.06em</code><div class="t-eyebrow">Human-in-the-loop · Revision 2</div></div>
+      <div class="typerow"><code>mono-data · 12/400 · tnum</code><div class="t-mono">$22.6M · 17.6% &nbsp; leverage 4.26x vs ≤ 4.00x &nbsp; memo CAM-2026-0417</div></div>
+      <div class="typerow"><code>mono-badge · 11/600 · +0.06em</code><div class="t-badge">PASS &nbsp; BREACH &nbsp; 94% &nbsp; AUTO · POLICY</div></div>
     </div>
   </section>
 
   <section>
-    <div class="sechead"><h2>Shape, line &amp; depth</h2><span>4 / 6 / 10 px + pills · dashed = sandbox · dark depth = ladder + edge</span></div>
+    <div class="sechead"><h2>Layout</h2><span>4px grid · dense by padding, never by shrinking type</span></div>
+    <div class="board" style="background:var(--panel)">
+      <div class="scale">
+        <div class="srow"><code>2</code><span class="sbar" style="width:2px"></span><p>hairline gaps, icon nudges</p></div>
+        <div class="srow"><code>4</code><span class="sbar" style="width:4px"></span><p>chip padding, tight gaps</p></div>
+        <div class="srow"><code>8</code><span class="sbar" style="width:8px"></span><p>the default gap between siblings</p></div>
+        <div class="srow"><code>12</code><span class="sbar" style="width:12px"></span><p>control padding, card inner gap</p></div>
+        <div class="srow"><code>16</code><span class="sbar" style="width:16px"></span><p>card padding — the system runs tight here</p></div>
+        <div class="srow"><code>24</code><span class="sbar" style="width:24px"></span><p>section separation</p></div>
+        <div class="srow"><code>32</code><span class="sbar" style="width:32px"></span><p>major region separation</p></div>
+      </div>
+      <p class="note"><b>Shell:</b> nav rail (60px collapsed / 190px open) | document panel | agent canvas + composer.
+         The document panel hides below 1100px. Density comes from tight padding on a strict grid — the type
+         floor stays at 11px.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead"><h2>Elevation &amp; Depth</h2><span>light = hairline · dark = surface ladder + edge · shadows are for overlays only</span></div>
     <div class="shapes">
-      <div class="shape"><div class="demo demo--r4"></div><p>radius-xs · 4px · chips, pills</p></div>
-      <div class="shape"><div class="demo demo--r6"></div><p>radius-sm · 6px · buttons, tiles</p></div>
-      <div class="shape"><div class="demo demo--r10"></div><p>radius · 10px · major panels</p></div>
-      <div class="shape"><div class="demo demo--pill"></div><p>pill · 999px · badges, rails</p></div>
+      <div class="shape"><div class="demo demo--sh1"></div><p>card resting · hairline only, no shadow</p></div>
+      <div class="shape"><div class="demo demo--sh2"></div><p>shadow-md · overlays only (palette, toast, modal)</p></div>
+      <div class="shape"><div class="demo demo--edge"></div><p>inset edge highlight · dark ladder</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead"><h2>Shapes</h2><span>containers exceed controls · 12 / 8 / 6 · dashed = sandbox</span></div>
+    <div class="shapes">
+      <div class="shape"><div class="demo demo--r10"></div><p>radius · 12px · panels, major containers</p></div>
+      <div class="shape"><div class="demo demo--r6"></div><p>radius-sm · 8px · cards, buttons</p></div>
+      <div class="shape"><div class="demo demo--r4"></div><p>radius-xs · 6px · inputs, chips</p></div>
+      <div class="shape"><div class="demo demo--pill"></div><p>pill · 999px · status tags only, never buttons</p></div>
       <div class="shape"><div class="demo demo--dash"></div><p>dashed strong · sandbox frame</p></div>
       <div class="shape"><div class="demo demo--spine"></div><p>3px spine · attribution</p></div>
-      <div class="shape"><div class="demo demo--sh1"></div><p>shadow-xs · card resting</p></div>
-      <div class="shape"><div class="demo demo--sh2"></div><p>shadow-sm · lifted (toast)</p></div>
-      <div class="shape"><div class="demo demo--edge"></div><p>inset edge highlight · dark</p></div>
     </div>
   </section>
 
   <section>
-    <div class="sechead"><h2>Controls</h2><span>the gate's three verbs, chips, pills, badges — both themes</span></div>
+    <div class="sechead"><h2>Components</h2><span>the gate’s three verbs, chips, pills, badges — both themes</span></div>
     <div class="boards">
       <div class="board board--light">
         <p class="board__tag">Light</p>
@@ -432,7 +477,7 @@
   </section>
 
   <section>
-    <div class="sechead"><h2>Components</h2><span>specimens with real product data</span></div>
+    <div class="sechead"><h2>Component specimens</h2><span>assembled from real product data</span></div>
     <div class="boards">
       <div class="board board--light">
         <p class="board__tag">Light</p>
@@ -522,16 +567,69 @@
   </section>
 
   <section>
-    <div class="sechead"><h2>System laws</h2><span>the rules that keep it coherent — including what was tried and rejected</span></div>
+    <div class="sechead"><h2>Motion</h2><span>one curve, two durations — announce, then rest</span></div>
+    <div class="board" style="background:var(--panel)">
+      <div class="typerow"><code>--ease-out</code><div class="t-body">cubic-bezier(.22, 1, .36, 1) — every transition in the system uses this one curve.</div></div>
+      <div class="typerow"><code>--dur-1 · 0.16s</code><div class="t-body">Hover, focus, colour and border changes.</div></div>
+      <div class="typerow"><code>--dur-2 · 0.24s</code><div class="t-body">Entrances, expands, state changes with layout.</div></div>
+      <div class="typerow"><code>exceptions</code><div class="t-body">0.06s on button press, and linear for slider-follow — motion that tracks a finger must not ease.</div></div>
+      <p class="note"><b>Announce, then rest.</b> Attention effects fire a bounded number of times and stop; a
+         decision surface that keeps pulsing reads as unresolved. <code>prefers-reduced-motion</code> zeroes
+         durations <i>and</i> animation delays.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead"><h2>Do&rsquo;s and Don&rsquo;ts</h2><span>the rules that keep it coherent — including what was tried and rejected</span></div>
     <div class="laws">
-      <p><b>Teal is scarce.</b> Live, active, focus, provenance, identity — never decoration, never a functional state.</p>
-      <p><b>Green/amber/red carry meaning.</b> Pass, warn, breach. They never mix with teal and never mark liveness.</p>
-      <p><b>Every number is mono + tabular-nums</b>, labeled by an uppercase micro-label. 10px is the type floor.</p>
-      <p><b>One motion curve</b> — cubic-bezier(.22, 1, .36, 1). Announce, then rest: decision surfaces go still.</p>
-      <p><b>Dashed hairline = sandbox.</b> The what-if panel and term amendments are scratchpads, not the record.</p>
-      <p><b>Dark-mode law:</b> alpha borders vanish on graphite — frame tinted elements with the solid color; ghost buttons on tint get a solid panel fill.</p>
-      <p><b>Rejected, do not resurrect:</b> a serif document voice, dimming content behind the gate, glass surfaces, theme-reveal transitions, decorative progress rules.</p>
-      <p><b>One typeface family.</b> Inter for the voice, Geist Mono for the record. Nothing else.</p>
+      <p><b>Do keep teal scarce.</b> Live, active, focus, provenance, identity — never decoration, never a functional state.</p>
+      <p><b>Do let green/amber/red carry meaning.</b> Pass, warn, breach. They never mix with teal and never mark liveness.</p>
+      <p><b>Do set every compared number in mono with tabular figures.</b> 11px is the type floor; 600 is the weight ceiling.</p>
+      <p><b>Do frame tinted elements with a solid colour in dark.</b> Alpha borders vanish on graphite, and ghost buttons on a tint need a solid panel fill.</p>
+      <p><b>Do treat a dashed hairline as sandbox.</b> The what-if panel and term amendments are scratchpads, not the record.</p>
+      <p><b>Don&rsquo;t pair a border with a shadow.</b> Light separates with a hairline; shadows are for overlays only.</p>
+      <p><b>Don&rsquo;t shout in small type.</b> Uppercase is reserved for status tokens and a handful of eyebrows — not field labels.</p>
+      <p><b>Don&rsquo;t add a second accent</b>, a serif &ldquo;document voice&rdquo;, glass surfaces, theme-reveal transitions, or decorative progress rules. All were tried and rejected.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead"><h2>Responsive Behavior</h2><span>a desk instrument first — it degrades by dropping context, not by shrinking type</span></div>
+    <div class="laws">
+      <p><b>&le; 1100px — the document panel hides.</b> Provenance citation needs the source visible, so the
+         click-through warns instead of failing silently.</p>
+      <p><b>Nav rail collapses to a ~60px icon rail</b> with hover tooltips; the state persists.</p>
+      <p><b>Fixed-count rows use container queries, not viewport queries</b> — the gate metrics and the
+         financial cards respond to their own container width, so they behave correctly inside any column.</p>
+      <p><b>Type never shrinks to fit.</b> The 11px floor holds at every width; layouts reflow instead.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead"><h2>Iteration Guide</h2><span>how to change this system without breaking it</span></div>
+    <div class="laws">
+      <p><b>Re-skinning is a token swap.</b> Change the values in <code>:root</code> and
+         <code>:root[data-theme=&quot;dark&quot;]</code> in <code>src/index.css</code>. No component markup changes.</p>
+      <p><b>Adding a colour?</b> It must answer &ldquo;what state does this mean?&rdquo; If it has no semantic job,
+         it does not belong — use an existing ink or surface step.</p>
+      <p><b>Adding a size?</b> Use one of the six type steps and one of the seven spacing steps. New in-between
+         values are how a system becomes eye-tuned rather than systematic.</p>
+      <p><b>Check both themes and recompute contrast.</b> Dark and light fail differently: alpha borders die in
+         dark, and faint ink fails AA in light.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead"><h2>Known Gaps</h2><span>honest limits of the current system</span></div>
+    <div class="laws">
+      <p><b>Uppercase is still broader than reference systems.</b> Roughly twenty eyebrow roles share one
+         disciplined recipe; top systems scope caps to one to three roles. A further cut is available.</p>
+      <p><b>No focus-visible specimen on this page.</b> Focus rings exist app-wide (3px accent-soft) but are not
+         catalogued here.</p>
+      <p><b>The header is dense.</b> Brandmark, shortcut hints, theme, autonomy, speed, status and two buttons
+         share one row; it works at desktop width but has no small-screen treatment.</p>
+      <p><b>No component states matrix.</b> Specimens show resting state; hover, disabled and loading are
+         defined in CSS but not laid out side by side.</p>
     </div>
   </section>
 

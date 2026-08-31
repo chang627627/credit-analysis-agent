@@ -4,6 +4,7 @@
 > The agent analyzes; a human countersigns. That's the whole product thesis.
 
 **▶ Live demo: [credit-analysis-agent.vercel.app](https://credit-analysis-agent.vercel.app)** &nbsp;·&nbsp; auto-deployed from `main` via Vercel
+**◧ Design system: [/designsystem](https://credit-analysis-agent.vercel.app/designsystem)** &nbsp;·&nbsp; the token catalog, both themes side by side
 
 Countersign is a **front-end research prototype** exploring how an autonomous
 credit-analysis agent can expose its evidence, route uncertainty, pause for accountable
@@ -92,7 +93,7 @@ runCreditAgent()  ──AsyncGenerator<AgentEvent>──►  useCreditAgent (red
 
 ---
 
-## Architecture at a glance
+## File map
 
 ```
 src/

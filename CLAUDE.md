@@ -484,14 +484,19 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       rail**: the numbered-circle-in-bordered-box wizard chips (a 2015 pattern) became a 2px state
       rail above a plain label — pending `--border` / active `--accent` / done `--good`, ordinal is
       now a plain tabular numeral, not a bubble. Reads cleaner AND halves the bar's vertical space.
-- [x] **DESIGN.md + design-preview.html** — the design system documented in the
+- [x] **DESIGN.md + the `/designsystem` catalog** — the design system documented in the
       VoltAgent/awesome-design-md (Google Stitch) format: YAML front matter with machine-readable
       token maps (`colors` = light default, `typography`, `rounded`, `spacing`, `components` with
       `{token}` refs) + the standard body sections (Overview → Colors → Dark Theme table →
       Typography → Layout → Elevation → Shapes → Components → Motion → Do's/Don'ts → Responsive →
       Iteration Guide → Known Gaps). Values extracted 1:1 from `src/index.css`; the Don'ts encode
       the session's rejected patterns (serif, dim, second accent, alpha borders in dark).
-      `design-preview.html` (repo root, self-contained) is the getdesign.md-style visual catalog —
+      `public/designsystem/index.html` (self-contained, served at **`/designsystem`** — it lives in
+      `public/` precisely because Vite only copies that directory into `dist/`; at the repo root it
+      was never deployed at all) is the visual catalog, and its section order now MIRRORS DESIGN.md
+      and the awesome-design-md convention exactly: Overview → Colors → Typography → Layout →
+      Elevation & Depth → Shapes → Components → Component specimens → Motion → Do's and Don'ts →
+      Responsive Behavior → Iteration Guide → Known Gaps. Reachable in-app from a nav-rail link —
       swatches/type/shapes/controls/component specimens painted EXPLICITLY on side-by-side light
       and dark boards (scoped token re-declaration), with theme-aware page chrome. Also published
       as the "Graphite & Teal" artifact.

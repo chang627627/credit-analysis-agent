@@ -23,15 +23,15 @@ export interface MonitorCovenant {
   status: CovenantHealth;
 }
 
-/** One sweep's observation of a deal — the monitor's own history, kept so the
-    UI can show trend (sparklines), not just the latest reading. */
+/** One sweep's observation of a deal — the monitor's own short history (the
+    KPI tiles read the previous sweep's health from it). */
 export interface SweepSnapshot {
   sweepId: number;
   leverageX: number;
   health: DealHealth;
 }
 
-/** Ring-buffer cap for per-deal sweep history (~12 points reads as a sparkline). */
+/** Ring-buffer cap for per-deal sweep history. */
 export const HISTORY_CAP = 12;
 
 export interface PortfolioDealState {

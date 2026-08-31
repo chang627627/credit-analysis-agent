@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AlertOctagon, AlertTriangle, Check } from 'lucide-react';
 import type { DealHealth, EscalationItem, PortfolioDealState } from '../agent/monitor';
-import { Sparkline } from './Sparkline';
 
 // The "always-on" surface: the monitoring agent's view of the whole book, plus
 // the escalation queue — the human half of the workforce model.
@@ -137,7 +136,6 @@ export function PortfolioView({
                 <th>Deal</th>
                 <th>Risk</th>
                 <th>Leverage</th>
-                <th>Trend</th>
                 <th>Int. cov.</th>
                 <th>Liquidity</th>
                 <th>Covenants</th>
@@ -147,7 +145,7 @@ export function PortfolioView({
             <tbody>
               {sorted.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="ptable__empty">
+                  <td colSpan={7} className="ptable__empty">
                     First sweep in progress…
                   </td>
                 </tr>
@@ -163,14 +161,6 @@ export function PortfolioView({
                   <td className="ptable__mono">{d.riskScore}</td>
                   <td className="ptable__mono">
                     {d.leverageX.toFixed(2)}x <Delta value={d.deltas.leverageX} badWhenUp suffix="x" />
-                  </td>
-                  <td className="ptable__spark">
-                    <Sparkline
-                      values={d.history.map((h) => h.leverageX)}
-                      label={`Leverage over the last ${d.history.length} sweeps · ${Math.min(
-                        ...d.history.map((h) => h.leverageX),
-                      ).toFixed(2)}–${Math.max(...d.history.map((h) => h.leverageX)).toFixed(2)}x`}
-                    />
                   </td>
                   <td className="ptable__mono">
                     {d.interestCoverageX.toFixed(2)}x <Delta value={d.deltas.interestCoverageX} badWhenUp={false} suffix="x" />

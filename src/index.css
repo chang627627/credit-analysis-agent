@@ -2969,18 +2969,6 @@ textarea::placeholder {
   color: var(--text-faint);
 }
 
-/* micro trend line (sweep history) */
-.spark {
-  display: block;
-}
-.ptable__spark {
-  vertical-align: middle;
-}
-.spark--pending {
-  color: var(--text-faint);
-  font-size: 11px;
-}
-
 /* sections stack full-width: table, then the escalation queue */
 .portfolio__grid {
   display: flex;
@@ -3080,14 +3068,15 @@ textarea::placeholder {
 
 .covdots {
   display: inline-flex;
-  gap: 5px;
+  gap: 3px;
 }
+/* one thin segment per covenant test (status-strip grammar, not traffic lights) */
 .covdot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
+  width: 14px;
+  height: 5px;
+  border-radius: 2px;
   cursor: help;
-  /* a hairline ring so each state dot stays distinct from its matching row tint */
+  /* a hairline ring so each state segment stays distinct from its matching row tint */
   box-shadow: 0 0 0 1px var(--border-strong);
 }
 .covdot--pass {

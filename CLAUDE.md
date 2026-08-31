@@ -433,12 +433,13 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
 - [x] **Portfolio "industry dashboard" pass** (Mobbin MCP reference sweep — Xero/Square/Revolut/
       Stripe/ClickUp screens — filtered through the earlier audit's "worth it?" lens; 3 shipped,
       chart work done under the dataviz skill's stat-tile/sparkline contract):
-      **(1) Sweep-history sparklines** — `PortfolioDealState.history` ring buffer (cap 12,
+      **(1) Sweep-history sparklines — SHIPPED THEN REVERTED by the user** ("no need the
+      trend"; do not resurrect): a `Sparkline` component + Trend column drew each deal's
+      leverage over the last 12 sweeps. The `PortfolioDealState.history` ring buffer (cap 12,
       `SweepSnapshot { sweepId, leverageX, health }`, rides the prev-state rebuild in
-      `sweepPortfolio`) + a pure token-driven `Sparkline` component (line in `--text-faint`
-      de-emphasis ink, ONLY the current reading gets the accent dot, flat series draws a midline,
-      `<title>`/aria-label tooltip, "—" under 2 points) in a new Trend column of the book table —
-      the monitor's own observation history made visible, not chrome. **(2) Stat-tile anatomy** —
+      `sweepPortfolio`) STAYS — the KPI tiles read the previous sweep's health from it.
+      Same feedback restyled the covenant dots: circles → **slim status segments** (14×5px,
+      radius 2, hairline ring) — status-strip grammar, not traffic lights. **(2) Stat-tile anatomy** —
       Healthy/Watch/Breach tiles gain the comparison line (▲/▼ n vs last sweep, colored by
       direction-is-bad, "· unchanged" when flat), computed from each deal's history[len-2] health
       (no new state). **(3) Next-sweep countdown** — `useMonitor.nextSweepAt` mirrors the REAL

@@ -476,6 +476,14 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       clientWidth, so 760/900 never fired). Verified both themes + AA recomputed in both.
       NOT changed (already at/above standard): the dark surface ladder, in-app type ratio, card
       borders, 13px body, motion tokens, accent discipline.
+      **Part 2** (the half that was initially skipped): **4px spacing grid** — 148 off-grid
+      padding/margin/gap values (3/5/7/9/11/13/14/17/18/19/21/22/23px) snapped to 4/8/12/16/20/24;
+      the research called this the single most unanimous finding across all 15 systems and the
+      clearest "hand-built" tell a design-literate reviewer spots in DevTools. Only padding/margin/gap
+      were touched — never radius/width/offsets/borders. **PlanBar rebuilt as a segmented progress
+      rail**: the numbered-circle-in-bordered-box wizard chips (a 2015 pattern) became a 2px state
+      rail above a plain label — pending `--border` / active `--accent` / done `--good`, ordinal is
+      now a plain tabular numeral, not a bubble. Reads cleaner AND halves the bar's vertical space.
 - [x] **DESIGN.md + design-preview.html** — the design system documented in the
       VoltAgent/awesome-design-md (Google Stitch) format: YAML front matter with machine-readable
       token maps (`colors` = light default, `typography`, `rounded`, `spacing`, `components` with

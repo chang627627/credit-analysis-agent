@@ -286,7 +286,7 @@ textarea::placeholder {
 .nav {
   display: flex;
   flex-direction: column;
-  padding: 14px 12px;
+  padding: 16px 12px;
   border-right: 1px solid var(--border);
 }
 .nav__section {
@@ -308,8 +308,8 @@ textarea::placeholder {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 9px 10px;
+  gap: 12px;
+  padding: 8px 10px;
   border-radius: var(--radius-sm);
   border: 0;
   background: transparent;
@@ -350,7 +350,7 @@ textarea::placeholder {
   color: var(--text-dim);
   background: var(--chip-bg);
   border-radius: 999px;
-  padding: 1px 7px;
+  padding: 1px 8px;
 }
 .nav__spacer {
   flex: 1;
@@ -414,7 +414,7 @@ textarea::placeholder {
 
 /* collapsed icon-rail */
 .nav--collapsed {
-  padding: 14px 8px;
+  padding: 16px 8px;
   align-items: stretch;
 }
 .nav--collapsed .nav__top {
@@ -529,7 +529,7 @@ textarea::placeholder {
   box-sizing: border-box;
   width: 14px;
   height: 14px;
-  margin-top: -5px; /* (4px track − 14px thumb) / 2 */
+  margin-top: -4px; /* (4px track − 14px thumb) / 2 */
   border-radius: 50%;
   background: var(--accent);
   border: 2px solid var(--bg);
@@ -578,8 +578,8 @@ textarea::placeholder {
 .status {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 5px 11px;
+  gap: 8px;
+  padding: 4px 12px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 500;
@@ -620,7 +620,7 @@ textarea::placeholder {
   border: 1px solid var(--border-strong);
   background: var(--panel);
   color: var(--text);
-  padding: 8px 14px;
+  padding: 8px 16px;
   border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 500;
@@ -651,7 +651,7 @@ textarea::placeholder {
   background: transparent;
 }
 .btn--icon {
-  padding: 8px 11px;
+  padding: 8px 12px;
   font-size: 15px;
   line-height: 1;
 }
@@ -700,7 +700,7 @@ textarea::placeholder {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 .select {
   position: relative;
@@ -716,7 +716,7 @@ textarea::placeholder {
   background: var(--panel);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  padding: 9px 30px 9px 11px;
+  padding: 8px 30px 8px 12px;
   cursor: pointer;
   transition: border-color var(--dur-1) var(--ease-out);
 }
@@ -753,7 +753,7 @@ textarea::placeholder {
 
 .doc__title {
   font-size: 15px;
-  margin: 10px 0 14px;
+  margin: 10px 0 16px;
   line-height: 1.35;
 }
 
@@ -784,7 +784,7 @@ textarea::placeholder {
   line-height: 1.65;
   color: var(--text-dim);
   border-top: 1px solid var(--border);
-  padding-top: 14px;
+  padding-top: 16px;
   position: relative;
 }
 .doc__body p {
@@ -827,7 +827,7 @@ textarea::placeholder {
   top: 0;
   z-index: 2;
   background: var(--bg);
-  padding: 18px 0 14px;
+  padding: 16px 0 16px;
   margin-bottom: 4px;
 }
 .plan__head {
@@ -849,35 +849,34 @@ textarea::placeholder {
   gap: 8px;
 }
 .plan__item {
+  /* Segmented progress rail, not boxed wizard chips: each step is carried by a
+     2px state rail above its label. Boxes-with-numbered-circles read as 2015. */
   flex: 1;
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 8px;
-  padding: 9px 11px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--panel-2);
+  padding: 8px 0 0;
+  border: 0;
+  border-top: 2px solid var(--border);
+  border-radius: 0;
+  background: none;
   font-size: 12px;
   color: var(--text-faint);
-  transition: background var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out),
-    border-color var(--dur-2) var(--ease-out);
+  transition: color var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out);
 }
 .plan__num {
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--border);
-  color: var(--text-dim);
+  /* a plain ordinal, not a bubble */
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-faint);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
 .plan__item--active {
-  border-color: var(--accent);
+  border-top-color: var(--accent);
   color: var(--text);
-  background: var(--accent-soft);
 }
 .plan__item--active .plan__num {
   background: var(--accent);
@@ -885,7 +884,7 @@ textarea::placeholder {
 }
 .plan__item--done {
   color: var(--text-dim);
-  border-color: var(--good);
+  border-top-color: var(--good);
 }
 .plan__item--done .plan__num {
   background: var(--good);
@@ -903,7 +902,7 @@ textarea::placeholder {
   display: grid;
   grid-template-columns: 28px 1fr;
   gap: 12px;
-  padding: 6px 0 18px;
+  padding: 6px 0 16px;
   animation: rise 0.32s var(--ease-out) both;
 }
 .step__rail {
@@ -1016,8 +1015,8 @@ textarea::placeholder {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 9px 12px;
+  gap: 8px;
+  padding: 8px 12px;
   background: transparent;
   border: 0;
   color: var(--text);
@@ -1081,7 +1080,7 @@ textarea::placeholder {
   background: var(--panel);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  padding: 2px 7px;
+  padding: 2px 8px;
   cursor: pointer;
   opacity: 0;
   transition: opacity var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
@@ -1108,7 +1107,7 @@ textarea::placeholder {
   background: var(--code-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 9px 11px;
+  padding: 8px 12px;
   overflow-x: auto;
   white-space: pre;
 }
@@ -1119,7 +1118,7 @@ textarea::placeholder {
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 600;
-  padding: 2px 7px;
+  padding: 2px 8px;
   border-radius: 999px;
   border: 1px solid transparent;
   white-space: nowrap;
@@ -1142,8 +1141,8 @@ textarea::placeholder {
 .flag {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 9px 12px;
+  gap: 8px;
+  padding: 8px 12px;
   border-radius: var(--radius-sm);
   font-size: 12px;
   line-height: 1.45;
@@ -1162,7 +1161,7 @@ textarea::placeholder {
   font-size: 11px;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  padding: 2px 7px;
+  padding: 2px 8px;
   border-radius: 999px;
   background: var(--chip-bg);
   white-space: nowrap;
@@ -1199,7 +1198,7 @@ textarea::placeholder {
 }
 
 .gate {
-  margin-top: 14px;
+  margin-top: 16px;
   border: 1px solid transparent;
   border-radius: var(--radius);
   background:
@@ -1231,7 +1230,7 @@ textarea::placeholder {
   color: var(--accent-text);
   background: var(--accent-soft);
   border: 1px solid var(--accent-soft);
-  padding: 3px 9px;
+  padding: 4px 8px;
   border-radius: 999px;
 }
 .gate__title {
@@ -1248,7 +1247,7 @@ textarea::placeholder {
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 .gate__receyebrow {
   font-family: var(--mono);
@@ -1267,7 +1266,7 @@ textarea::placeholder {
   font-family: var(--mono);
   font-size: 12px;
   font-weight: 600;
-  padding: 5px 12px;
+  padding: 4px 12px;
   border-radius: var(--radius-sm);
   letter-spacing: 0.4px;
 }
@@ -1293,7 +1292,7 @@ textarea::placeholder {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
   gap: 8px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 .metric {
   display: flex;
@@ -1319,12 +1318,12 @@ textarea::placeholder {
 
 /* What the confidence numbers actually mean — states the real flag rule. */
 .gate__confnote {
-  margin: -6px 0 14px;
+  margin: -6px 0 16px;
   font-size: 11px;
   color: var(--text-faint);
 }
 .gate__flags {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 .gate__summary {
   font-size: 13px;
@@ -1332,7 +1331,7 @@ textarea::placeholder {
   color: var(--text-dim);
   border-left: 2px solid var(--border-strong);
   padding-left: 12px;
-  margin: 0 0 18px;
+  margin: 0 0 16px;
 }
 
 /* Reviewer note — the human's rationale, captured INTO the record. */
@@ -1340,7 +1339,7 @@ textarea::placeholder {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin: 0 0 14px;
+  margin: 0 0 16px;
 }
 .gate__notelabel {
   font-size: 11px;
@@ -1394,7 +1393,7 @@ textarea::placeholder {
   background: var(--panel-2);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  padding: 9px 11px;
+  padding: 8px 12px;
   resize: vertical;
   min-height: 40px;
   transition: border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
@@ -1424,11 +1423,11 @@ textarea::placeholder {
 /* -------------------------------------------------------------- outcome */
 
 .outcome {
-  margin-top: 14px;
+  margin-top: 16px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 16px 18px;
+  gap: 16px;
+  padding: 16px 16px;
   border-radius: var(--radius);
   border: 1px solid;
   animation: rise 0.34s var(--ease-out) both;
@@ -1436,7 +1435,7 @@ textarea::placeholder {
 .outcome__row {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
 }
 .outcome--approved {
   border-color: var(--good);
@@ -1468,7 +1467,7 @@ textarea::placeholder {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 .outcome__text strong {
   font-size: 15px;
@@ -1513,14 +1512,14 @@ textarea::placeholder {
   opacity: 0.85;
 }
 .empty h2 {
-  margin: 14px 0 10px;
+  margin: 16px 0 10px;
   font-size: 22px;
 }
 .empty p {
   font-size: 13px;
   line-height: 1.6;
   color: var(--text-dim);
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 }
 .empty em {
   color: var(--accent-text);
@@ -1540,7 +1539,7 @@ textarea::placeholder {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
+  padding: 16px 16px;
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
@@ -1554,7 +1553,7 @@ textarea::placeholder {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 1px 9px;
+  padding: 1px 8px;
 }
 .audit__list {
   padding: 8px 10px 24px;
@@ -1567,8 +1566,8 @@ textarea::placeholder {
 }
 .audit__row {
   display: flex;
-  gap: 9px;
-  padding: 7px 8px;
+  gap: 8px;
+  padding: 8px 8px;
   border-radius: var(--radius-sm);
   animation: rise 0.25s var(--ease-out) both;
 }
@@ -1729,7 +1728,7 @@ textarea::placeholder {
   letter-spacing: 0;
   color: var(--accent-text);
   background: var(--accent-soft);
-  padding: 2px 7px;
+  padding: 2px 8px;
   border-radius: 999px;
   cursor: help;
 }
@@ -1743,7 +1742,7 @@ textarea::placeholder {
 .fcard {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -1780,7 +1779,7 @@ textarea::placeholder {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--panel-2);
-  padding: 12px 14px;
+  padding: 12px 16px;
   margin-bottom: 8px;
 }
 .gauge__top {
@@ -1804,7 +1803,7 @@ textarea::placeholder {
   font-family: var(--mono);
   font-size: 12px;
   font-weight: 600;
-  padding: 3px 9px;
+  padding: 4px 8px;
   border-radius: 999px;
 }
 .gauge__rating--good {
@@ -1906,7 +1905,7 @@ textarea::placeholder {
   border-bottom: 1px solid var(--border);
 }
 .ctable td {
-  padding: 9px 12px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   color: var(--text);
 }
@@ -1942,7 +1941,7 @@ textarea::placeholder {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 12px 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--panel-2);
@@ -2001,14 +2000,14 @@ textarea::placeholder {
 /* -------------------------------------------------- what-if / sensitivity */
 
 .whatif {
-  margin-top: 14px;
+  margin-top: 16px;
   /* sandbox frame: DASHED hairline = scratchpad, not the record. (A solid teal
      left spine was tried and rejected as a heavy stray line.) The accent badge
      in the head carries the color; the frame stays quiet. */
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius);
   background: var(--panel);
-  padding: 18px 20px;
+  padding: 16px 20px;
   box-shadow: var(--card-shadow);
   animation: rise 0.35s var(--ease-out) both;
 }
@@ -2027,11 +2026,11 @@ textarea::placeholder {
   color: var(--accent-text);
   background: var(--accent-soft);
   border: 1px solid var(--accent-soft);
-  padding: 3px 9px;
+  padding: 4px 8px;
   border-radius: 999px;
 }
 .whatif__title {
-  margin: 9px 0 0;
+  margin: 8px 0 0;
   font-size: 18px;
 }
 .whatif__reset {
@@ -2042,7 +2041,7 @@ textarea::placeholder {
   background: transparent;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  padding: 6px 11px;
+  padding: 6px 12px;
   cursor: pointer;
   transition: background var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
 }
@@ -2064,7 +2063,7 @@ textarea::placeholder {
   background: transparent;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  padding: 6px 11px;
+  padding: 6px 12px;
   cursor: pointer;
   transition: background var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
 }
@@ -2096,7 +2095,7 @@ textarea::placeholder {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 12px 14px;
+  padding: 12px 16px;
   margin-bottom: 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -2114,7 +2113,7 @@ textarea::placeholder {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  padding: 5px 8px;
+  padding: 4px 8px;
   margin: 0 -8px;
   border-radius: var(--radius-sm);
 }
@@ -2192,13 +2191,13 @@ textarea::placeholder {
 .whatif__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px 18px;
-  margin-bottom: 18px;
+  gap: 16px 16px;
+  margin-bottom: 16px;
 }
 .driver-ctl {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
 }
 .driver-ctl__top {
   display: flex;
@@ -2215,7 +2214,7 @@ textarea::placeholder {
 .driver-ctl__valwrap {
   display: inline-flex;
   align-items: baseline;
-  gap: 7px;
+  gap: 8px;
 }
 .driver-ctl__val {
   font-family: var(--mono);
@@ -2265,7 +2264,7 @@ textarea::placeholder {
   background: var(--panel);
   border: 1px solid var(--border-strong);
   border-radius: 999px;
-  padding: 6px 13px;
+  padding: 6px 12px;
   cursor: pointer;
   transition: border-color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
 }
@@ -2287,7 +2286,7 @@ textarea::placeholder {
   border: 1.5px dashed var(--border-strong);
   border-radius: var(--radius-sm);
   padding: 16px 12px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   cursor: pointer;
   color: var(--text-dim);
   transition: border-color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
@@ -2321,7 +2320,7 @@ textarea::placeholder {
 .drop__parsing {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 12px;
 }
 .drop__parsing div {
   display: flex;
@@ -2354,7 +2353,7 @@ textarea::placeholder {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-faint);
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 }
 .deal {
   display: flex;
@@ -2453,7 +2452,7 @@ textarea::placeholder {
   background: var(--panel);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  padding: 9px 12px;
+  padding: 8px 12px;
   line-height: 1.45;
   transition: border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
 }
@@ -2469,7 +2468,7 @@ textarea::placeholder {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 18px;
+  margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
 }
@@ -2500,7 +2499,7 @@ textarea::placeholder {
 .msg__bubble {
   font-size: 13px;
   line-height: 1.5;
-  padding: 9px 13px;
+  padding: 8px 12px;
   border-radius: var(--radius);
 }
 .msg--user .msg__bubble {
@@ -2525,7 +2524,7 @@ textarea::placeholder {
   align-items: center;
   justify-content: center;
   min-width: 17px;
-  padding: 2px 5px;
+  padding: 2px 4px;
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 500;
@@ -2542,7 +2541,7 @@ textarea::placeholder {
   border-color: transparent;
 }
 .btn .kbd {
-  margin-left: 7px;
+  margin-left: 8px;
 }
 .btn--reject .kbd {
   color: inherit;
@@ -2552,7 +2551,7 @@ textarea::placeholder {
 .palettebtn {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   padding: 6px 8px;
   background: transparent;
   border: 0;
@@ -2604,7 +2603,7 @@ textarea::placeholder {
   color: var(--text);
   font-family: var(--sans);
   font-size: 15px;
-  padding: 14px 16px;
+  padding: 16px 16px;
 }
 .palette__input:focus-visible {
   outline: none;
@@ -2650,15 +2649,15 @@ textarea::placeholder {
   letter-spacing: 0.5px;
 }
 .palette__empty {
-  padding: 18px;
+  padding: 16px;
   text-align: center;
   font-size: 12px;
   color: var(--text-faint);
 }
 .palette__foot {
   display: flex;
-  gap: 14px;
-  padding: 9px 14px;
+  gap: 16px;
+  padding: 8px 16px;
   border-top: 1px solid var(--border);
   font-size: 11px;
   color: var(--text-faint);
@@ -2666,7 +2665,7 @@ textarea::placeholder {
 .palette__foot span {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
 }
 
 /* toasts */
@@ -2682,9 +2681,9 @@ textarea::placeholder {
 .toast {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   max-width: 360px;
-  padding: 10px 14px;
+  padding: 10px 16px;
   font-size: 12px;
   font-weight: 500;
   color: var(--text);
@@ -2731,7 +2730,7 @@ textarea::placeholder {
   gap: 10px;
   list-style: none;
   padding: 12px 16px;
-  margin: 0 0 22px;
+  margin: 0 0 24px;
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-sm);
   font-size: 12px;
@@ -2741,7 +2740,7 @@ textarea::placeholder {
 .empty__loop li {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
 }
 .empty__arrow {
   color: var(--text-faint);
@@ -2764,9 +2763,9 @@ textarea::placeholder {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.5px;
-  padding: 2px 7px;
+  padding: 2px 8px;
   border-radius: 999px;
-  margin-left: 7px;
+  margin-left: 8px;
 }
 .empty__tag--approve {
   color: var(--good-text);
@@ -2872,7 +2871,7 @@ textarea::placeholder {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
 }
 .portfolio__title {
@@ -2894,8 +2893,8 @@ textarea::placeholder {
 .monitorchip {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 5px 11px;
+  gap: 8px;
+  padding: 4px 12px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 500;
@@ -2923,8 +2922,8 @@ textarea::placeholder {
 .pstat {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding: 12px 14px;
+  gap: 4px;
+  padding: 12px 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--panel);
@@ -2956,7 +2955,7 @@ textarea::placeholder {
 .pstat__d {
   display: inline-flex;
   align-items: baseline;
-  gap: 5px;
+  gap: 4px;
   font-size: 11px;
 }
 .pstat__d em {
@@ -2968,7 +2967,7 @@ textarea::placeholder {
 .portfolio__grid {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
 
 .ptablewrap {
@@ -2988,7 +2987,7 @@ textarea::placeholder {
   font-size: 11px;
   color: var(--text-faint);
   font-weight: 500;
-  padding: 9px 12px;
+  padding: 8px 12px;
   background: var(--panel-2);
   border-bottom: 1px solid var(--border);
 }
@@ -3061,7 +3060,7 @@ textarea::placeholder {
 
 .covdots {
   display: inline-flex;
-  gap: 3px;
+  gap: 4px;
 }
 /* one thin segment per covenant test (status-strip grammar, not traffic lights) */
 .covdot {
@@ -3086,7 +3085,7 @@ textarea::placeholder {
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 600;
-  padding: 3px 9px;
+  padding: 4px 8px;
   border-radius: 999px;
   white-space: nowrap;
 }
@@ -3139,7 +3138,7 @@ textarea::placeholder {
   color: var(--bad-text);
   background: var(--bad-soft);
   border-radius: 999px;
-  padding: 1px 9px;
+  padding: 1px 8px;
 }
 .queue__empty {
   font-size: 12px;
@@ -3191,7 +3190,7 @@ textarea::placeholder {
   font-variant-numeric: tabular-nums;
 }
 .esc__reason {
-  margin: 0 0 9px;
+  margin: 0 0 8px;
   font-size: 12px;
   line-height: 1.5;
   color: var(--text-dim);
@@ -3203,7 +3202,7 @@ textarea::placeholder {
   margin-top: auto;
 }
 .btn--sm {
-  padding: 5px 10px;
+  padding: 4px 10px;
   font-size: 12px;
 }
 /* Escalation actions sit on a tinted (red/amber) card — give them a solid surface
@@ -3252,7 +3251,7 @@ mark.cited {
   color: var(--accent-text);
   font-weight: 500;
   border-radius: 3px;
-  padding: 0 3px;
+  padding: 0 4px;
   box-shadow: 0 0 0 1px var(--accent-soft);
   animation: cite-flash 1.4s ease 1;
 }
@@ -3428,13 +3427,13 @@ mark.cited {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   grid-auto-rows: 1fr; /* uniform agent-card height across rows */
-  gap: 14px;
+  gap: 16px;
 }
 .acard {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 16px 18px;
+  padding: 16px 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--panel);
@@ -3544,7 +3543,7 @@ mark.cited {
   flex: 1;
   flex-direction: column;
   gap: 2px;
-  padding: 8px 11px;
+  padding: 8px 12px;
   min-width: 84px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -3566,7 +3565,7 @@ mark.cited {
 .acard__runs {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
   padding-top: 10px;
   border-top: 1px solid var(--border);
 }
@@ -3697,10 +3696,10 @@ mark.cited {
 .dcard {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   width: 100%;
   text-align: left;
-  padding: 11px 12px;
+  padding: 12px 12px;
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -3748,7 +3747,7 @@ mark.cited {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.5px;
-  padding: 2px 7px;
+  padding: 2px 8px;
   border-radius: 999px;
 }
 .dcard__rec--approve {
@@ -3780,7 +3779,7 @@ mark.cited {
   font-weight: 600;
   color: var(--text-dim);
   background: var(--chip-bg);
-  padding: 2px 7px;
+  padding: 2px 8px;
   border-radius: 999px;
   white-space: nowrap;
 }
@@ -3877,7 +3876,7 @@ mark.cited {
   z-index: 3;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 500;
@@ -3885,7 +3884,7 @@ mark.cited {
   background: var(--panel);
   border: 1px solid var(--border-strong);
   border-radius: 999px;
-  padding: 6px 13px;
+  padding: 6px 12px;
   box-shadow: var(--shadow-sm);
   cursor: pointer;
   animation: rise 0.25s var(--ease-out);
@@ -3929,7 +3928,7 @@ mark.cited {
 .kv__copy {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
 }
 /* a gate figure traced back here: one ring flash on the observation */
 .tool--traced {
@@ -4001,7 +4000,7 @@ mark.cited {
 
 /* what changed since rev 1 — the send-back thread as a diff */
 .gate__diff {
-  margin: -2px 0 14px;
+  margin: -2px 0 16px;
   border: 1px solid var(--warn);
   border-left-width: 3px;
   border-radius: var(--radius-sm);
@@ -4015,12 +4014,12 @@ mark.cited {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--warn-text);
-  padding: 7px 12px 5px;
+  padding: 8px 12px 4px;
 }
 .gate__diffrow {
   display: flex;
   gap: 10px;
-  padding: 6px 12px 7px;
+  padding: 6px 12px 8px;
   background: var(--warn-soft);
   border-top: 1px solid var(--warn-soft);
   font-size: 12px;
@@ -4086,7 +4085,7 @@ mark.cited {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 5px;
+  margin-top: 4px;
   min-width: 96px;
 }
 .hbar__track {
@@ -4176,7 +4175,7 @@ mark.cited {
   display: flex;
   flex-wrap: wrap;
   gap: 12px 28px;
-  padding: 14px 16px 12px;
+  padding: 16px 16px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--panel); /* solid on the tinted banner (dark-mode gotcha) */
@@ -4229,7 +4228,7 @@ mark.cited {
   border: 1.5px solid var(--bad);
   background: var(--bad-soft);
   border-radius: 4px;
-  padding: 3px 10px;
+  padding: 4px 10px;
   margin-bottom: 4px;
   transform: rotate(-2.5deg);
   animation: stamp-settle 0.35s var(--ease-out) both;
@@ -4309,7 +4308,7 @@ mark.cited {
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
 }
 
 /* the escalation severity icon centers like the audit rows' icon does */
@@ -4371,7 +4370,7 @@ mark.cited {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 12px;
+  padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--panel-2);
@@ -4398,7 +4397,7 @@ mark.cited {
 .planreview__tag {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   font-family: var(--mono);
   font-size: 11px;
   letter-spacing: 0.06em;
@@ -4446,7 +4445,7 @@ mark.cited {
   background: var(--panel-2);
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 4px 11px 4px 8px;
+  padding: 4px 12px 4px 8px;
   margin: 2px 0 8px;
   cursor: pointer;
   transition: border-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
@@ -4476,7 +4475,7 @@ mark.cited {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 0 0 14px;
+  margin: 0 0 16px;
   padding: 10px 12px;
   border: 1px solid var(--accent);
   border-radius: var(--radius-sm);
@@ -4501,23 +4500,23 @@ mark.cited {
 
 /* --- gate: amend terms before signing ------------------------------------ */
 .gate__amend {
-  margin: -6px 0 14px;
+  margin: -6px 0 16px;
 }
 .gate__amendtoggle {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   /* this is the fourth reviewer verb (approve-with-conditions), not a footnote —
      give it a real control frame so it reads at the same rank as the buttons */
   border: 1px solid var(--border-strong);
   background: var(--panel);
-  padding: 4px 9px;
+  padding: 4px 8px;
 }
 .gate__amendbody {
   margin-top: 8px;
   border: 1px dashed var(--border-strong); /* scratchpad grammar, like what-if */
   border-radius: var(--radius-sm);
-  padding: 12px 14px;
+  padding: 12px 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -4536,7 +4535,7 @@ mark.cited {
 .gate__amendctl {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   font-family: var(--mono);
   font-size: 12px;
   color: var(--text-dim);
@@ -4548,7 +4547,7 @@ mark.cited {
   background: var(--panel-2);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  padding: 5px 8px;
+  padding: 4px 8px;
   font-variant-numeric: tabular-nums;
   transition: border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
 }
@@ -4567,7 +4566,7 @@ mark.cited {
   line-height: 1.6;
   color: var(--text-dim);
   border-top: 1px solid var(--border);
-  padding-top: 9px;
+  padding-top: 8px;
 }
 .gate__amendout .rec {
   font-size: 11px;
@@ -4586,7 +4585,7 @@ mark.cited {
   color: var(--text-faint);
   border: 1px solid var(--border-strong);
   border-radius: 999px;
-  padding: 3px 4px 3px 9px;
+  padding: 4px 4px 4px 8px;
 }
 .autonomy__opt {
   font-family: var(--mono);
@@ -4597,7 +4596,7 @@ mark.cited {
   background: transparent;
   border: none;
   border-radius: 999px;
-  padding: 4px 9px;
+  padding: 4px 8px;
   cursor: pointer;
   transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }

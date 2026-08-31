@@ -17,6 +17,8 @@ export interface MonitorApi {
   escalations: EscalationItem[];
   sweeping: boolean;
   lastSweepAt: number | null;
+  /** when the cadence chain will fire next (null before the first sweep) */
+  nextSweepAt: number | null;
   sweepCount: number;
   sweepNow: () => void;
   acknowledge: (id: string) => void;
@@ -29,6 +31,7 @@ export function useMonitor(deals: Deal[], speed: number): MonitorApi {
   const [escalations, setEscalations] = useState<EscalationItem[]>([]);
   const [sweeping, setSweeping] = useState(false);
   const [lastSweepAt, setLastSweepAt] = useState<number | null>(null);
+  const [nextSweepAt, setNextSweepAt] = useState<number | null>(null);
   const [sweepCount, setSweepCount] = useState(0);
 
   const dealsRef = useRef(deals);
@@ -84,7 +87,9 @@ export function useMonitor(deals: Deal[], speed: number): MonitorApi {
       if (cancelled) return;
       await sweepNow();
       if (cancelled) return;
-      timer = window.setTimeout(loop, 25000 / speedRef.current);
+      const delay = 25000 / speedRef.current;
+      setNextSweepAt(Date.now() + delay); // the chip's countdown mirrors the REAL timer
+      timer = window.setTimeout(loop, delay);
     };
     timer = window.setTimeout(loop, 800);
     return () => {
@@ -110,6 +115,7 @@ export function useMonitor(deals: Deal[], speed: number): MonitorApi {
     escalations,
     sweeping,
     lastSweepAt,
+    nextSweepAt,
     sweepCount,
     sweepNow,
     acknowledge,

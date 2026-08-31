@@ -2957,6 +2957,29 @@ textarea::placeholder {
 .pstat--accent .pstat__v {
   color: var(--accent-text);
 }
+/* stat-tile comparison line: delta vs a NAMED period, in text tokens */
+.pstat__d {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 10.5px;
+}
+.pstat__d em {
+  font-style: normal;
+  color: var(--text-faint);
+}
+
+/* micro trend line (sweep history) */
+.spark {
+  display: block;
+}
+.ptable__spark {
+  vertical-align: middle;
+}
+.spark--pending {
+  color: var(--text-faint);
+  font-size: 11px;
+}
 
 /* sections stack full-width: table, then the escalation queue */
 .portfolio__grid {

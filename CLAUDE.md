@@ -430,6 +430,22 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       the amend-terms toggle got a real control frame — it's the fourth reviewer verb
       (approve-with-conditions), not a footnote. (Review fix caught live: App's `handleRework`
       wrapper was dropping the provenance argument on send-back.)
+- [x] **Portfolio "industry dashboard" pass** (Mobbin MCP reference sweep — Xero/Square/Revolut/
+      Stripe/ClickUp screens — filtered through the earlier audit's "worth it?" lens; 3 shipped,
+      chart work done under the dataviz skill's stat-tile/sparkline contract):
+      **(1) Sweep-history sparklines** — `PortfolioDealState.history` ring buffer (cap 12,
+      `SweepSnapshot { sweepId, leverageX, health }`, rides the prev-state rebuild in
+      `sweepPortfolio`) + a pure token-driven `Sparkline` component (line in `--text-faint`
+      de-emphasis ink, ONLY the current reading gets the accent dot, flat series draws a midline,
+      `<title>`/aria-label tooltip, "—" under 2 points) in a new Trend column of the book table —
+      the monitor's own observation history made visible, not chrome. **(2) Stat-tile anatomy** —
+      Healthy/Watch/Breach tiles gain the comparison line (▲/▼ n vs last sweep, colored by
+      direction-is-bad, "· unchanged" when flat), computed from each deal's history[len-2] health
+      (no new state). **(3) Next-sweep countdown** — `useMonitor.nextSweepAt` mirrors the REAL
+      cadence timer; chip reads "Sweep #N · Xs ago · next in ~Ys" (→ "due"). Rejected again:
+      filter bars, sortable columns, date pickers, donuts — scale cosplay at 3–5 deals.
+      (Verification note: phantom gate actions during browser automation were stale-coordinate
+      clicks from the driving tool, confirmed by a hands-off control run — app exonerated.)
 - [x] **DESIGN.md + design-preview.html** — the design system documented in the
       VoltAgent/awesome-design-md (Google Stitch) format: YAML front matter with machine-readable
       token maps (`colors` = light default, `typography`, `rounded`, `spacing`, `components` with

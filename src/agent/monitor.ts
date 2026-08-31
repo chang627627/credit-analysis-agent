@@ -23,6 +23,17 @@ export interface MonitorCovenant {
   status: CovenantHealth;
 }
 
+/** One sweep's observation of a deal — the monitor's own history, kept so the
+    UI can show trend (sparklines), not just the latest reading. */
+export interface SweepSnapshot {
+  sweepId: number;
+  leverageX: number;
+  health: DealHealth;
+}
+
+/** Ring-buffer cap for per-deal sweep history (~12 points reads as a sparkline). */
+export const HISTORY_CAP = 12;
+
 export interface PortfolioDealState {
   dealId: string;
   name: string;
@@ -36,6 +47,8 @@ export interface PortfolioDealState {
   health: DealHealth;
   /** change vs the previous sweep (0 on the first review) */
   deltas: { leverageX: number; interestCoverageX: number; liquidity: number };
+  /** last HISTORY_CAP sweeps, oldest first (current sweep included last) */
+  history: SweepSnapshot[];
   lastSweepId: number;
 }
 
@@ -155,6 +168,7 @@ export async function* sweepPortfolio(
         interestCoverageX: p ? r2(ic - baseIc) : 0,
         liquidity: p ? r1(liq - baseLiq) : 0,
       },
+      history: [...(p?.history ?? []), { sweepId, leverageX: lev, health }].slice(-HISTORY_CAP),
       lastSweepId: sweepId,
     };
 

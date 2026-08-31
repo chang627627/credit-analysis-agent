@@ -577,6 +577,7 @@ export default function App() {
             escalations={monitor.escalations}
             sweeping={monitor.sweeping}
             lastSweepAt={monitor.lastSweepAt}
+            nextSweepAt={monitor.nextSweepAt}
             sweepCount={monitor.sweepCount}
             onSweepNow={monitor.sweepNow}
             onAcknowledge={monitor.acknowledge}

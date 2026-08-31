@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AlertOctagon, AlertTriangle, Check } from 'lucide-react';
-import type { EscalationItem, PortfolioDealState } from '../agent/monitor';
+import type { DealHealth, EscalationItem, PortfolioDealState } from '../agent/monitor';
+import { Sparkline } from './Sparkline';
 
 // The "always-on" surface: the monitoring agent's view of the whole book, plus
 // the escalation queue — the human half of the workforce model.
@@ -30,6 +31,7 @@ export function PortfolioView({
   escalations,
   sweeping,
   lastSweepAt,
+  nextSweepAt,
   sweepCount,
   onSweepNow,
   onAcknowledge,
@@ -39,6 +41,7 @@ export function PortfolioView({
   escalations: EscalationItem[];
   sweeping: boolean;
   lastSweepAt: number | null;
+  nextSweepAt: number | null;
   sweepCount: number;
   onSweepNow: () => void;
   onAcknowledge: (id: string) => void;
@@ -55,13 +58,28 @@ export function PortfolioView({
   const open = escalations.filter((e) => e.status === 'open');
   const acked = escalations.filter((e) => e.status === 'acknowledged');
 
-  const stats = [
+  // Previous sweep's health mix, read from the monitor's own history — powers
+  // the stat-tile comparison line (value · delta vs a NAMED period).
+  const prevCounts: Record<DealHealth, number> = { healthy: 0, watch: 0, breach: 0 };
+  let havePrev = false;
+  for (const r of rows) {
+    const prev = r.history[r.history.length - 2];
+    if (prev) {
+      havePrev = true;
+      prevCounts[prev.health]++;
+    }
+  }
+  const count = (h: DealHealth) => rows.filter((r) => r.health === h).length;
+  const stats: { k: string; v: number; tone: string; d?: number; badWhenUp?: boolean }[] = [
     { k: 'Deals monitored', v: rows.length, tone: '' },
-    { k: 'Healthy', v: rows.filter((r) => r.health === 'healthy').length, tone: 'good' },
-    { k: 'Watch', v: rows.filter((r) => r.health === 'watch').length, tone: 'warn' },
-    { k: 'In breach', v: rows.filter((r) => r.health === 'breach').length, tone: 'bad' },
+    { k: 'Healthy', v: count('healthy'), tone: 'good', d: havePrev ? count('healthy') - prevCounts.healthy : undefined, badWhenUp: false },
+    { k: 'Watch', v: count('watch'), tone: 'warn', d: havePrev ? count('watch') - prevCounts.watch : undefined, badWhenUp: true },
+    { k: 'In breach', v: count('breach'), tone: 'bad', d: havePrev ? count('breach') - prevCounts.breach : undefined, badWhenUp: true },
     { k: 'Open escalations', v: open.length, tone: 'accent' },
   ];
+
+  const nextIn =
+    nextSweepAt === null ? null : Math.max(0, Math.ceil((nextSweepAt - now) / 1000));
 
   return (
     <section className="portfolio">
@@ -79,7 +97,9 @@ export function PortfolioView({
             {sweeping
               ? 'Sweeping…'
               : lastSweepAt
-                ? `Sweep #${sweepCount} · ${timeAgo(lastSweepAt, now)}`
+                ? `Sweep #${sweepCount} · ${timeAgo(lastSweepAt, now)}${
+                    nextIn !== null ? ` · next ${nextIn > 0 ? `in ~${nextIn}s` : 'due'}` : ''
+                  }`
                 : 'Starting…'}
           </span>
           <button className="btn" onClick={onSweepNow} disabled={sweeping}>
@@ -93,6 +113,18 @@ export function PortfolioView({
           <div className={`pstat ${s.tone ? `pstat--${s.tone}` : ''}`} key={s.k}>
             <span className="pstat__k">{s.k}</span>
             <span className="pstat__v">{s.v}</span>
+            {s.d !== undefined && (
+              <span className="pstat__d">
+                {s.d === 0 ? (
+                  <span className="pdelta pdelta--flat">·</span>
+                ) : (
+                  <span className={`pdelta ${(s.d > 0) === s.badWhenUp ? 'pdelta--bad' : 'pdelta--good'}`}>
+                    {s.d > 0 ? '▲' : '▼'} {Math.abs(s.d)}
+                  </span>
+                )}
+                <em>{s.d === 0 ? 'unchanged' : 'vs last sweep'}</em>
+              </span>
+            )}
           </div>
         ))}
       </div>
@@ -105,6 +137,7 @@ export function PortfolioView({
                 <th>Deal</th>
                 <th>Risk</th>
                 <th>Leverage</th>
+                <th>Trend</th>
                 <th>Int. cov.</th>
                 <th>Liquidity</th>
                 <th>Covenants</th>
@@ -114,7 +147,7 @@ export function PortfolioView({
             <tbody>
               {sorted.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="ptable__empty">
+                  <td colSpan={8} className="ptable__empty">
                     First sweep in progress…
                   </td>
                 </tr>
@@ -130,6 +163,14 @@ export function PortfolioView({
                   <td className="ptable__mono">{d.riskScore}</td>
                   <td className="ptable__mono">
                     {d.leverageX.toFixed(2)}x <Delta value={d.deltas.leverageX} badWhenUp suffix="x" />
+                  </td>
+                  <td className="ptable__spark">
+                    <Sparkline
+                      values={d.history.map((h) => h.leverageX)}
+                      label={`Leverage over the last ${d.history.length} sweeps · ${Math.min(
+                        ...d.history.map((h) => h.leverageX),
+                      ).toFixed(2)}–${Math.max(...d.history.map((h) => h.leverageX)).toFixed(2)}x`}
+                    />
                   </td>
                   <td className="ptable__mono">
                     {d.interestCoverageX.toFixed(2)}x <Delta value={d.deltas.interestCoverageX} badWhenUp={false} suffix="x" />

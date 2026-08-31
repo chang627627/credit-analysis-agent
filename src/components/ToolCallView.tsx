@@ -17,7 +17,7 @@ function Elapsed() {
 /**
  * An inspectable tool call: name, label, timing, confidence, and (when expanded)
  * the exact args in and data out. This "show your work" surface is the audit-trail
- * DNA that a regulated-finance product like regulated finance cares about.
+ * DNA that a regulated-finance product depends on.
  */
 export function ToolCallView({
   call,

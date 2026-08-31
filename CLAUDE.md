@@ -6,17 +6,17 @@ file_ at the bottom.
 
 ## What this is
 
-research prototype work for **regulated finance** (an "agentic workforce for regulated finance" — credit
-analysis, document intelligence, covenant monitoring, audit trails). This is a **front-end
-reference prototype** for a prototype exercise: **"Countersign"** — a credit-analysis agent that
-makes the **agent loop visible and inspectable**, with a **mocked backend** (no API keys). Role
-focus: **frontend / UX engineering**.
+**Countersign** — a **front-end research prototype** exploring how an autonomous
+credit-analysis agent can expose its evidence, route uncertainty, pause for accountable human
+judgment, and preserve an auditable decision trail. The domain is regulated finance (credit
+analysis, document intelligence, covenant monitoring, audit trails); the **backend is mocked
+and deterministic** (no API keys). Focus: **frontend / UX engineering**.
 
-**Product name: Countersign** — a countersignature is the second signature that makes a document
-binding; the agent analyzes, a human countersigns (human-in-the-loop encoded in the name).
+**On the name** — a countersignature is the second signature that makes a document binding;
+the agent analyzes, a human countersigns (human-in-the-loop encoded in the name).
 The GitHub repo/Vercel slugs stay `credit-analysis-agent` (renaming would break the live URL).
 
-> Not affiliated with regulated finance. All deal data is fictional.
+> All deal data is fictional; the agent and its tools are simulated.
 
 ## Run & build
 
@@ -531,11 +531,13 @@ Items 1–6 + the Agents roster are DONE (kept for the record). Remaining work g
        key off the client; mock stays as fallback).
 9. [ ] Supabase persistence of the audit trail (runs survive reloads).
 
-**Non-code (highest ROI next):**
-10. [ ] Walkthrough practice — README's 90-second tour + "extend it live" drills.
-11. [ ] LinkedIn post — live link + repo exist; caption remaining.
+**Non-code:**
+10. [ ] Walkthrough practice — the README's architecture tour + the extension points.
+11. [ ] Write-up / post — live link + repo exist; caption remaining.
 
 ## Design and engineering rationale
+
+The claims this prototype is built to demonstrate — useful when explaining it to anyone:
 
 - "The agent is a **stream of typed events**, so the UI is a pure reduction — the same
   components work against a mock or a real LLM."
@@ -549,9 +551,9 @@ Items 1–6 + the Agents roster are DONE (kept for the record). Remaining work g
   The model is baseline-anchored, so the base case reproduces the deal's published numbers exactly."
 - "Everything is **inspectable + logged** (args in, data out, confidence, timestamps) because
   traceability is the product."
-- "The design system is **all tokens** — an original 'Graphite & Teal' identity. I studied how
-  best-in-class product UIs handle surfaces/borders/accent, applied the *principles*, and gave it
-  its own teal palette; re-skinning is a token swap, not a component rewrite."
+- "The design system is **all tokens** — an original 'Graphite & Teal' identity built by applying
+  the *principles* best-in-class product UIs use for surfaces/borders/accent, with its own teal
+  palette; re-skinning is a token swap, not a component rewrite."
 
 ## Maintaining this file
 

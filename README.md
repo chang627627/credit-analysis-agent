@@ -5,17 +5,23 @@
 
 **▶ Live demo: [credit-analysis-agent.vercel.app](https://credit-analysis-agent.vercel.app)** &nbsp;·&nbsp; auto-deployed from `main` via Vercel
 
-A front-end reference prototype exploring an **agentic prototype exercise**.
+Countersign is a **front-end research prototype** exploring how an autonomous
+credit-analysis agent can expose its evidence, route uncertainty, pause for accountable
+human judgment, and preserve an auditable decision trail. Its data and backend behavior
+are **mocked and deterministic**.
+
 It shows an **agent loop you can watch and inspect** — plan → call tool → observe →
-decide → repeat → **human approval gate** — applied to a credit-analysis workflow.
+decide → repeat → **human approval gate** — applied to a credit-analysis workflow:
+extract financials from a deal document → score risk → test covenants → assemble an
+approval package with an audit trail, pausing for a human on the consequential call.
 
 There is **no backend**. The "LLM" and its "tools" are mocked with async generators
-and timers (`src/agent/*`), so it runs with zero API keys and is fully deterministic.
-The point of the exercise is the *agentic UX and control flow*, not the model.
+and timers (`src/agent/*`), so it runs with zero API keys and is fully reproducible.
+The subject of the prototype is the *agentic UX and control flow*, not the model.
 
-> Maps to the domain's actual product: extract financials from a deal doc → score risk →
-> test covenants → assemble an approval package **with an audit trail**, pausing for a
-> human on the consequential call ("in regulated finance, 80% accuracy is a liability").
+> **The thesis:** in regulated decisions, an agent that is 80% accurate is a liability
+> unless a human can see exactly what it did and refuse it. So the loop is built to be
+> legible and interruptible rather than merely fast.
 
 ---
 
@@ -37,7 +43,7 @@ npm run preview  # serve the build
 
 ---
 
-## The 90-second tour (what to say while screen-sharing)
+## Architecture at a glance
 
 The whole app is a **reducer over a typed event stream**. That one idea is the spine:
 
@@ -81,8 +87,8 @@ runCreditAgent()  ──AsyncGenerator<AgentEvent>──►  useCreditAgent (red
 
 6. **Uncertainty as a first-class signal.** Tool results carry a `confidence`; the
    covenant breach raises a `critical` flag with `needsHuman: true`, which flips the
-   recommendation to **escalate** and is what forces the gate. Talk about this — it's
-   exactly the domain's "edge cases are where the risk lives" thesis.
+   recommendation to **escalate** and is what forces the gate. Edge cases are where the
+   risk lives, so uncertainty is routed rather than averaged away.
 
 ---
 
@@ -115,10 +121,10 @@ Design choices worth defending if asked:
 
 ---
 
-## Likely "now extend it live" drills (practice these)
+## Architecture extension points
 
-The interviewer will probably ask you to change something on the spot. Each of these is
-small *because* of the event-stream design — rehearse them:
+Each of the following is a small change *because* of the event-stream design — they are
+the seams the architecture was shaped around:
 
 1. **Add a tool / step** (e.g. `check_collateral`): add a `ToolName`, a `TOOLS` entry,
    one `PLAN` row. Nothing else changes. ~3 min.
@@ -129,15 +135,15 @@ small *because* of the event-stream design — rehearse them:
 4. **Stream real tokens** — swap `streamThinking` for `fetch()` + `ReadableStream` /
    SSE; the reducer doesn't change because the events don't.
 5. **Retry on low confidence** — if `result.confidence < 0.8`, loop the step again or
-   route to a different tool. Good place to talk about the "80% isn't enough" guardrail.
+   route to a different tool: the "80% isn't enough" guardrail, enforced in the loop.
 6. **Persist / export the audit trail** as JSON (download button over the `audit` array).
 
 ---
 
 ## Agent-UX patterns borrowed from leading agent products
 
-These are lifted from the agentic apps Mobbin catalogs — worth naming the source if asked
-"why does it look like this?":
+These follow conventions established by current agentic products, adapted to a
+regulated-finance context:
 
 - **Result artifacts** (`Artifact.tsx`) — tool output renders as work-product (metric
   cards, a risk gauge, a pass/fail covenant table), not raw JSON. *Perplexity answer
@@ -157,9 +163,8 @@ These are lifted from the agentic apps Mobbin catalogs — worth naming the sour
   letter-spacing. It borrows only **universal craft principles** from best-in-class product UIs
   (surface ladder, restrained single accent, depth-from-surfaces) — it is **not a clone** of any
   product (deliberately, since this is shared publicly). Because everything is variables,
-  re-skinning is a token swap, *zero component rewrites*. Talking point: "the design is all
-  tokens, so it has its own identity *and* could be re-skinned to any brand without touching a
-  component."
+  re-skinning is a token swap, *zero component rewrites* — the system has its own identity and
+  could be re-skinned to any brand without touching a component.
 
 ### Input model: upload to ingest, chat to steer
 The left panel is the **ingestion** surface — drop a CIM (PDF) or pick a recent deal.
@@ -173,20 +178,24 @@ the chat box is for "why did you flag the leverage?" not for data entry.
   labeled "extraction is simulated"; in production this is the document-extraction model.
 - **Rule-based follow-ups** (`responder.ts`) — the composer answers questions from the
   current deal's data. Not an LLM — a scripted Q&A, honest for a mocked backend.
-- Talking point: *"Ingestion is a document; steering is a chat. I kept them separate
-  because retyping a CIM into a prompt box would be the wrong affordance and would throw
-  away provenance."*
+- **Ingestion is a document; steering is a chat.** These are kept separate deliberately —
+  retyping a deal document into a prompt box would be the wrong affordance and would throw
+  away provenance.
 
-## Design and engineering decisions (regulated finance framing)
+## Design and engineering decisions
 
-- "I modeled the agent as a **stream of typed events**, so the UI is a pure reduction and
-  the same components work against a mock or a real LLM."
-- "The loop is **plan → act → observe → decide**, and the *decide* step is where I derive
-  flags and handle **uncertainty** rather than blindly trusting the model."
-- "**Human-in-the-loop** isn't a modal bolted on — the agent literally **suspends** at the
-  gate and can't proceed without a person. That's the right default for a consequential,
-  regulated action."
-- "Everything is **inspectable and logged** — args in, data out, confidence, timestamps —
-  because traceability is the product, not a feature."
+- **The agent is a stream of typed events**, so the UI is a pure reduction — the same
+  components work against the mock or against a real LLM backend.
+- **The loop is plan → act → observe → decide.** The *decide* step is where flags are
+  derived and uncertainty is handled, rather than the model's output being trusted blindly.
+- **Human-in-the-loop is not a modal bolted on.** The agent literally *suspends* at the
+  gate — a generator awaiting a Promise — and cannot proceed without a person. That is the
+  right default for a consequential, regulated action.
+- **Everything is inspectable and logged** — args in, data out, confidence, timestamps —
+  because traceability is the product, not a feature.
+- **The design system is entirely token-driven**, so re-skinning is a token swap rather
+  than a component rewrite.
 
-_A research prototype. All numbers are fictional._
+---
+
+_A research prototype. The backend is mocked and all deal data is fictional._

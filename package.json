@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Agentic agentic credit-analysis prototype — a visible, inspectable agent loop with a mocked backend.",
+  "description": "Countersign — a research prototype of an agentic credit-analysis workflow: a visible, inspectable agent loop with a human approval gate and a mocked backend.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

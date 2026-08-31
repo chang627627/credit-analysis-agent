@@ -1351,6 +1351,40 @@ textarea::placeholder {
   letter-spacing: 0;
   color: var(--text-faint);
 }
+/* label row with the draft affordance pinned right */
+.gate__notelabel--row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gate__notelabel--row > span:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.gate__draftbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.gate__draftbtn:disabled {
+  color: var(--text-faint);
+  cursor: default;
+  background: transparent;
+}
+/* live provenance chip: the note on screen is an agent draft (edited or not) */
+.gate__notetag {
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border-radius: var(--radius-xs);
+  padding: 2px 6px;
+}
 .gate__note {
   font: inherit;
   font-size: 13px;
@@ -1448,6 +1482,12 @@ textarea::placeholder {
   font-family: inherit;
   font-style: italic;
   color: var(--text);
+}
+/* …and when those words started as a machine draft, the record says so */
+.outcome__noteprov {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--text-faint);
 }
 .outcome__text .outcome__routed {
   font-family: inherit;
@@ -4464,6 +4504,11 @@ mark.cited {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  /* this is the fourth reviewer verb (approve-with-conditions), not a footnote —
+     give it a real control frame so it reads at the same rank as the buttons */
+  border: 1px solid var(--border-strong);
+  background: var(--panel);
+  padding: 4px 9px;
 }
 .gate__amendbody {
   margin-top: 8px;

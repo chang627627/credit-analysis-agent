@@ -412,6 +412,24 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       scrubber (best architecture flex), mid-run steering (backlog #7), maker-checker critique
       pass, override-rationale + reviewer identity (EU AI Act Art. 14 / SR 26-2 hook).
 
+- [x] **Agent-drafted reviewer note + provenance on the record** (the "should we auto-fill the
+      note?" question, resolved as *draft, never pre-fill*): the gate's note row gains a
+      "Draft from flags" affordance — pure `draftNoteFor` (`src/agent/draftNote.ts`) composes an
+      evidence summary from the package (breaches; open needs-human items; the restructure line;
+      the reviewer's own send-back thread is excluded to avoid echoing them to themselves),
+      inserted ONLY on explicit click and fully editable. The decision then records
+      `NoteProvenance` (`authored` | `drafted-edited` | `drafted-verbatim`) everywhere the note
+      goes: live chip at the gate ("agent-drafted · unedited/edited"), `GateDecision` →
+      `run_finished` → outcome banner ("— agent-drafted, accepted verbatim / edited by
+      reviewer"), audit trail ("note (agent-drafted, …): …"), the send-back flag
+      ("rev N · note agent-drafted, …") and the JSON export (`reviewerNoteProvenance`) — the
+      automation-bias guard: the record distinguishes genuine human rationale from an accepted
+      machine draft (EU AI Act Art. 14-style oversight hook). Inserting the draft holds the
+      auto-countersign countdown; clearing the note resets provenance to authored. Also: the
+      send-back verb got its missing `S` shortcut (+ kbd chip, same modifier/typing guards), and
+      the amend-terms toggle got a real control frame — it's the fourth reviewer verb
+      (approve-with-conditions), not a footnote. (Review fix caught live: App's `handleRework`
+      wrapper was dropping the provenance argument on send-back.)
 - [x] **DESIGN.md + design-preview.html** — the design system documented in the
       VoltAgent/awesome-design-md (Google Stitch) format: YAML front matter with machine-readable
       token maps (`colors` = light default, `typography`, `rounded`, `spacing`, `components` with

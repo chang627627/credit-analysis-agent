@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CornerUpLeft, PenLine, ShieldCheck } from 'lucide-react';
-import type { Amendment, ApprovalPackage, Recommendation, ToolName } from '../agent/types';
+import { CornerUpLeft, PenLine, ShieldCheck, Sparkles } from 'lucide-react';
+import type { Amendment, ApprovalPackage, NoteProvenance, Recommendation, ToolName } from '../agent/types';
 import type { Deal } from '../agent/mockData';
 import { amendedOutcome } from '../agent/whatif';
+import { draftNoteFor } from '../agent/draftNote';
 import { LOW_CONFIDENCE_FLOOR } from '../agent/util';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { FlagPill } from './FlagPill';
@@ -45,9 +46,12 @@ export function ApprovalGate({
   pkg: ApprovalPackage;
   /** The deal behind the package — powers the amend-terms live re-decide. */
   deal?: Deal;
-  onApprove: (note?: string, opts?: { amendments?: Amendment[]; auto?: boolean }) => void;
-  onReject: (note: string) => void;
-  onRework: (note: string) => void;
+  onApprove: (
+    note?: string,
+    opts?: { amendments?: Amendment[]; auto?: boolean; provenance?: NoteProvenance },
+  ) => void;
+  onReject: (note: string, provenance?: NoteProvenance) => void;
+  onRework: (note: string, provenance?: NoteProvenance) => void;
   /** Trace a gate figure back to the tool observation that produced it. */
   onTrace?: (source: ToolName) => void;
   /** Send-back choreography: the gate recedes upstream before the loop resumes. */
@@ -58,13 +62,32 @@ export function ApprovalGate({
   onHold?: () => void;
   /** App-owned mirror of the current note+amendments, so the command palette's
       approve signs what the gate is actually showing. */
-  draftRef?: React.MutableRefObject<{ note?: string; amendments: Amendment[] }>;
+  draftRef?: React.MutableRefObject<{
+    note?: string;
+    noteProvenance?: NoteProvenance;
+    amendments: Amendment[];
+  }>;
 }) {
   const [note, setNote] = useState('');
   const [needNote, setNeedNote] = useState(false);
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const noteValRef = useRef(note);
   noteValRef.current = note;
+
+  // --- agent-drafted note: convenience with provenance ----------------------
+  // The gate can compose an evidence summary from the flags on record, but it
+  // is inserted only on an explicit click (never pre-filled), stays editable,
+  // and the decision records whether it was authored / edited / accepted as-is.
+  const draftText = useMemo(() => draftNoteFor(pkg), [pkg]);
+  const [insertedDraft, setInsertedDraft] = useState<string | null>(null);
+  const insertedRef = useRef(insertedDraft);
+  insertedRef.current = insertedDraft;
+  const provenanceOf = (n: string): NoteProvenance | undefined => {
+    if (!n.trim()) return undefined;
+    if (insertedRef.current === null) return 'authored';
+    return n.trim() === insertedRef.current.trim() ? 'drafted-verbatim' : 'drafted-edited';
+  };
+  const prov = provenanceOf(note);
   // once the send-back is committed (gate receding), NO other verb may fire —
   // an A keypress in that window would silently convert the rework into an
   // approval and record the rework note as the countersign note
@@ -107,8 +130,9 @@ export function ApprovalGate({
 
   // mirror the live draft upstream so the palette signs what the gate shows
   useEffect(() => {
-    if (draftRef) draftRef.current = { note: note.trim() || undefined, amendments };
-  }, [note, amendments, draftRef]);
+    if (draftRef)
+      draftRef.current = { note: note.trim() || undefined, noteProvenance: prov, amendments };
+  }, [note, prov, amendments, draftRef]);
 
   // --- autonomy policy: auto-countersign clean approvals --------------------
   // Visible cancellable countdown; ANY reviewer engagement holds it (typing,
@@ -146,13 +170,20 @@ export function ApprovalGate({
     holdAuto();
     const n = noteValRef.current.trim();
     if (!n) return demandNote();
-    onReject(n);
+    onReject(n, provenanceOf(n));
   };
   const tryRework = () => {
     holdAuto();
     const n = noteValRef.current.trim();
     if (!n) return demandNote();
-    onRework(n);
+    onRework(n, provenanceOf(n));
+  };
+  const insertDraft = () => {
+    holdAuto(); // reaching for the draft is reviewer engagement — never auto-sign past it
+    setNote(draftText);
+    setInsertedDraft(draftText);
+    setNeedNote(false);
+    noteRef.current?.focus();
   };
 
   // The agent just suspended on a consequential decision — bring the reviewer's
@@ -166,10 +197,10 @@ export function ApprovalGate({
     if (tag !== 'TEXTAREA' && tag !== 'INPUT') ref.current?.focus({ preventScroll: true });
   }, []);
 
-  // A/R shortcuts live WITH the gate (they only exist while it's mounted).
+  // A/R/S shortcuts live WITH the gate (they only exist while it's mounted).
   // Guards: no modifiers (⌘A stays select-all, ⌘R stays reload) and never
-  // while typing. R with an empty note doesn't reject blind — it asks for the
-  // reason, same as the button.
+  // while typing. R/S with an empty note don't act blind — they ask for the
+  // reason, same as the buttons.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (leavingRef.current) return;
@@ -178,10 +209,14 @@ export function ApprovalGate({
       if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') return;
       if (e.key === 'a' || e.key === 'A') {
         e.preventDefault();
-        onApprove(noteValRef.current.trim() || undefined, { amendments: amendRef.current });
+        const n = noteValRef.current.trim();
+        onApprove(n || undefined, { amendments: amendRef.current, provenance: provenanceOf(n) });
       } else if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
         tryReject();
+      } else if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        tryRework();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -382,9 +417,31 @@ export function ApprovalGate({
       )}
 
       <label className="gate__notewrap">
-        <span className="gate__notelabel">
-          Reviewer note · goes on the record
-          <em> — optional to approve, required to reject or send back</em>
+        <span className="gate__notelabel gate__notelabel--row">
+          <span>
+            Reviewer note · goes on the record
+            <em> — optional to approve, required to reject or send back</em>
+          </span>
+          {prov && prov !== 'authored' && (
+            <span
+              className="gate__notetag"
+              title="The record will say the note was agent-drafted — and whether the reviewer edited it."
+            >
+              agent-drafted{prov === 'drafted-edited' ? ' · edited' : ' · unedited'}
+            </span>
+          )}
+          <button
+            type="button"
+            className="linkbtn gate__draftbtn"
+            onClick={(e) => {
+              e.preventDefault(); // keep the label from re-forwarding the click
+              insertDraft();
+            }}
+            disabled={note.trim().length > 0}
+            title="Insert an editable evidence summary composed from the flags on record — its provenance (drafted / edited / accepted verbatim) is recorded with the decision."
+          >
+            <Sparkles size={11} strokeWidth={1.75} aria-hidden="true" /> Draft from flags
+          </button>
         </span>
         <textarea
           ref={noteRef}
@@ -395,12 +452,15 @@ export function ApprovalGate({
           onChange={(e) => {
             holdAuto();
             setNote(e.target.value);
+            // fully cleared = a fresh start; whatever gets typed next is authored
+            if (!e.target.value.trim()) setInsertedDraft(null);
             if (needNote && e.target.value.trim()) setNeedNote(false);
           }}
         />
         {needNote && (
           <span className="gate__notehint" role="alert">
-            A reason is required for the record — add a note, then reject or send back.
+            A reason is required for the record — add a note (or start from the draft), then reject
+            or send back.
           </span>
         )}
       </label>
@@ -410,11 +470,12 @@ export function ApprovalGate({
           Reject <span className="kbd">R</span>
         </button>
         <button className="btn btn--rework" onClick={tryRework} disabled={leaving}>
-          <CornerUpLeft size={13} strokeWidth={1.75} aria-hidden="true" /> Send back for rework
+          <CornerUpLeft size={13} strokeWidth={1.75} aria-hidden="true" /> Send back for rework{' '}
+          <span className="kbd">S</span>
         </button>
         <button
           className="btn btn--approve"
-          onClick={() => onApprove(note.trim() || undefined, { amendments })}
+          onClick={() => onApprove(note.trim() || undefined, { amendments, provenance: prov })}
           disabled={leaving}
         >
           {amendDirty ? 'Countersign as amended' : 'Countersign & approve'}{' '}

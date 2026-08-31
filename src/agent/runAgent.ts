@@ -298,6 +298,7 @@ export async function* runCreditAgent(ctx: AgentContext): AsyncGenerator<AgentEv
         outcome: gate.verb,
         package: pkg,
         note: gate.note,
+        noteProvenance: gate.noteProvenance,
         amendments: gate.amendments,
         auto: gate.auto,
       };
@@ -351,10 +352,17 @@ export async function* runCreditAgent(ctx: AgentContext): AsyncGenerator<AgentEv
       yield { type: 'flag', stepId, flag: lowConf };
     }
 
+    // a send-back note that was itself agent-drafted must say so on the record
+    const provTag =
+      gate.noteProvenance === 'drafted-verbatim'
+        ? ' · note agent-drafted, accepted verbatim'
+        : gate.noteProvenance === 'drafted-edited'
+          ? ' · note agent-drafted, edited by reviewer'
+          : '';
     const noteFlag: Flag = {
       id: uid('flag'),
       severity: 'warning',
-      message: `Reviewer send-back (rev ${revision - 1}): ${note}`,
+      message: `Reviewer send-back (rev ${revision - 1}${provTag}): ${note}`,
       needsHuman: true,
     };
     collectedFlags.push(noteFlag);

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { ArrowRight, CheckCircle2, Download, RotateCcw, ShieldCheck, XCircle } from 'lucide-react';
-import type { Amendment, ApprovalPackage } from '../agent/types';
+import type { Amendment, ApprovalPackage, NoteProvenance } from '../agent/types';
 
 /**
  * The second signature drawing itself onto the memo — the product's name as a
@@ -22,6 +22,7 @@ export function OutcomeBanner({
   approved,
   pkg,
   note,
+  noteProvenance,
   amendments,
   auto = false,
   onReset,
@@ -32,6 +33,8 @@ export function OutcomeBanner({
   pkg: ApprovalPackage;
   /** The reviewer's note recorded with the decision (null if none was given). */
   note: string | null;
+  /** Whether the note was human-authored or an accepted/edited agent draft. */
+  noteProvenance?: NoteProvenance | null;
   /** Terms the reviewer amended before signing ("countersigned as amended"). */
   amendments?: Amendment[] | null;
   /** The autonomy policy resolved this approval (clean-approval auto-countersign). */
@@ -86,7 +89,18 @@ export function OutcomeBanner({
           {pkg.restructure && (
             <span className="outcome__structure">Revised structure · {pkg.restructure.summary}</span>
           )}
-          {note && <span className="outcome__note">Reviewer note · “{note}”</span>}
+          {note && (
+            <span className="outcome__note">
+              Reviewer note · “{note}”
+              {noteProvenance && noteProvenance !== 'authored' && (
+                <em className="outcome__noteprov">
+                  {' '}
+                  — agent-drafted,{' '}
+                  {noteProvenance === 'drafted-verbatim' ? 'accepted verbatim' : 'edited by reviewer'}
+                </em>
+              )}
+            </span>
+          )}
           {routed && (
             <span className="outcome__routed">
               ESCALATE countersigned → routed to the portfolio escalation queue for senior review

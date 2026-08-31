@@ -103,9 +103,19 @@ export interface Amendment {
   to: string;
 }
 
+/**
+ * Who actually wrote the reviewer note. The gate can draft one from the flags
+ * on record, but an oversight record must distinguish genuine human rationale
+ * from an accepted machine draft — otherwise the note field becomes the exact
+ * automation-bias rubber stamp it exists to prevent.
+ */
+export type NoteProvenance = 'authored' | 'drafted-edited' | 'drafted-verbatim';
+
 export interface GateDecision {
   verb: GateVerb;
   note?: string;
+  /** How the note was produced (only meaningful when a note is present). */
+  noteProvenance?: NoteProvenance;
   /** "Countersigned as amended": terms the reviewer edited before approving. */
   amendments?: Amendment[];
   /** Resolved by the autonomy policy (clean approval), not a human click. */
@@ -129,6 +139,7 @@ export type AgentEvent =
       outcome: ApprovalDecision;
       package: ApprovalPackage;
       note?: string;
+      noteProvenance?: NoteProvenance;
       amendments?: Amendment[];
       auto?: boolean;
     };

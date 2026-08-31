@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useCreditAgent } from './hooks/useCreditAgent';
 import type { ChatMessage } from './hooks/useCreditAgent';
 import { useMonitor } from './hooks/useMonitor';
-import type { Amendment, Recommendation, ToolName } from './agent/types';
+import type { Amendment, NoteProvenance, Recommendation, ToolName } from './agent/types';
 import type { TraceTarget } from './components/StepCard';
 import { getPlan } from './agent/runAgent';
 import { PortfolioView } from './components/PortfolioView';
@@ -164,15 +164,15 @@ export default function App() {
     setTrace((t) => ({ tool, tick: (t?.tick ?? 0) + 1 }));
   };
 
-  const handleRework = (note: string) => {
+  const handleRework = (note: string, provenance?: NoteProvenance) => {
     if (gateLeaving) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      agent.requestRework(note);
+      agent.requestRework(note, provenance);
       return;
     }
     setGateLeaving(true);
     window.setTimeout(() => {
-      agent.requestRework(note);
+      agent.requestRework(note, provenance);
       setGateLeaving(false);
     }, 320);
   };
@@ -197,7 +197,9 @@ export default function App() {
   useEffect(() => {
     if (status !== 'awaiting_approval') setGateHold(false);
   }, [status]);
-  const gateDraftRef = useRef<{ note?: string; amendments: Amendment[] }>({ amendments: [] });
+  const gateDraftRef = useRef<{ note?: string; noteProvenance?: NoteProvenance; amendments: Amendment[] }>({
+    amendments: [],
+  });
 
   // the autonomy policy may resolve ONLY a clean first-pass approval — and it
   // does so visibly, via the gate's cancellable countdown
@@ -370,7 +372,11 @@ export default function App() {
             label: 'Countersign & approve',
             section: 'Decision',
             kbd: 'A',
-            run: () => agent.approve(gateDraftRef.current.note, { amendments: gateDraftRef.current.amendments }),
+            run: () =>
+              agent.approve(gateDraftRef.current.note, {
+                amendments: gateDraftRef.current.amendments,
+                provenance: gateDraftRef.current.noteProvenance,
+              }),
           },
         ]
       : []),
@@ -531,6 +537,7 @@ export default function App() {
                     approved={status === 'approved'}
                     pkg={agent.approvalPackage}
                     note={agent.decisionNote}
+                    noteProvenance={agent.decisionNoteProvenance}
                     amendments={agent.decisionAmendments}
                     auto={agent.decisionAuto}
                     onReset={handleReset}

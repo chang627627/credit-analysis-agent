@@ -15,6 +15,7 @@ import type {
   ApprovalPackage,
   Flag,
   GateDecision,
+  NoteProvenance,
   PlanStep,
   Recommendation,
   ToolCall,
@@ -101,15 +102,20 @@ export interface CreditAgentApi {
   /** Leave the intent gate without running. */
   cancelPlan: () => void;
   /** Countersign the package; the note (optional) goes on the record. */
-  approve: (note?: string, opts?: { amendments?: Amendment[]; auto?: boolean }) => void;
+  approve: (
+    note?: string,
+    opts?: { amendments?: Amendment[]; auto?: boolean; provenance?: NoteProvenance },
+  ) => void;
   /** Refuse the package. The gate UI requires a reason — it goes on the record. */
-  reject: (note: string) => void;
+  reject: (note: string, provenance?: NoteProvenance) => void;
   /** Send the package back: the suspended loop RESUMES with the note. */
-  requestRework: (note: string) => void;
+  requestRework: (note: string, provenance?: NoteProvenance) => void;
   reset: () => void;
   exportAudit: () => void;
   /** The reviewer's note from the finishing decision (shown on the banner). */
   decisionNote: string | null;
+  /** Whether that note was human-authored or an accepted/edited agent draft. */
+  decisionNoteProvenance: NoteProvenance | null;
   /** Terms the reviewer amended before countersigning (null if none). */
   decisionAmendments: Amendment[] | null;
   /** True when the finishing approval was resolved by the autonomy policy. */
@@ -133,6 +139,7 @@ export function useCreditAgent(): CreditAgentApi {
   const [parsing, setParsing] = useState<ParsingState | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [decisionNote, setDecisionNote] = useState<string | null>(null);
+  const [decisionNoteProvenance, setDecisionNoteProvenance] = useState<NoteProvenance | null>(null);
   const [decisionAmendments, setDecisionAmendments] = useState<Amendment[] | null>(null);
   const [decisionAuto, setDecisionAuto] = useState(false);
   const [runSeq, setRunSeq] = useState(0);
@@ -216,6 +223,7 @@ export function useCreditAgent(): CreditAgentApi {
         case 'run_finished': {
           setStatus(ev.outcome === 'approve' ? 'approved' : 'rejected');
           setDecisionNote(ev.note ?? null);
+          setDecisionNoteProvenance(ev.note ? ev.noteProvenance ?? null : null);
           setDecisionAmendments(ev.amendments && ev.amendments.length > 0 ? ev.amendments : null);
           setDecisionAuto(ev.auto === true);
           const label = ev.auto
@@ -226,10 +234,17 @@ export function useCreditAgent(): CreditAgentApi {
                 : 'Human APPROVED — countersigned'
               : 'Human REJECTED';
           const amendTxt = ev.amendments?.map((a) => `${a.label} ${a.from}→${a.to}`).join('; ');
+          // the record distinguishes a human-authored rationale from an accepted draft
+          const provTag =
+            ev.noteProvenance === 'drafted-verbatim'
+              ? ' (agent-drafted, accepted verbatim)'
+              : ev.noteProvenance === 'drafted-edited'
+                ? ' (agent-drafted, edited by reviewer)'
+                : '';
           pushAudit({
             kind: 'human',
             label,
-            detail: [ev.note ? `note: ${ev.note}` : 'no note', amendTxt ? `amended: ${amendTxt}` : null]
+            detail: [ev.note ? `note${provTag}: ${ev.note}` : 'no note', amendTxt ? `amended: ${amendTxt}` : null]
               .filter(Boolean)
               .join(' · '),
           });
@@ -251,6 +266,7 @@ export function useCreditAgent(): CreditAgentApi {
     setAudit([]);
     setMessages([]);
     setDecisionNote(null);
+    setDecisionNoteProvenance(null);
     setDecisionAmendments(null);
     setDecisionAuto(false);
     setPlan(getPlan());
@@ -327,26 +343,31 @@ export function useCreditAgent(): CreditAgentApi {
     setStatus('idle');
   }, []);
 
-  const approve = useCallback((note?: string, opts?: { amendments?: Amendment[]; auto?: boolean }) => {
-    approvalResolver.current?.({
-      verb: 'approve',
-      note: note?.trim() || undefined,
-      amendments: opts?.amendments && opts.amendments.length > 0 ? opts.amendments : undefined,
-      auto: opts?.auto,
-    });
-    approvalResolver.current = null;
-  }, []);
+  const approve = useCallback(
+    (note?: string, opts?: { amendments?: Amendment[]; auto?: boolean; provenance?: NoteProvenance }) => {
+      const trimmed = note?.trim() || undefined;
+      approvalResolver.current?.({
+        verb: 'approve',
+        note: trimmed,
+        noteProvenance: trimmed ? opts?.provenance : undefined,
+        amendments: opts?.amendments && opts.amendments.length > 0 ? opts.amendments : undefined,
+        auto: opts?.auto,
+      });
+      approvalResolver.current = null;
+    },
+    [],
+  );
 
-  const reject = useCallback((note: string) => {
-    approvalResolver.current?.({ verb: 'reject', note: note.trim() });
+  const reject = useCallback((note: string, provenance?: NoteProvenance) => {
+    approvalResolver.current?.({ verb: 'reject', note: note.trim(), noteProvenance: provenance });
     approvalResolver.current = null;
   }, []);
 
   // Send-back: resolve the gate with 'rework' — the generator does NOT finish,
   // it appends a revision step and re-suspends. Status returns to 'running'.
-  const requestRework = useCallback((note: string) => {
+  const requestRework = useCallback((note: string, provenance?: NoteProvenance) => {
     if (!approvalResolver.current) return;
-    approvalResolver.current({ verb: 'rework', note: note.trim() });
+    approvalResolver.current({ verb: 'rework', note: note.trim(), noteProvenance: provenance });
     approvalResolver.current = null;
     setStatus('running');
   }, []);
@@ -362,6 +383,7 @@ export function useCreditAgent(): CreditAgentApi {
     setAudit([]);
     setMessages([]);
     setDecisionNote(null);
+    setDecisionNoteProvenance(null);
     setDecisionAmendments(null);
     setDecisionAuto(false);
   }, []);
@@ -379,6 +401,7 @@ export function useCreditAgent(): CreditAgentApi {
     setAudit([]);
     setMessages([]);
     setDecisionNote(null);
+    setDecisionNoteProvenance(null);
     setDecisionAmendments(null);
     setDecisionAuto(false);
   }, []);
@@ -396,6 +419,7 @@ export function useCreditAgent(): CreditAgentApi {
     setAudit([]);
     setMessages([]);
     setDecisionNote(null);
+    setDecisionNoteProvenance(null);
     setDecisionAmendments(null);
     setDecisionAuto(false);
     window.setTimeout(() => {
@@ -441,6 +465,7 @@ export function useCreditAgent(): CreditAgentApi {
       status,
       recommendation: approvalPackage?.recommendation ?? null,
       reviewerNote: decisionNote,
+      reviewerNoteProvenance: decisionNoteProvenance,
       events: audit,
       package: approvalPackage,
     };
@@ -451,7 +476,7 @@ export function useCreditAgent(): CreditAgentApi {
     a.download = 'credit-analysis-audit.json';
     a.click();
     URL.revokeObjectURL(url);
-  }, [status, approvalPackage, audit, deal, decisionNote]);
+  }, [status, approvalPackage, audit, deal, decisionNote, decisionNoteProvenance]);
 
   return {
     status,
@@ -480,6 +505,7 @@ export function useCreditAgent(): CreditAgentApi {
     reset,
     exportAudit,
     decisionNote,
+    decisionNoteProvenance,
     decisionAmendments,
     decisionAuto,
     runId: runSeq,

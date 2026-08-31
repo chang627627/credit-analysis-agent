@@ -9,7 +9,6 @@ import {
   Bot,
   ScrollText,
   Settings,
-  SwatchBook,
   ChevronsLeft,
   ChevronsRight,
   type LucideIcon,
@@ -78,22 +77,6 @@ export function NavSidebar({
       <div className="nav__spacer" />
 
       <ul className="nav__list">
-        <li>
-          {/* the design system's own catalog — a static page outside the SPA,
-              so it opens in its own tab rather than routing in-app */}
-          <a
-            className="nav__item"
-            href="/designsystem"
-            target="_blank"
-            rel="noreferrer"
-            title={collapsed ? 'Design system' : 'Open the Graphite & Teal catalog'}
-          >
-            <span className="nav__icon">
-              <SwatchBook size={ICON_SIZE} strokeWidth={ICON_STROKE} />
-            </span>
-            {!collapsed && <span className="nav__label">Design system</span>}
-          </a>
-        </li>
         <li>
           <button className="nav__item" title={collapsed ? 'Settings' : undefined}>
             <span className="nav__icon">

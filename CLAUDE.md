@@ -496,7 +496,8 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       was never deployed at all) is the visual catalog, and its section order now MIRRORS DESIGN.md
       and the awesome-design-md convention exactly: Overview → Colors → Typography → Layout →
       Elevation & Depth → Shapes → Components → Component specimens → Motion → Do's and Don'ts →
-      Responsive Behavior → Iteration Guide → Known Gaps. Reachable in-app from a nav-rail link —
+      Responsive Behavior → Iteration Guide → Known Gaps. Linked from the README (a nav-rail
+      link was tried and removed on request) —
       swatches/type/shapes/controls/component specimens painted EXPLICITLY on side-by-side light
       and dark boards (scoped token re-declaration), with theme-aware page chrome. Also published
       as the "Graphite & Teal" artifact.

@@ -830,8 +830,10 @@ textarea::placeholder {
   top: 0;
   z-index: 2;
   background: var(--bg);
-  padding: 16px 0 16px;
-  margin-bottom: 4px;
+  /* The white runs the scroller's full width, past the 24px gutters, so a
+     card wider than the content box (the gate's ring) never shows beside it. */
+  margin: 0 -24px 4px;
+  padding: 16px 24px 16px;
 }
 .plan__head {
   display: flex;

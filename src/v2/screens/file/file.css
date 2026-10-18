@@ -1,0 +1,359 @@
+/* Countersign V2 · Case file (spec §3, §7.2). Tokens only; kit classes are styled in kit/kit.css.
+   Prefix: .file-. The page grid aligns margin notes to their section by grid rows: no absolute
+   positioning and no measuring. */
+
+/* ---- frame: [canvas], or [360 | canvas] with the source pushed open (>=1432) ---- */
+.file {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  height: calc(100vh - 48px);
+  min-height: 0;
+  background: var(--canvas);
+  color: var(--ink);
+}
+@media (min-width: 1432px) {
+  .file[data-source="open"] { grid-template-columns: 360px minmax(0, 1fr); }
+}
+.file-canvas {
+  min-width: 0;
+  height: calc(100vh - 48px);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* ---- tone helpers (text colour only) ---- */
+.file-tone-ink { color: var(--ink); }
+.file-tone-ink2 { color: var(--ink-2); }
+.file-tone-ink3 { color: var(--ink-3); }
+.file-tone-good { color: var(--good-ink); }
+.file-tone-warn { color: var(--warn-ink); }
+.file-tone-bad { color: var(--bad-ink); }
+
+/* ---- source pane ---- */
+.file-source {
+  position: relative;
+  z-index: 5;
+  min-width: 0;
+  height: calc(100vh - 48px);
+}
+.file-source__panel {
+  display: flex;
+  flex-direction: column;
+  width: 360px;
+  max-width: 100vw;
+  height: 100%;
+  min-height: 0;
+  background: var(--paper);
+  border-right: 1px solid var(--line);
+}
+/* below 1432 the open source floats over the canvas's left edge (no scrim) */
+@media (max-width: 1431px) {
+  .file-source { position: absolute; top: 0; left: 0; height: 100%; }
+  .file-source__panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    box-shadow: var(--shadow-pop);
+  }
+}
+.file-source__head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 12px 0 20px;
+  border-bottom: 1px solid var(--line);
+}
+.file-source__heading {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-source__tools {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 12px 4px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.file-source__stepper { display: inline-flex; align-items: center; gap: 4px; }
+.file-source__count { margin-right: 4px; color: var(--ink-2); }
+.file-source__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+.file-source__title { color: var(--ink); }
+.file-source__facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 12px;
+  row-gap: 4px;
+  margin-top: 8px;
+  color: var(--ink-2);
+}
+.file-source__facts dt { color: var(--ink-3); }
+.file-source__paras { display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
+.file-para { display: grid; grid-template-columns: 32px minmax(0, 1fr); column-gap: 8px; }
+.file-para__n { color: var(--ink-3); }
+.file-para__text { color: var(--ink); }
+.file-mark {
+  border-radius: var(--r-xs);
+  background: var(--accent-wash);
+  color: inherit;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.file-mark.is-active { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+/* ---- doc bar: 44px, sticky, canvas bg, 1px bottom line, three zones ---- */
+.file-docbarwrap {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--canvas);
+}
+.file-docbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 16px;
+  height: 44px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+/* an open confirm strip draws the line under the bar itself */
+.file-docbarwrap[data-confirm] .file-docbar { border-bottom: 0; }
+.file-docbar__left,
+.file-docbar__right,
+.file-docbar__crumb,
+.file-docbar__full,
+.file-docbar__stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.file-docbar__stepper { gap: 4px; }
+.file-docbar__sep { color: var(--ink-3); }
+.file-docbar__center {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  overflow: hidden;
+}
+.file-docbar__status { display: flex; min-width: 0; overflow: hidden; }
+.file-docbar__elapsed,
+.file-docbar__suffix { flex: none; color: var(--ink-3); }
+.file-docbar__count { padding: 0 4px; color: var(--ink); }
+.file-docbar__more { display: none; }
+
+/* ---- content wrapper and the page: ONE column, like V1's single pane (owner feedback: no
+   side margin of notes and no empty gaps beside them). Each section's notes render inside the
+   paper directly under that section. ---- */
+.file-content {
+  max-width: 888px;
+  margin: 0 auto;
+  padding: 24px 24px 48px;
+}
+.file-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
+.file-row { display: contents; }
+.file-pagecell {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  background: var(--paper);
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  padding: 0 48px 32px;
+  scroll-margin-top: 60px;
+}
+.file-row:first-child .file-pagecell {
+  border-top: 1px solid var(--line);
+  border-top-left-radius: var(--r-md);
+  border-top-right-radius: var(--r-md);
+  padding-top: 40px;
+}
+.file-row:last-child .file-pagecell {
+  border-bottom: 1px solid var(--line);
+  border-bottom-left-radius: var(--r-md);
+  border-bottom-right-radius: var(--r-md);
+  padding-bottom: 40px;
+}
+/* a section's notes: inside the paper, right under the section they concern */
+.file-margincell {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 0 48px 24px;
+  background: var(--paper);
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  scroll-margin-top: 60px;
+}
+.file-margincell[data-empty] { display: none; }
+.file-margincell__label { display: block; padding-top: 12px; border-top: 1px solid var(--line); color: var(--ink-2); }
+/* a last row with notes hands the sheet's bottom edge to its notes block */
+.file-row:last-child:has(.file-margincell:not([data-empty])) .file-pagecell {
+  border-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  padding-bottom: 32px;
+}
+.file-row:last-child .file-margincell:not([data-empty]) {
+  border-bottom: 1px solid var(--line);
+  border-bottom-left-radius: var(--r-md);
+  border-bottom-right-radius: var(--r-md);
+}
+
+/* ---- header row ---- */
+.file-header { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.file-header__eyebrow { color: var(--ink-3); }
+.file-header__borrower { color: var(--ink); }
+.file-header__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--ink-2); }
+.file-header__prepared { color: var(--ink-3); }
+.file-header__cancelled { margin-top: 8px; color: var(--ink-2); }
+.file-seal {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.file-seal__receipt { color: var(--ink-3); }
+
+.file-reasoning {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 8px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.file-ask { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.file-ask__reason { color: var(--ink-3); }
+.file-thread { display: flex; flex-direction: column; gap: 8px; list-style: none; }
+.file-thread__you { color: var(--ink); }
+.file-thread__who { color: var(--ink); }
+.file-thread__answer { display: flex; flex-direction: column; color: var(--ink-2); }
+.file-thread__meta { color: var(--ink-3); }
+
+/* ---- contents ---- */
+.file-contents__ordinal { color: var(--ink-3); }
+.file-contents__step { display: flex; flex-direction: column; min-width: 0; color: var(--ink); }
+.file-contents__describe { color: var(--ink-2); }
+.file-contents__tool { color: var(--ink-3); }
+.file-contents__source { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; color: var(--ink-2); }
+.file-contents__footer { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+.file-contents__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.file-contents__countdown { color: var(--ink-2); }
+.file-contents__note { color: var(--ink-3); }
+
+/* ---- sections ---- */
+.file-pending { color: var(--ink-3); }
+.file-drafting { display: flex; flex-direction: column; gap: 4px; }
+.file-drafting__text { color: var(--ink-2); white-space: pre-line; }
+.file-secbody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  animation: v2-enter var(--dur-2) var(--ease-out) backwards;
+}
+
+.file-rec__basis { color: var(--ink-3); }
+.file-rec__call { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px 12px; }
+.file-rec__tokens { display: inline-flex; flex: none; align-items: center; gap: 8px; min-height: 20px; }
+.file-rec__sentence { flex: 1 1 320px; min-width: 0; color: var(--ink); }
+.file-rec__summary { color: var(--ink-2); }
+.file-rec__aid { display: flex; flex-direction: column; gap: 4px; }
+.file-rec__aidlabel { color: var(--ink-3); }
+.file-rec__flip { color: var(--ink-2); }
+.file-rec__rework { color: var(--ink-3); }
+
+.file-formula { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px; }
+
+.file-risk__score { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.file-risk__outof { color: var(--ink-3); }
+.file-risk__rating { color: var(--ink); }
+.file-risk__meter { display: flex; flex-direction: column; gap: 4px; }
+.file-risk__caption { color: var(--ink-3); }
+.file-drivers { list-style: none; border-top: 1px solid var(--line); }
+.file-drivers__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  min-height: 32px;
+  border-bottom: 1px solid var(--line);
+}
+
+.file-peers__position { color: var(--ink-2); }
+
+.file-cushion { display: inline-flex; align-items: center; gap: 8px; }
+.file-cushion__text { min-width: 48px; text-align: right; }
+
+.file-rev__returned { display: flex; flex-direction: column; gap: 4px; }
+.file-rev__quote { color: var(--ink-2); }
+.file-rev__attr { color: var(--ink-3); }
+.file-rev__unchanged { color: var(--ink-3); }
+
+.file-appendix__meta { color: var(--ink-3); }
+
+/* ---- margin stub ---- */
+.file-stub { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding-top: 4px; scroll-margin-top: 60px; }
+.file-stub__tool { color: var(--ink-2); }
+.file-stub__meta { color: var(--ink-3); }
+.file-stub__json { display: flex; flex-direction: column; gap: 8px; }
+.file-stub__reasoning { color: var(--ink-2); white-space: pre-line; }
+
+/* ---- not found ---- */
+.file-missing { height: calc(100vh - 48px); overflow-y: auto; }
+.file-missing__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 40px;
+}
+
+/* ---- 760–999: the reader controls fold into More ---- */
+@media (max-width: 999px) {
+  /* the reader controls fold into "More" so the status sentence keeps its room */
+  .file-docbar__full { display: none; }
+  .file-docbar__more--mid { display: flex; }
+}
+
+/* ---- below 760: 16px gutter, page padding 20, doc-bar actions fold into More ---- */
+@media (max-width: 759px) {
+  .file-content { padding: 16px 16px 48px; }
+  .file-pagecell { padding: 0 20px 32px; }
+  .file-row:first-child .file-pagecell { padding-top: 20px; }
+  .file-row:last-child .file-pagecell { padding-bottom: 20px; }
+  .file-margincell { padding: 0 20px 24px; }
+  .file-docbar { column-gap: 8px; padding: 0 16px; }
+  .file-docbar__crumb,
+  .file-docbar__stepper,
+  .file-docbar__full,
+  .file-docbar__suffix { display: none; }
+  .file-docbar__more--mid { display: none; }
+  .file-docbar__more--narrow { display: flex; }
+}

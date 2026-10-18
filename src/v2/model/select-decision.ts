@@ -1,0 +1,505 @@
+// ---------------------------------------------------------------------------
+// Countersign V2 · decision blocks: signature, stress test, exhibits (spec
+// §7.3, §8, §10). Every label, attestation, caption and policy line of the
+// gate is composed here from the same file context the memo reads, so what
+// the reviewer signs and what the memo says cannot disagree.
+// ---------------------------------------------------------------------------
+
+import type { Deal } from '../../agent/mockData';
+import { DECLINE_SCORE } from '../../agent/rating';
+import type { Amendment, ApprovalPackage } from '../../agent/types';
+import { amendedOutcome, baselineScenario, driversFor, evaluate } from '../../agent/whatif';
+import type { DriverKey, Scenario } from '../../agent/whatif';
+import type { V2Store } from '../state/store';
+import { flagClause, overridesFromAmendments } from './flags';
+import { changedDrivers, fmtDriverDelta, fmtDriverValue, parseStressLabel, scenarioKey, stressRecord, stressZones } from './flip';
+import { fmtHM, fmtM, fmtStamp, listJoin, plural } from './format';
+import { policyChecks, selectPolicy, verbsDead } from './select-top';
+import {
+  amendmentName,
+  amendmentsOf,
+  awaitingAtOf,
+  buildNotes,
+  countedFlagsOf,
+  covenantRow,
+  cureOf,
+  exhibitEntries,
+  fileContext,
+  returnedRecord,
+  reworkN,
+} from './select-file';
+import type { FileCtx } from './select-file';
+import type { ExhibitView, PolicyView, SignatureState, SignatureView, StressView, TokenView } from './types';
+import {
+  AUTO_COUNTDOWN_MS,
+  COPY,
+  IMPERATIVE,
+  INK_REPLAY_WINDOW_MS,
+  NOTE_CHIP,
+  PRIMARY_LABEL,
+  REJECTED_WORD,
+  provenanceShort,
+  provenanceText,
+  tokenOf,
+  tokenWord,
+  VERB_WORD,
+} from './vocab';
+
+// =============================================================================
+// Signature
+// =============================================================================
+
+/** The policy view for this file: the live gate's, or a static reading for a sealed record. */
+function filePolicy(s: V2Store, ctx: FileCtx): PolicyView {
+  if (ctx.live && ctx.mode === 'gate') return selectPolicy(s);
+  const on = s.policy === 'auto';
+  if (!on) return { on, eligible: false, armed: false, line: COPY.policyOff, checks: null, countdown: null, holdLabel: null };
+  return { on, eligible: false, armed: false, line: COPY.policyOnIdle, checks: ctx.pkg ? policyChecks(ctx.pkg) : null, countdown: null, holdLabel: null };
+}
+
+/** ' and signs over 2 notes, including 1 covenant breach' (empty when nothing is counted). */
+function signsOver(n: number, breaches: number): string {
+  if (n === 0) return '';
+  const incl = breaches > 0 ? `, including ${plural(breaches, 'covenant breach', 'covenant breaches')}` : '';
+  return ` and signs over ${plural(n, 'note')}${incl}`;
+}
+
+/** §10 attestations: the consequence of the primary, stated before the reviewer commits. */
+function attestationFor(ctx: FileCtx, pkg: ApprovalPackage, amendments: Amendment[], n: number, breaches: number): string {
+  const memo = pkg.memoId;
+  if (amendments.length > 0) {
+    const amendedRec = amendedOutcome(ctx.deal, overridesFromAmendments(amendments)).recommendation;
+    const terms = listJoin(amendments.map((a) => `${amendmentName(a)} ${a.to}`));
+    const recorded = amendments.length === 1 ? 'Your amended term is recorded with your signature.' : 'Your amended terms are recorded with your signature.';
+    if (amendedRec === 'approve') {
+      const tail = pkg.recommendation === 'escalate' ? 'Nothing routes onward: the amendment resolves the escalation.' : 'The memo is committed to the record.';
+      return `Countersigning as amended approves ${memo} on your amended terms (${terms}). ${recorded} ${tail}`;
+    }
+    if (amendedRec === 'escalate') {
+      const tail =
+        pkg.recommendation === 'escalate'
+          ? 'The memo then routes to the escalation queue for senior credit review.'
+          : 'The memo is committed to the record.';
+      return `Countersigning as amended concurs with ${tokenWord('escalate')} on your amended terms. ${recorded} ${tail}`;
+    }
+    return `Countersigning as amended concurs with ${tokenWord('decline')} on your amended terms. ${recorded} The facility is recorded as declined as structured.`;
+  }
+  if (pkg.restructure) {
+    const cure = cureOf(ctx, pkg.revision);
+    const paydown = cure ? cure.debtPaydownM : pkg.restructure.contribution;
+    const topUp = cure ? cure.liquidityTopUpM : 0;
+    const split = `${fmtM(paydown)} debt paydown${topUp > 0 ? ` and ${fmtM(topUp)} to liquidity` : ''}`;
+    const tail = n === 0 ? ' There are no notes to sign over.' : ` It signs over ${plural(n, 'note')}.`;
+    return `Countersigning concurs with the revised structure on ${memo} (${fmtM(pkg.restructure.contribution)} sponsor equity: ${split}), subject to the sponsor commitment.${tail}`;
+  }
+  const word = tokenWord(pkg.recommendation);
+  const lead = `Countersigning concurs with the agent's ${word} on ${memo}`;
+  switch (pkg.recommendation) {
+    case 'approve':
+      return n === 0
+        ? `${lead}. There are no notes to sign over. The memo is committed to the record.`
+        : `${lead}${signsOver(n, breaches)}. The memo is committed to the record.`;
+    case 'escalate':
+      return `${lead}${signsOver(n, breaches)}.${n === 0 ? ' There are no notes to sign over.' : ''} The memo then routes to the escalation queue for senior credit review.`;
+    case 'decline':
+      return `${lead}${signsOver(n, breaches)}.${n === 0 ? ' There are no notes to sign over.' : ''} The facility is recorded as declined as structured.`;
+  }
+}
+
+/** One sentence naming the breach(es) on the filed figures, e.g. "Max Total Leverage 4.26x breaches the ≤ 4.00x covenant." */
+function breachSentence(deal: Deal): string {
+  const b = deal.covenants.filter((c) => c.status === 'breach');
+  if (b.length === 0) return '';
+  if (b.length === 1) return `${b[0].name} ${b[0].actual} breaches the ${b[0].threshold} covenant.`;
+  const lead = `${b[0].name} ${b[0].actual} against ${b[0].threshold}`;
+  return b.length === deal.covenants.length ? `All ${b.length} covenants breach, led by ${lead}.` : `${b.length} covenants breach, led by ${lead}.`;
+}
+
+/**
+ * The decision, stated where it is made: the agent's overall recommendation as a question to the
+ * reviewer, with the reason the agent cannot settle it alone, and what each verb does. Lives beside
+ * the verbs (the reviewer must never scroll back to the top of the memo to learn what they decide).
+ */
+function callFor(ctx: FileCtx, pkg: ApprovalPackage, amendments: Amendment[], notesLeft: number): {
+  call: NonNullable<SignatureView['call']>;
+  notes: NonNullable<SignatureView['verbs']>['notes'];
+} {
+  const name = ctx.deal.name;
+  const score = ctx.deal.risk.score;
+  const nextRev = pkg.revision + 1;
+  const breach = breachSentence(ctx.deal);
+  const toReview = notesLeft > 0 ? ` ${plural(notesLeft, 'note')} above ${notesLeft === 1 ? 'is' : 'are'} yours to sign over.` : '';
+  let rec = pkg.recommendation;
+  let title: string;
+  let why: string;
+  let sign: string;
+  if (amendments.length > 0) {
+    rec = amendedOutcome(ctx.deal, overridesFromAmendments(amendments)).recommendation;
+    const terms = listJoin(amendments.map((a) => `${amendmentName(a)} ${a.to}`));
+    title =
+      rec === 'approve'
+        ? `Approve ${name} on your amended terms?`
+        : rec === 'escalate'
+          ? `Send ${name} to senior credit review on your amended terms?`
+          : `Decline ${name} on your amended terms?`;
+    why = `Re-tested on your amended terms (${terms}) with the same decision rule the agent uses.`;
+    sign =
+      rec === 'approve'
+        ? 'Approves on your amended terms.'
+        : rec === 'escalate'
+          ? 'Routes the memo to senior credit review.'
+          : 'Records the facility as declined.';
+  } else if (pkg.restructure) {
+    title = `Approve ${name} on the revised structure?`;
+    why = `With ${fmtM(pkg.restructure.contribution)} of sponsor equity every covenant passes, so the same decision rule now approves.${toReview}`;
+    sign = 'Approves the revised structure.';
+  } else if (rec === 'approve') {
+    title = `Approve ${name} as filed?`;
+    why = `Every covenant passes on the filed figures.${toReview}`;
+    sign = 'Approves the facility as filed.';
+  } else if (rec === 'escalate') {
+    title = `Send ${name} to senior credit review?`;
+    why = `${breach} With a risk score of ${score}, under the ${DECLINE_SCORE} decline line, the agent may neither approve nor decline it: a person decides.`;
+    sign = 'Routes the memo to senior credit review.';
+  } else {
+    title = `Decline ${name}?`;
+    why = `${breach} The risk score of ${score} is at or over the ${DECLINE_SCORE} decline line.`;
+    sign = 'Records the facility as declined.';
+  }
+  return {
+    call: { lead: COPY.agentRecommends, token: tokenOf(rec), title, why },
+    notes: {
+      sign,
+      ret: `The agent revises and returns rev ${nextRev}. Note required.`,
+      rej: 'The credit does not proceed. Note required.',
+    },
+  };
+}
+
+function primaryLabel(pkg: ApprovalPackage, amendments: Amendment[]): string {
+  if (amendments.length > 0) return PRIMARY_LABEL.amended;
+  if (pkg.restructure) return PRIMARY_LABEL.revised;
+  return PRIMARY_LABEL[pkg.recommendation];
+}
+
+export function selectSignature(s: V2Store, dealId: string): SignatureView | null {
+  const ctx = fileContext(s, dealId);
+  if (!ctx) return null;
+  if (ctx.mode !== 'running' && ctx.mode !== 'gate' && ctx.mode !== 'sealed') return null;
+  const pkg = ctx.pkg;
+  const g = s.gate;
+
+  // the returned history: one record per send-back that opened a revision (while a revision
+  // drafts, its send-back is already on the record even before the rework step starts)
+  const drafting = ctx.mode === 'running';
+  let lastRev = pkg ? pkg.revision + (drafting ? 1 : 0) : 1;
+  for (const p of ctx.plan) {
+    const n = reworkN(p.id);
+    if (n !== null) lastRev = Math.max(lastRev, n);
+  }
+  const nextRev = lastRev;
+  const returned: SignatureView['returned'] = [];
+  for (let n = 2; n <= lastRev; n++) {
+    const rec = returnedRecord(ctx, n);
+    const parts = [`Rev ${n - 1} returned for revision`, 'Reviewer'];
+    if (rec.at !== null) parts.push(fmtHM(rec.at));
+    if (rec.note) parts.push(`“${rec.note}”`);
+    const prov = provenanceShort(rec.provenance);
+    if (prov) parts.push(prov);
+    returned.push({ rev: n - 1, text: parts.join(' · ') });
+  }
+
+  const policy = filePolicy(s, ctx);
+  const sealed = ctx.mode === 'sealed' && ctx.seal ? ctx.seal : null;
+  const pending = ctx.mode === 'running' || !pkg;
+  const leaving = ctx.mode === 'gate' && g.leaving;
+  let state: SignatureState;
+  if (pending) state = 'pending';
+  else if (sealed) state = sealed.decision === 'auto-countersigned' ? 'signed-auto' : sealed.outcome === 'reject' ? 'rejected' : 'signed';
+  else if (leaving) state = 'leaving';
+  else if (policy.armed) state = 'countdown';
+  else if (policy.holdLabel) state = 'held';
+  else state = 'gate';
+  const atGate = state === 'gate' || state === 'countdown' || state === 'held' || state === 'leaving';
+
+  // signed over: the current package's counted notes, in page order
+  const amendments = amendmentsOf(ctx);
+  const notes = buildNotes(ctx);
+  const counted = pkg && !pending ? countedFlagsOf(ctx.deal, pkg, amendments) : [];
+  const clearedIds = new Set(counted.filter((c) => c.cleared).map((c) => c.flag.id));
+  const pkgIds = new Set(counted.map((c) => c.flag.id));
+  const signedOver: SignatureView['signedOver'] = notes.toReview
+    .filter((nt) => nt.flagId !== null && pkgIds.has(nt.flagId))
+    .map((nt) => ({
+      flagId: nt.flagId ?? '',
+      noteId: nt.id,
+      state: nt.status,
+      text: flagClause(nt.text),
+      cleared: nt.flagId !== null && clearedIds.has(nt.flagId),
+      opened: nt.opened,
+    }));
+  const total = signedOver.length;
+  const openedCount =
+    sealed && sealed.presented && sealed.presented.notesOpened.total === total
+      ? sealed.presented.notesOpened.opened
+      : signedOver.filter((o) => o.opened).length;
+  const signedOverLabel =
+    total === 0
+      ? 'Signed over · no notes'
+      : sealed && sealed.outcome === 'reject'
+        ? `Notes on the record · you opened ${openedCount} of ${total}`
+        : `Signed over · you opened ${openedCount} of ${total}`;
+
+  // the agent's pre-signed line
+  const rev = pkg?.revision ?? 1;
+  const awaitingAt = awaitingAtOf(ctx);
+  const agentCaption = pending
+    ? `Credit Analyst (agent) · drafting rev ${pkg ? nextRev : 1}`
+    : ['Credit Analyst (agent)', `rev ${rev}`, pkg?.restructure ? 'Structuring Engine proposal' : null, awaitingAt !== null ? fmtHM(awaitingAt) : null]
+        .filter((x): x is string => !!x)
+        .join(' · ');
+
+  // the reviewer's line
+  const recWord = pkg ? tokenWord(pkg.recommendation) : '';
+  let sealedCaption = '';
+  if (sealed) {
+    const stamp = fmtStamp(sealed.decidedAt);
+    if (sealed.decision === 'auto-countersigned') sealedCaption = `${VERB_WORD['auto-countersigned']} · clean-approval policy · ${stamp}`;
+    else if (sealed.outcome === 'reject') sealedCaption = `${VERB_WORD.rejected} · Reviewer · ${fmtHM(sealed.decidedAt)}`;
+    else if (sealed.decision === 'countersigned-amended') sealedCaption = `${VERB_WORD['countersigned-amended']} · approves on your amended terms · Reviewer · ${stamp}`;
+    else sealedCaption = `${VERB_WORD.countersigned} · concurs ${recWord} · Reviewer · ${stamp}`;
+  }
+  const js = g.justSigned;
+  const animate =
+    !!sealed && sealed.outcome === 'approve' && !sealed.auto && !!js && js.runId === ctx.runId && js.verb === 'approve' && !js.auto && s.now - js.at < INK_REPLAY_WINDOW_MS;
+  const reviewerBase = { kbd: null, ink: 'none' as const, autoText: null, rejectedWord: null, fillMs: AUTO_COUNTDOWN_MS, reviewLabel: null };
+  let reviewer: SignatureView['reviewer'];
+  switch (state) {
+    case 'countdown':
+      reviewer = { ...reviewerBase, sigState: 'countdown', caption: policy.line, reviewLabel: COPY.reviewManually };
+      break;
+    case 'held':
+      reviewer = { ...reviewerBase, sigState: 'held', caption: policy.holdLabel ?? COPY.countersignHere, kbd: 'A' };
+      break;
+    case 'leaving':
+      reviewer = { ...reviewerBase, sigState: 'open', caption: 'Returning for revision' };
+      break;
+    case 'signed':
+      reviewer = { ...reviewerBase, sigState: 'signed', caption: sealedCaption, ink: animate ? 'animate' : 'static' };
+      break;
+    case 'signed-auto':
+      reviewer = { ...reviewerBase, sigState: 'signed-auto', caption: sealedCaption, autoText: COPY.autoSignature };
+      break;
+    case 'rejected':
+      reviewer = { ...reviewerBase, sigState: 'rejected', caption: sealedCaption, rejectedWord: REJECTED_WORD };
+      break;
+    case 'pending':
+      reviewer = { ...reviewerBase, sigState: 'open', caption: COPY.signaturePending };
+      break;
+    default:
+      reviewer = { ...reviewerBase, sigState: 'open', caption: COPY.countersignHere, kbd: 'A' };
+  }
+
+  // the reviewer's draft (gate only)
+  let note: SignatureView['note'] = null;
+  if (atGate) {
+    const trimmed = g.note.trim();
+    const chip =
+      g.insertedDraft !== null && trimmed ? (trimmed === g.insertedDraft.trim() ? NOTE_CHIP.verbatim : NOTE_CHIP.edited) : null;
+    note = {
+      value: g.note,
+      label: COPY.noteLabel,
+      placeholder: COPY.notePlaceholder,
+      draftLabel: COPY.draftFromNotes,
+      draftDisabled: verbsDead(s),
+      chip,
+      hint: g.needNote === 'reject' ? COPY.needNoteReject : g.needNote === 'rework' ? COPY.needNoteRework : null,
+    };
+  }
+
+  let amendment: SignatureView['amendment'] = null;
+  if (atGate && amendments.length > 0) {
+    const terms = amendments.map((a) => `${amendmentName(a)} ${a.from} → ${a.to}`).join(' · ');
+    amendment = {
+      text: `Amended terms · ${terms} · as amended`,
+      token: tokenOf(amendedOutcome(ctx.deal, overridesFromAmendments(amendments)).recommendation),
+      revertLabel: COPY.revert,
+    };
+  }
+
+  const live = counted.filter((c) => !c.cleared);
+  const attestation =
+    atGate && pkg ? attestationFor(ctx, pkg, amendments, live.length, live.filter((c) => c.kind === 'breach').length) : null;
+
+  const decided = atGate && pkg ? callFor(ctx, pkg, amendments, live.length) : null;
+  const verbs: SignatureView['verbs'] =
+    atGate && pkg && decided
+      ? {
+          primary: primaryLabel(pkg, amendments),
+          returnLabel: IMPERATIVE.returnLabel,
+          rejectLabel: IMPERATIVE.rejectLabel,
+          disabled: verbsDead(s),
+          kbd: { sign: 'A', ret: 'S', rej: 'R' },
+          notes: decided.notes,
+        }
+      : null;
+
+  let sealedView: SignatureView['sealed'] = null;
+  if (sealed && pkg) {
+    sealedView = {
+      caption: sealedCaption,
+      quote: sealed.note ? `“${sealed.note}”` : null,
+      provenance: provenanceText(sealed.provenance, sealed.auto, !!sealed.note),
+      amendments: (sealed.amendments ?? []).map((a) => ({ label: a.label, from: a.from, to: a.to })),
+      routed: sealed.routed ? COPY.routedLine : null,
+      routedLinkLabel: sealed.routed ? COPY.openInBook : null,
+      checks: sealed.auto ? policyChecks(pkg) : null,
+    };
+  }
+
+  return {
+    state,
+    heading: COPY.countersignature,
+    pendingLine: pending ? (pkg ? `The signature opens when revision ${nextRev} is assembled.` : COPY.signaturePending) : null,
+    returned,
+    signedOver,
+    signedOverLabel,
+    agent: { text: COPY.agentSignature, caption: agentCaption },
+    reviewer,
+    policy,
+    note,
+    amendment,
+    attestation,
+    call: decided ? decided.call : null,
+    verbs,
+    sealed: sealedView,
+  };
+}
+
+// =============================================================================
+// Stress test (scratch; never the record until attached)
+// =============================================================================
+
+type Zones = ReturnType<typeof stressZones>;
+const ZONE_CACHE = new WeakMap<Deal, Map<string, Zones>>();
+
+/** stressZones is a pure scan; cache it per deal and scenario so a re-render never re-scans. */
+function zonesFor(deal: Deal, scenario: Scenario, key: DriverKey): Zones {
+  let byKey = ZONE_CACHE.get(deal);
+  if (!byKey) {
+    byKey = new Map();
+    ZONE_CACHE.set(deal, byKey);
+  }
+  const k = `${scenarioKey(deal, scenario)}#${key}`;
+  const hit = byKey.get(k);
+  if (hit) return hit;
+  const z = stressZones(deal, scenario, key);
+  if (byKey.size > 400) byKey.clear();
+  byKey.set(k, z);
+  return z;
+}
+
+function isBase(deal: Deal, scenario: Scenario): boolean {
+  const base = baselineScenario(deal);
+  return (Object.keys(base) as DriverKey[]).every((k) => Math.abs(base[k] - scenario[k]) < 1e-9);
+}
+
+export function selectStress(s: V2Store, dealId: string): StressView | null {
+  const ctx = fileContext(s, dealId);
+  if (!ctx || !ctx.pkg) return null;
+  if (ctx.mode !== 'gate' && ctx.mode !== 'sealed' && ctx.mode !== 'running') return null;
+  const deal = ctx.deal;
+  const pkg = ctx.pkg;
+  const entry = s.ui.stress[dealId];
+  const scenario = entry ? entry.scenario : baselineScenario(deal);
+  const base = baselineScenario(deal);
+  const available: StressView['available'] = ctx.live ? 'live' : 'readonly';
+  const atBase = isBase(deal, scenario);
+  const changed = new Set(changedDrivers(deal, scenario).map((d) => d.key));
+
+  const drivers: StressView['drivers'] = driversFor(deal).map((d) => {
+    const value = scenario[d.key];
+    const delta = value - base[d.key];
+    const moved = changed.has(d.key);
+    const favorable = d.higherBetter ? delta > 0 : delta < 0;
+    const z = zonesFor(deal, scenario, d.key);
+    return {
+      key: d.key,
+      label: d.label,
+      value,
+      min: d.min,
+      max: d.max,
+      step: d.step,
+      valueText: fmtDriverValue(d, value),
+      deltaText: moved ? fmtDriverDelta(d, delta) : null,
+      deltaTone: moved ? (favorable ? 'good' : 'bad') : 'ink-3',
+      zones: z.zones,
+      boundaries: z.boundaries,
+    };
+  });
+
+  const b = evaluate(deal, base);
+  const l = evaluate(deal, scenario);
+  const result = b.recommendation !== l.recommendation ? 'flips' : 'holds';
+  const outcome = {
+    base: tokenOf(b.recommendation),
+    live: tokenOf(l.recommendation),
+    text: atBase ? 'matches the filed figures' : `${result} · risk ${b.risk.score} → ${l.risk.score} · breaches ${b.breaches} → ${l.breaches}`,
+    key: scenarioKey(deal, scenario),
+  };
+
+  let attach: StressView['attach'] = null;
+  if (available === 'live') {
+    const runId = s.agent.runId;
+    const already = !atBase && (s.ui.attached[runId] ?? []).includes(stressRecord(deal, scenario).key);
+    attach = {
+      label: COPY.attachAsExhibit,
+      disabled: atBase || already,
+      reason: atBase ? COPY.attachChangeFirst : already ? COPY.attachAlready : null,
+    };
+  }
+
+  const rev = pkg.revision;
+  return {
+    open: entry ? entry.open : false,
+    available,
+    collapsedLine: COPY.stressCollapsed,
+    openLabel: COPY.stressOpen,
+    eyebrow: COPY.stressEyebrow,
+    baseLabel: pkg.restructure
+      ? `Base = filed figures · rev ${rev} proposes a restructure (see Revision ${rev})`
+      : `Base = filed figures (rev ${rev})`,
+    drivers,
+    outcome,
+    covenants: l.covenants.map((c) => covenantRow(c, [], [], null)),
+    attach,
+    readonlyNote: available === 'readonly' ? COPY.attachLiveOnly : null,
+    resetLabel: COPY.resetToBase,
+    resetDisabled: atBase,
+  };
+}
+
+// =============================================================================
+// Exhibits (solid, part of the memo; always read from auditHistory by runId)
+// =============================================================================
+
+export function selectExhibits(s: V2Store, dealId: string): ExhibitView[] {
+  const ctx = fileContext(s, dealId);
+  if (!ctx) return [];
+  const decidedAt = ctx.seal ? ctx.seal.decidedAt : null;
+  const fallback: TokenView = tokenOf(ctx.pkg ? ctx.pkg.recommendation : 'escalate');
+  return exhibitEntries(ctx).map((e, i) => {
+    const parsed = parseStressLabel(e.label);
+    const after = decidedAt !== null && e.t > decidedAt ? ' · attached after countersignature' : '';
+    return {
+      id: e.id,
+      letter: String.fromCharCode(65 + (i % 26)),
+      heading: COPY.stressTest,
+      meta: `attached ${fmtHM(e.t)} · Reviewer${after}`,
+      detail: e.detail ?? '',
+      from: parsed ? parsed.from : fallback,
+      to: parsed ? parsed.to : fallback,
+      result: parsed ? parsed.result : 'holds',
+    };
+  });
+}

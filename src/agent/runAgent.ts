@@ -20,6 +20,7 @@ import { TOOLS } from './tools';
 import { decide, findCure } from './whatif';
 import type { Cure } from './whatif';
 import { LOW_CONFIDENCE_FLOOR, sleep, uid } from './util';
+import { fmtM, fmtPct, fmtX } from './format';
 
 /**
  * The decision rule, exported so the UI can preview a deal's computed outcome.
@@ -140,11 +141,11 @@ function buildPackage(
     revision,
     reviewerNotes,
     keyMetrics: [
-      metric('Revenue (TTM)', `$${f.revenueTtm}M`),
-      metric('Adj. EBITDA', `$${f.ebitdaTtm}M · ${f.ebitdaMarginPct}%`),
-      metric('Total Leverage', `${f.leverageX}x`),
-      metric('Interest Coverage', `${f.interestCoverageX}x`),
-      metric('Liquidity', `$${f.liquidity}M`),
+      metric('Revenue (TTM)', fmtM(f.revenueTtm)),
+      metric('Adj. EBITDA', `${fmtM(f.ebitdaTtm)} · ${fmtPct(f.ebitdaMarginPct)}`),
+      metric('Total Leverage', fmtX(f.leverageX)),
+      metric('Interest Coverage', fmtX(f.interestCoverageX)),
+      metric('Liquidity', fmtM(f.liquidity)),
     ],
     flags,
     summary: deal.memoSummary,
@@ -170,7 +171,6 @@ function buildRevisedPackage(
   const f = deal.financials;
   const extractConf = confByTool.extract_financials ?? 0.94;
   const structConf = confByTool.propose_restructure ?? 0.9;
-  const r2 = (n: number) => n.toFixed(2); // "4.00x", never a bare "4x"
   const m = (label: string, value: string, source: ToolName, confidence: number): KeyMetric => ({
     label,
     value,
@@ -190,15 +190,15 @@ function buildRevisedPackage(
     reviewerNotes,
     restructure: { contribution: cure.contribution, summary },
     keyMetrics: [
-      m('Revenue (TTM)', `$${f.revenueTtm}M`, 'extract_financials', extractConf),
-      m('Adj. EBITDA', `$${f.ebitdaTtm}M · ${f.ebitdaMarginPct}%`, 'extract_financials', extractConf),
-      m('Total Leverage', `${r2(o.ratios.leverageX)}x`, 'propose_restructure', structConf),
-      m('Interest Coverage', `${r2(o.ratios.interestCoverageX)}x`, 'propose_restructure', structConf),
-      m('Liquidity', `$${s.liquidity}M`, 'propose_restructure', structConf),
+      m('Revenue (TTM)', fmtM(f.revenueTtm), 'extract_financials', extractConf),
+      m('Adj. EBITDA', `${fmtM(f.ebitdaTtm)} · ${fmtPct(f.ebitdaMarginPct)}`, 'extract_financials', extractConf),
+      m('Total Leverage', fmtX(o.ratios.leverageX), 'propose_restructure', structConf),
+      m('Interest Coverage', fmtX(o.ratios.interestCoverageX), 'propose_restructure', structConf),
+      m('Liquidity', fmtM(s.liquidity), 'propose_restructure', structConf),
     ],
     flags,
     summary:
-      `Revised structure: ${summary}. Total debt falls to $${s.debt}M (leverage ${r2(o.ratios.leverageX)}x), ` +
+      `Revised structure: ${summary}. Total debt falls to ${fmtM(s.debt)} (leverage ${fmtX(o.ratios.leverageX)}), ` +
       `every covenant passes, and the risk score recomputes to ${o.risk.score} (${o.risk.rating}) — through the same ` +
       `decision rule as the original analysis. Recommend approval of the revised structure, subject to the sponsor commitment.`,
   };
@@ -253,7 +253,9 @@ export async function* runCreditAgent(ctx: AgentContext): AsyncGenerator<AgentEv
     yield { type: 'tool_call', stepId: step.id, call };
 
     // (c) observe
-    const result = await tool.run(ctx);
+    const t0 = performance.now();
+    const result = { ...(await tool.run(ctx)), durationMs: 0 };
+    result.durationMs = Math.round(performance.now() - t0);
     confByTool[step.toolName] = result.confidence;
     yield { type: 'tool_result', stepId: step.id, call, result };
 
@@ -341,7 +343,9 @@ export async function* runCreditAgent(ctx: AgentContext): AsyncGenerator<AgentEv
       args: { ...tool.defaultArgs, revision, reviewerNote: note },
     };
     yield { type: 'tool_call', stepId, call };
-    const result = await tool.run(ctx);
+    const t0 = performance.now();
+    const result = { ...(await tool.run(ctx)), durationMs: 0 };
+    result.durationMs = Math.round(performance.now() - t0);
     confByTool.propose_restructure = result.confidence;
     yield { type: 'tool_result', stepId, call, result };
 

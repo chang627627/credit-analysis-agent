@@ -1,0 +1,210 @@
+/* Countersign V2 · Ledger (spec §7.5). Screen layout only (prefix .ledger-); kit classes are styled in kit/kit.css. */
+
+/* ---- the screen body is its own scroll container on canvas; one centred column ---- */
+.ledger {
+  height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: var(--canvas);
+}
+
+.ledger-col {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 32px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ---- head: title + the one primary, then the summary and the note ---- */
+.ledger-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ledger-head__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ledger-title {
+  color: var(--ink);
+}
+
+.ledger-summary {
+  color: var(--ink-2);
+}
+
+.ledger-note {
+  color: var(--ink-3);
+}
+
+/* ---- ?file= filter line ---- */
+.ledger-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--ink-2);
+}
+
+/* ---- file groups and the Portfolio Monitor group ---- */
+.ledger-files {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.ledger-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ledger-group__heading {
+  color: var(--ink);
+}
+
+/* ---- event rows: time | actor | event ---- */
+.ledger-time {
+  white-space: nowrap;
+  color: var(--ink-2);
+}
+
+.ledger-actor {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-width: 0;
+  color: var(--ink-2);
+}
+
+.ledger-actor--reviewer {
+  color: var(--ink);
+}
+
+.ledger-actor > svg {
+  flex: none;
+}
+
+.ledger-actor__name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ledger-event {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ledger-event__text {
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--ink);
+}
+
+.ledger-event__detail {
+  flex: 1 1 160px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--ink-2);
+}
+
+/* ---- the pinned decision (span row; 4px inside the cell's 8 12 makes 12 16) ---- */
+.ledger-decision {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+}
+
+.ledger-decision__head {
+  color: var(--ink);
+}
+
+.ledger-decision__note {
+  color: var(--ink);
+}
+
+.ledger-decision__amend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.ledger-dim {
+  color: var(--ink-2);
+}
+
+/* ---- row expansion: the raw record + Copy JSON ---- */
+.ledger-raw {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  background: var(--sunken);
+}
+
+.ledger-raw__grid {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 4px 16px;
+}
+
+.ledger-raw__key {
+  color: var(--ink-3);
+}
+
+.ledger-raw__val {
+  min-width: 0;
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ledger-raw__copy {
+  flex: none;
+}
+
+/* ---- once the table stacks (its container is under 760), the detail wraps under the event ---- */
+@container k-table (max-width: 759px) {
+  .ledger-event {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+  .ledger-event__detail {
+    flex: none;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* ---- below 760: 16px side gutter, page padding 20 ---- */
+@media (max-width: 759px) {
+  .ledger-col {
+    padding: 20px 16px;
+  }
+  .ledger-raw__grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .ledger-raw__val + .ledger-raw__key {
+    padding-top: 8px;
+  }
+}

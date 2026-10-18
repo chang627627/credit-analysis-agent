@@ -10,6 +10,7 @@ import type { ToolName } from '../agent/types';
 import type { CovenantTest, ExtractedFinancials, RiskScore } from '../agent/mockData';
 import { useCountUp } from '../hooks/useCountUp';
 import { HeadroomBar } from './HeadroomBar';
+import { riskTone } from '../agent/rating';
 
 interface MemoData {
   memoId: string;
@@ -213,7 +214,7 @@ function driverTone(impact: string): 'good' | 'warn' | 'bad' {
 }
 
 function RiskArtifact({ data }: { data: RiskScore }) {
-  const tone = data.score < 40 ? 'good' : data.score < 70 ? 'warn' : 'bad';
+  const tone = riskTone(data.score);
   return (
     <div className="art">
       <div className="art__head">Risk assessment</div>

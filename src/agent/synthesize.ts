@@ -9,6 +9,7 @@
 // ---------------------------------------------------------------------------
 
 import type { CovenantTest, Deal, RiskScore } from './mockData';
+import { ratingFor } from './rating';
 import { uid } from './util';
 
 function hash(s: string): number {
@@ -35,13 +36,6 @@ function prettyName(fileName: string): string {
   return base.replace(/\b\w/g, (c) => c.toUpperCase()) || 'Untitled Deal';
 }
 
-function ratingFor(score: number): string {
-  if (score < 35) return 'Ba2 / Non-investment grade';
-  if (score < 55) return 'B1 / Highly speculative';
-  if (score < 70) return 'B3 / Speculative';
-  if (score < 80) return 'Caa1 / Substantial risk';
-  return 'Caa2 / Extremely speculative';
-}
 
 export function synthesizeDealFromFile(fileName: string): Deal {
   const seed = hash(fileName);

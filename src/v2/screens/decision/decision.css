@@ -1,0 +1,177 @@
+/* Countersign V2 · decision blocks (spec §7.3, §8): the signature, the stress test, the exhibits.
+   Tokens only. Kit primitives keep their own styling; this file lays out its own elements. */
+
+/* ---- shared text tones ---- */
+.decision-ink2 { color: var(--ink-2); }
+.decision-ink3 { color: var(--ink-3); }
+.decision-good { color: var(--good-ink); }
+.decision-bad { color: var(--bad-ink); }
+.decision-struck { color: var(--ink-3); text-decoration: line-through; }
+
+/* one-shot entry on mount (rows, the sealed record) */
+.decision-enter { animation: v2-enter var(--dur-2) var(--ease-out) backwards; }
+
+/* ==== signature block: a 1px line, 32 above the heading; content width 624 ==== */
+.decision-sig {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 624px;
+  min-width: 0;
+  padding-top: 32px;
+  border-top: 1px solid var(--line);
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+/* return for revision: the whole block recedes while the loop waits out --dur-2 */
+.decision-sig--leaving { opacity: 0.4; }
+
+.decision-sig__head { display: flex; flex-direction: column; gap: 8px; }
+.decision-sig__returned { display: flex; flex-direction: column; gap: 4px; list-style: none; }
+
+/* Signed over: label, then 28px rows on 1px rules */
+.decision-sig__over { display: flex; flex-direction: column; gap: 4px; }
+.decision-sig__overlist { list-style: none; border-top: 1px solid var(--line); }
+.decision-sig__overrow {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  column-gap: 8px;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+.decision-sig__overtext { min-width: 0; overflow-wrap: anywhere; }
+
+/* the two lines: agent 248 | 24 | reviewer 1fr (24 below the Signed over list) */
+.decision-sig__lines {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  column-gap: 24px;
+  row-gap: 24px;
+  margin-top: 8px;
+  min-width: 0;
+}
+
+/* the reviewer caption: swaps in after the ink on the signing transition (--dur-3 delay) */
+.decision-caption { display: inline-block; }
+.decision-caption--after-ink { animation: v2-enter var(--dur-1) var(--ease-out) var(--dur-3) backwards; }
+
+.decision-sig__policy { display: flex; flex-direction: column; gap: 4px; }
+.decision-sig__checks { display: flex; flex-direction: column; gap: 4px; list-style: none; padding-top: 4px; }
+
+.decision-sig__note { display: flex; flex-direction: column; gap: 8px; }
+.decision-sig__notehead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.decision-sig__notetools { display: flex; align-items: center; gap: 8px; }
+.decision-sig__hint { color: var(--bad-ink); }
+
+.decision-sig__amend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--ink-2); }
+.decision-sig__attest { max-width: 64ch; color: var(--ink-2); }
+.decision-sig__verbs { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+
+/* the decision itself, stated beside the verbs: the agent's call, then each verb with what it does */
+.decision-sig__decide {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.decision-sig__call { display: flex; flex-direction: column; gap: 4px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.decision-sig__calllead { display: flex; align-items: center; gap: 8px; }
+.decision-sig__why { max-width: 64ch; }
+.decision-sig__choices {
+  /* one horizontal row of verbs; each consequence sits under its own button */
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: auto auto;
+  justify-content: start;
+  column-gap: 16px;
+  row-gap: 8px;
+  list-style: none;
+}
+.decision-sig__choice { display: contents; }
+/* the caption takes its button's width without widening the column */
+.decision-sig__choice > span { width: 0; min-width: 100%; }
+.decision-sig__decide .decision-sig__attest { max-width: none; color: var(--ink-3); }
+@media (max-width: 759px) {
+  .decision-sig__choices { grid-auto-flow: row; grid-template-rows: none; grid-template-columns: minmax(0, 1fr); row-gap: 4px; }
+  .decision-sig__choice > span { width: auto; margin-bottom: 8px; }
+}
+
+/* the sealed record enters; on the signing transition it waits for the ink (--dur-3) */
+.decision-sig__sealed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: v2-enter var(--dur-2) var(--ease-out) backwards;
+}
+.decision-sig__sealed--after-ink { animation-delay: var(--dur-3); }
+.decision-sig__quote { display: flex; flex-direction: column; gap: 4px; margin: 0; }
+.decision-sig__amendments { display: flex; flex-direction: column; gap: 4px; list-style: none; }
+.decision-sig__amendrow { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+
+/* ==== stress test: scratch in a provisional frame ==== */
+.decision-stress {
+  min-width: 0;
+  border: var(--line-provisional);
+  border-radius: var(--r-md);
+}
+.decision-stress--collapsed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 48px;
+  padding: 0 16px;
+}
+.decision-stress--open {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 20px;
+}
+.decision-stress__head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 16px; }
+.decision-stress__title { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.decision-stress__tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+
+/* driver rows: label 140 | slider 1fr | value 120 */
+.decision-stress__drivers { display: flex; flex-direction: column; gap: 4px; }
+.decision-stress__driver {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr) 120px;
+  column-gap: 16px;
+  align-items: center;
+}
+.decision-stress__label { min-width: 0; }
+.decision-stress__value { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+
+/* the outcome line (40px) is re-keyed on every recompute, so it enters each time */
+.decision-stress__outcome {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  animation: v2-enter var(--dur-2) var(--ease-out) backwards;
+}
+
+.decision-cushion { display: inline-flex; align-items: center; gap: 8px; }
+
+/* ==== exhibits ==== */
+.decision-exhibits { display: flex; flex-direction: column; gap: 16px; }
+.decision-exhibit__letter { display: inline-block; }
+.decision-exhibit { display: flex; flex-direction: column; min-width: 0; }
+.decision-exhibit__line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.decision-exhibit__result { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* ==== narrow (< 760): lines stack, drivers put the label above the slider ==== */
+@media (max-width: 759px) {
+  .decision-sig__lines { grid-template-columns: minmax(0, 1fr); }
+  .decision-stress--collapsed { padding: 8px 16px; flex-wrap: wrap; }
+  .decision-stress--open { padding: 16px; }
+  .decision-stress__driver { grid-template-columns: minmax(0, 1fr) 96px; row-gap: 4px; }
+  .decision-stress__label { grid-column: 1 / -1; }
+}

@@ -1,0 +1,197 @@
+/* Countersign V2 · Book (spec §7.4). Tokens only; kit classes are styled in kit/kit.css. */
+
+/* ---- the screen body is its own scroll container on canvas, holding a centred 1040 column ---- */
+.book {
+  height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+.book__col {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 32px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ---- intro: title + cadence on one line, then the verdict and the disclosure ---- */
+.book__intro {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.book__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  min-width: 0;
+}
+
+.book__title {
+  color: var(--ink);
+}
+
+.book__cadence {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.book__cadence-text {
+  min-width: 0;
+  color: var(--ink-2);
+}
+
+.book__summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.book__verdict {
+  display: flex;
+  min-width: 0;
+}
+
+.book__disclosure {
+  color: var(--ink-3);
+}
+
+.book__empty {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+/* ---- deal row cells ---- */
+.book-file,
+.book-tight {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.book-file__sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+  min-width: 0;
+}
+
+.book-file__borrower,
+.book-tight__reading {
+  color: var(--ink-2);
+}
+
+.book-file__meta {
+  color: var(--ink-3);
+}
+
+.book-cushion {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.book-checked {
+  color: var(--ink-2);
+}
+
+.book-dash {
+  color: var(--ink-3);
+}
+
+.book-tone--ink {
+  color: var(--ink);
+}
+
+.book-tone--warn {
+  color: var(--warn-ink);
+}
+
+.book-tone--bad {
+  color: var(--bad-ink);
+}
+
+/* ---- sub-rows: the span content of each indented item row, on the screen's own grid ---- */
+.book-sub {
+  container: book-sub / inline-size;
+  min-width: 0;
+}
+
+.book-subrow {
+  display: grid;
+  grid-template-columns: 152px minmax(0, 200px) 136px 104px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  min-width: 0;
+}
+
+.book-subrow--routed {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.book-subrow__status {
+  display: flex;
+  min-width: 0;
+}
+
+.book-subrow__covenant,
+.book-subrow__reading,
+.book-subrow__text {
+  min-width: 0;
+}
+
+.book-subrow__distance,
+.book-subrow__done {
+  color: var(--ink-2);
+}
+
+.book-subrow__raised,
+.book-sep {
+  color: var(--ink-3);
+}
+
+.book-subrow__actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* narrow tables: the item reads as one wrapping line, actions pushed to the end */
+@container book-sub (max-width: 839px) {
+  .book-subrow,
+  .book-subrow--routed {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 4px;
+  }
+  .book-subrow > :empty {
+    display: none;
+  }
+  .book-subrow__actions {
+    margin-left: auto;
+  }
+}
+
+/* ---- below 760: 16px side gutter, page padding 20 ---- */
+@media (max-width: 759px) {
+  .book__col {
+    padding: 20px 16px;
+  }
+}

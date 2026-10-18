@@ -1,0 +1,114 @@
+/* Countersign V2 · tokens and base (light only).
+   Part 1 is the token block: the only place in src/v2 for colour literals, raw type values,
+   provisional line styles, font-family and duration literals (guarded by scripts/v2-check.sh).
+   Part 2 is the base reset, which uses tokens only. */
+
+/* @tokens:start */
+.v2 {
+  color-scheme: light;
+  --font: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* surfaces */
+  --canvas: #f3f5f8;   /* app background, canvas behind the paper */
+  --paper: #ffffff;    /* memo sheet, top bar, lists, tables, notes, menus */
+  --sunken: #eef1f5;   /* table header, hover row, kbd, neutral chips, disabled fill */
+  --scrim: rgba(15, 36, 54, 0.24);
+
+  /* ink (AA on paper, canvas AND sunken) */
+  --ink: #0f2436;      /* 15.84 paper · 14.50 canvas · 13.98 sunken */
+  --ink-2: #4a5a6e;    /*  7.05 · 6.45 · 6.22 */
+  --ink-3: #5f6b78;    /*  5.44 · 4.98 · 4.80; also the control-edge colour (3:1 non-text) */
+
+  /* ONE line colour (structure) + provisional variants */
+  --line: #d0d6df;                                /* 1.46:1 on paper: structure only, never a control edge */
+  --line-provisional: 1px dashed #d0d6df;         /* not the record: stress frame, drop zone, amend trigger */
+  --line-provisional-edge: 1px dashed #5f6b78;    /* not the record, on a control: the amend input */
+  --line-provisional-active: 1px dashed #0f7d8c;  /* drag-over, focused amend input */
+
+  /* ONE accent (teal) */
+  --accent: #0f7d8c;       /* fills + 2px state strokes; white on it 4.85:1 */
+  --accent-hover: #0b6a77; /* primary hover/pressed; white on it 6.28:1 */
+  --accent-ink: #0a6675;   /* accent TEXT: links, cites (6.62 paper · 6.06 canvas · 5.79 accent-wash) */
+  --accent-wash: #e6f2f4;  /* cited span, active menu/palette row, focus halo, flash */
+  --on-accent: #ffffff;
+
+  /* meaning: ink (text/glyph) · wash (tokens, open notes) · mark (data marks only) */
+  --good-ink: #10733a; --good-wash: #e7f4ec; --good-mark: #1f8a4c; /* ink-on-wash 5.25 · mark 4.38 */
+  --warn-ink: #8a5d08; --warn-wash: #fbf0da; --warn-mark: #b97f0a; /* ink-on-wash 5.09 · mark 3.44 */
+  --bad-ink:  #b42335; --bad-wash:  #fbe9eb; --bad-mark:  #c8323f; /* ink-on-wash 5.56 · mark 5.27 */
+
+  /* radii */
+  --r-xs: 4px; --r-sm: 6px; --r-md: 8px; --r-pill: 999px;
+
+  /* spacing (4px grid) */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px; --s-8: 32px; --s-10: 40px; --s-12: 48px;
+
+  /* elevation: exactly one float shadow, plus two field halos */
+  --shadow-pop: 0 8px 24px rgba(15, 36, 54, 0.12), 0 0 0 1px #d0d6df;
+  --halo-focus: 0 0 0 3px #e6f2f4;
+  --halo-error: 0 0 0 3px #fbe9eb;
+
+  /* motion: the ONLY source of visual durations (JS reads them, see cssMs) */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-press: 60ms;    /* pressed background */
+  --dur-1: 160ms;       /* hover, colour, caption swap, rule recolour, chevron */
+  --dur-2: 320ms;       /* section set, note enter, signature recede, disclosure unfold */
+  --dur-3: 600ms;       /* ink stroke only */
+  --dur-flash: 1200ms;  /* one-shot anchor/cite flash */
+  --dur-caret: 1060ms;  /* THE one loop: the drafting caret */
+
+  /* type roles (Inter only; weights 400/500/600) */
+  --t-display-size: 22px; --t-display-lh: 28px; --t-display-weight: 600; --t-display-track: -0.024em;
+  --t-heading-size: 15px; --t-heading-lh: 20px; --t-heading-weight: 600; --t-heading-track: -0.008em;
+  --t-body-size: 13px;    --t-body-lh: 20px;    --t-body-weight: 400;    --t-body-track: 0em;
+  --t-strong-size: 13px;  --t-strong-lh: 20px;  --t-strong-weight: 500;  --t-strong-track: 0em;
+  --t-control-size: 13px; --t-control-lh: 16px; --t-control-weight: 500; --t-control-track: 0em;
+  --t-small-size: 12px;   --t-small-lh: 18px;   --t-small-weight: 400;   --t-small-track: 0em;
+  --t-label-size: 12px;   --t-label-lh: 16px;   --t-label-weight: 500;   --t-label-track: 0em;
+  --t-meta-size: 11px;    --t-meta-lh: 16px;    --t-meta-weight: 400;    --t-meta-track: 0em;
+  --t-eyebrow-size: 11px; --t-eyebrow-lh: 16px; --t-eyebrow-weight: 500; --t-eyebrow-track: 0.06em;
+  --t-figure-size: 13px;  --t-figure-lh: 20px;  --t-figure-weight: 500;  --t-figure-track: 0em;
+  --t-figure-lg-size: 18px; --t-figure-lg-lh: 24px; --t-figure-lg-weight: 500; --t-figure-lg-track: -0.014em;
+  --t-token-size: 11px;   --t-token-lh: 16px;   --t-token-weight: 600;   --t-token-track: 0.04em;
+
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--t-body-size);
+  line-height: var(--t-body-lh);
+  font-weight: var(--t-body-weight);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'cv11';
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+}
+.v2 button, .v2 input, .v2 textarea, .v2 select, .v2 pre { font-family: inherit; }
+/* role classes: ONE LINE EACH (the guard keys on this shape) */
+.t-display { font-size: var(--t-display-size); line-height: var(--t-display-lh); font-weight: var(--t-display-weight); letter-spacing: var(--t-display-track); }
+.t-heading { font-size: var(--t-heading-size); line-height: var(--t-heading-lh); font-weight: var(--t-heading-weight); letter-spacing: var(--t-heading-track); }
+.t-body { font-size: var(--t-body-size); line-height: var(--t-body-lh); font-weight: var(--t-body-weight); letter-spacing: var(--t-body-track); }
+.t-strong { font-size: var(--t-strong-size); line-height: var(--t-strong-lh); font-weight: var(--t-strong-weight); letter-spacing: var(--t-strong-track); }
+.t-control { font-size: var(--t-control-size); line-height: var(--t-control-lh); font-weight: var(--t-control-weight); letter-spacing: var(--t-control-track); }
+.t-small { font-size: var(--t-small-size); line-height: var(--t-small-lh); font-weight: var(--t-small-weight); letter-spacing: var(--t-small-track); }
+.t-label { font-size: var(--t-label-size); line-height: var(--t-label-lh); font-weight: var(--t-label-weight); letter-spacing: var(--t-label-track); }
+.t-meta { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); font-weight: var(--t-meta-weight); letter-spacing: var(--t-meta-track); }
+.t-eyebrow { font-size: var(--t-eyebrow-size); line-height: var(--t-eyebrow-lh); font-weight: var(--t-eyebrow-weight); letter-spacing: var(--t-eyebrow-track); text-transform: uppercase; }
+.t-figure { font-size: var(--t-figure-size); line-height: var(--t-figure-lh); font-weight: var(--t-figure-weight); letter-spacing: var(--t-figure-track); }
+.t-figure-lg { font-size: var(--t-figure-lg-size); line-height: var(--t-figure-lg-lh); font-weight: var(--t-figure-lg-weight); letter-spacing: var(--t-figure-lg-track); }
+.t-token { font-size: var(--t-token-size); line-height: var(--t-token-lh); font-weight: var(--t-token-weight); letter-spacing: var(--t-token-track); text-transform: uppercase; }
+@media (prefers-reduced-motion: reduce) {
+  .v2 { --dur-press: 0ms; --dur-1: 0ms; --dur-2: 0ms; --dur-3: 0ms; --dur-flash: 0ms; }
+}
+.v2[data-reduce-motion] { --dur-press: 0ms; --dur-1: 0ms; --dur-2: 0ms; --dur-3: 0ms; --dur-flash: 0ms; }
+/* @tokens:end */
+
+/* ---- base reset (no literals) ---- */
+.v2 body { margin: 0; overflow: hidden; }
+.v2 *, .v2 *::before, .v2 *::after { box-sizing: border-box; }
+:where(.v2 h1, .v2 h2, .v2 h3, .v2 h4, .v2 h5, .v2 h6, .v2 p, .v2 dl, .v2 dd, .v2 ol, .v2 ul) { margin: 0; padding: 0; }
+:where(.v2 h1, .v2 h2, .v2 h3, .v2 h4, .v2 h5, .v2 h6, .v2 strong, .v2 b) { font-weight: var(--t-heading-weight); }
+.v2 button, .v2 input, .v2 textarea, .v2 select { color: inherit; }
+.v2 .lucide { stroke-width: 1.5; }
+.v2 .lucide[width="12"], .v2 .lucide[width="14"] { stroke-width: 2; }
+.v2 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.v2-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

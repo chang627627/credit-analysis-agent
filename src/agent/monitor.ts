@@ -54,22 +54,53 @@ export interface PortfolioDealState {
 
 export interface EscalationItem {
   id: string;
-  /** dedup key — one open item per deal+covenant+severity */
+  /**
+   * Dedup key — ONE item per deal+covenant (`${dealId}:${covenant}`). Severity
+   * is a property of the item, not part of its identity: a watch that worsens
+   * into a breach upgrades the same item in place instead of opening a second
+   * card beside a stale warning.
+   */
   key: string;
   dealId: string;
   dealName: string;
   severity: 'warning' | 'critical';
+  /** Refreshed every sweep while the item is open, so it never quotes stale figures. */
   reason: string;
+  /** when the item was first raised */
   at: number;
-  status: 'open' | 'acknowledged';
+  /** 'resolved' = the covenant passed on consecutive sweeps after the item was raised */
+  status: 'open' | 'acknowledged' | 'resolved';
   /** where it came from: a monitor sweep (default) or a countersigned ESCALATE memo */
   origin?: 'monitor' | 'countersign';
+  /** monitor items: the covenant this item tracks */
+  covenant?: string;
+  /** monitor items: the live reading the reason was last written from */
+  actual?: string;
+  threshold?: string;
+  /** last time a sweep refreshed this item */
+  updatedAt?: number;
+  acknowledgedAt?: number;
+  resolvedAt?: number;
 }
+
+/** One covenant's reading on a sweep, passing or not — the hook uses passing
+    readings to resolve items and re-arm their keys after recovery. */
+export interface CovenantReading {
+  key: string;
+  dealId: string;
+  covenant: string;
+  status: CovenantHealth;
+}
+
+/** The single dedup key format for monitor escalations. */
+export const escalationKey = (dealId: string, covenant: string) => `${dealId}:${covenant}`;
 
 export type MonitorEvent =
   | { type: 'sweep_started'; sweepId: number }
   | { type: 'deal_reviewed'; sweepId: number; state: PortfolioDealState }
   | { type: 'escalation'; item: EscalationItem }
+  /** every covenant reading of the sweep (passing ones included), after its escalations */
+  | { type: 'covenants_tested'; sweepId: number; readings: CovenantReading[] }
   | { type: 'sweep_finished'; sweepId: number };
 
 export interface MonitorContext {
@@ -174,14 +205,16 @@ export async function* sweepPortfolio(
 
     yield { type: 'deal_reviewed', sweepId, state };
 
-    // raise escalations for anything not passing (hook dedups by key)
+    // raise escalations for anything not passing (the hook dedups by key and
+    // upgrades/refreshes an open item in place)
+    const now = Date.now();
     for (const c of covenants) {
       if (c.status === 'pass') continue;
       yield {
         type: 'escalation',
         item: {
           id: uid('esc'),
-          key: `${deal.id}:${c.name}:${c.status}`,
+          key: escalationKey(deal.id, c.name),
           dealId: deal.id,
           dealName: deal.name,
           severity: c.status === 'breach' ? 'critical' : 'warning',
@@ -189,11 +222,21 @@ export async function* sweepPortfolio(
             c.status === 'breach'
               ? `${c.name} ${c.actual} breaches the ${c.threshold} covenant`
               : `${c.name} ${c.actual} is approaching its ${c.threshold} limit — thin headroom`,
-          at: Date.now(),
+          at: now,
           status: 'open',
+          origin: 'monitor',
+          covenant: c.name,
+          actual: c.actual,
+          threshold: c.threshold,
+          updatedAt: now,
         },
       };
     }
+    yield {
+      type: 'covenants_tested',
+      sweepId,
+      readings: covenants.map((c) => ({ key: escalationKey(deal.id, c.name), dealId: deal.id, covenant: c.name, status: c.status })),
+    };
   }
 
   yield { type: 'sweep_finished', sweepId };

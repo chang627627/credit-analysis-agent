@@ -1,0 +1,199 @@
+/* Countersign V2 · the shell (spec §3). Tokens only; kit classes are styled in kit/kit.css. */
+
+/* ---- frame: [sidebar | 48px bar over one screen]; each screen body is its own scroll container ---- */
+.app-shell {
+  height: 100vh;
+  display: grid;
+  grid-template-rows: 48px 1fr;
+  grid-template-columns: 216px minmax(0, 1fr);
+  overflow: hidden;
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+.app-main {
+  grid-row: 2;
+  grid-column: 2;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* the palette (fixed) and the live region (visually hidden) take no layout space */
+.app-overlays {
+  grid-row: 2;
+  grid-column: 2;
+  align-self: start;
+  height: 0;
+}
+
+/* ---- sidebar navigation (P-21): paper, 1px right line, brand row on the 48px header line ---- */
+.app-sidenav {
+  grid-row: 1 / span 2;
+  grid-column: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border-right: 1px solid var(--line);
+}
+.app-sidenav__brand {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 12px 0 20px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  white-space: nowrap;
+}
+.app-sidenav__word { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.app-sidenav__toggle { display: flex; flex: none; }
+.app-shell { transition: grid-template-columns var(--dur-2) var(--ease-out); }
+/* collapsed by the owner: a 64px rail with the expand chevron where the brand was */
+.app-shell[data-nav="collapsed"] { grid-template-columns: 64px minmax(0, 1fr); }
+.app-shell[data-nav="collapsed"] .app-sidenav__brand { justify-content: center; padding: 0; }
+.app-shell[data-nav="collapsed"] .app-sidenav__mark,
+.app-shell[data-nav="collapsed"] .app-sidenav__word { display: none; }
+.app-sidenav__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  list-style: none;
+}
+/* below 1100 the rail is forced: no room for the expanded sidebar, so no toggle either */
+@media (max-width: 1099px) {
+  .app-shell,
+  .app-shell[data-nav="collapsed"] { grid-template-columns: 64px minmax(0, 1fr); }
+  .app-sidenav__brand { justify-content: center; padding: 0; }
+  .app-sidenav__word,
+  .app-sidenav__toggle { display: none; }
+  .app-shell[data-nav="collapsed"] .app-sidenav__mark { display: inline; }
+}
+
+/* ---- top bar: 48px, paper, 1px bottom line, padding 0 16, nowrap ---- */
+.app-topbar {
+  grid-row: 1;
+  grid-column: 2;
+  height: 48px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 16px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.app-topbar__left {
+  align-self: stretch;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.app-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}
+
+/* the tabs sit on the bar's bottom line, so the active underline lands on it */
+.app-topbar__tabs {
+  align-self: flex-end;
+  min-width: 0;
+  display: flex;
+}
+
+.app-topbar__right {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-topbar__full {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-topbar__search {
+  display: flex;
+}
+
+.app-topbar__search-compact,
+.app-topbar__more {
+  display: none;
+}
+
+.app-policy {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.app-policy__short {
+  display: none;
+}
+
+.app-divider {
+  display: block;
+  flex: none;
+  width: 1px;
+  height: 20px;
+  background: var(--line);
+}
+
+/* below 1024 the switch label shortens */
+@media (max-width: 1023px) {
+  .app-policy__long {
+    display: none;
+  }
+  .app-policy__short {
+    display: inline;
+  }
+}
+
+/* 760 to 899: the full right cluster no longer fits beside the brand and the counted tabs,
+   so Search drops to its icon (the same IconButton the narrow bar uses), and below 820 the
+   brand word goes too; the bar never clips or scrolls */
+@media (max-width: 899px) {
+  .app-topbar__search {
+    display: none;
+  }
+  .app-topbar__search-compact {
+    display: flex;
+  }
+}
+@media (max-width: 819px) {
+  .app-brand__word {
+    display: none;
+  }
+}
+
+/* below 760 the right cluster collapses into "More"; search keeps an icon */
+@media (max-width: 759px) {
+  .app-topbar__left {
+    gap: 12px;
+  }
+  .app-brand__word {
+    display: none;
+  }
+  .app-topbar__full,
+  .app-topbar__search {
+    display: none;
+  }
+  .app-topbar__search-compact,
+  .app-topbar__more {
+    display: flex;
+  }
+}

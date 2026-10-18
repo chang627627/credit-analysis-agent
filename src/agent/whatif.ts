@@ -17,6 +17,7 @@
 
 import type { CovenantTest, Deal } from './mockData';
 import type { Recommendation } from './types';
+import { DECLINE_SCORE, ratingFor, riskTone } from './rating';
 
 /**
  * THE decision rule, in one place. A breach gates everything; a breach plus a
@@ -25,7 +26,7 @@ import type { Recommendation } from './types';
  * what-if panel apply byte-for-byte identical logic.
  */
 export function decide(breaches: number, riskScore: number): Recommendation {
-  return breaches === 0 ? 'approve' : riskScore >= 75 ? 'decline' : 'escalate';
+  return breaches === 0 ? 'approve' : riskScore >= DECLINE_SCORE ? 'decline' : 'escalate';
 }
 
 export type DriverKey = 'ebitda' | 'debt' | 'rate' | 'liquidity';
@@ -271,13 +272,6 @@ function parseThreshold(t: string): { dir: 'max' | 'min'; value: number } {
   return { dir, value: m ? parseFloat(m[0]) : 0 };
 }
 
-function ratingFor(score: number): string {
-  if (score < 30) return 'Ba2 / Non-investment grade';
-  if (score < 45) return 'Ba3 / Speculative';
-  if (score < 60) return 'B2 / Speculative';
-  if (score < 75) return 'B3 / Highly speculative';
-  return 'Caa1 / Substantial risk';
-}
 
 /**
  * Recompute everything from a scenario. At the baseline scenario this returns
@@ -337,7 +331,7 @@ export function evaluate(deal: Deal, s: Scenario): ScenarioOutcome {
     1,
     99,
   );
-  const tone: 'good' | 'warn' | 'bad' = score < 40 ? 'good' : score < 70 ? 'warn' : 'bad';
+  const tone = riskTone(score);
 
   return {
     ratios: { leverageX, interestCoverageX, fixedChargeCoverageX, ebitdaMarginPct },

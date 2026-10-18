@@ -1,0 +1,111 @@
+/* Countersign V2 · Desk (spec §7.1). Tokens only; kit primitives keep their own styling. */
+
+/* the screen body is its own scroll container on canvas */
+.desk {
+  height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: var(--canvas);
+}
+
+/* centred column: 1040 of content inside 32 / 40 padding (1120 fits at 1280) */
+.desk__col {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 32px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.desk__head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--ink);
+}
+
+.desk__summary {
+  color: var(--ink-2);
+}
+
+/* ---- File cell: name (+ uploaded chip), borrower, and the facility once its column hides ---- */
+.desk-file {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.desk-file__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.desk-file__sub,
+.desk-file__facility {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--ink-2);
+}
+
+.desk-file__facility {
+  display: none;
+}
+
+@media (max-width: 1119px) {
+  .desk-file__facility {
+    display: block;
+  }
+}
+
+.desk-facility {
+  color: var(--ink-2);
+}
+
+/* ---- Leverage: figure, bad-ink past the covenant ceiling (tone from the model) ---- */
+.desk-lev {
+  color: var(--ink);
+}
+
+.desk-lev--bad {
+  color: var(--bad-ink);
+}
+
+.desk-nocall {
+  color: var(--ink-3);
+}
+
+/* ---- Stage: status label, sub-meta aligned under the text (16 glyph + 8 gap) ---- */
+.desk-stage {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.desk-stage__meta {
+  padding-left: 24px;
+  color: var(--ink-3);
+}
+
+.desk-action {
+  display: inline-flex;
+  justify-content: flex-end;
+}
+
+.desk-parsing {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* ---- responsive floor: 16px side gutter below 760 ---- */
+@media (max-width: 759px) {
+  .desk__col {
+    padding: 20px 16px;
+  }
+}

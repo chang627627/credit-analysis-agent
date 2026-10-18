@@ -74,6 +74,33 @@ export interface AuditHistoryEntry extends AuditEntry {
   runId: number;
 }
 
+/**
+ * How a run ended, as DATA (screens used to regex the audit labels, which
+ * missed 'AUTO-countersigned' and dropped auto-signed deals back to Screening).
+ * null on a RunRecord = still in progress.
+ */
+export type RunDecision = 'countersigned' | 'countersigned-amended' | 'auto-countersigned' | 'rejected' | 'cancelled';
+
+/** One analysis run in the session ledger — what the agent recommended at the
+    (last) gate and what the human decided, with when. */
+export interface RunRecord {
+  runId: number;
+  dealId: string;
+  dealName: string;
+  startedAt: number;
+  /** recommendation on the latest gate package (after any cure), null before the first gate */
+  recommendation: Recommendation | null;
+  /** 1 = first pass; bumped by each send-back */
+  revision: number;
+  /** the latest gate package proposed a restructure */
+  restructured: boolean;
+  decision: RunDecision | null;
+  decidedAt: number | null;
+  note?: string;
+  noteProvenance?: NoteProvenance;
+  amendments?: Amendment[];
+}
+
 export interface CreditAgentApi {
   status: RunStatus;
   plan: PlanStep[];
@@ -120,6 +147,10 @@ export interface CreditAgentApi {
   decisionAmendments: Amendment[] | null;
   /** True when the finishing approval was resolved by the autonomy policy. */
   decisionAuto: boolean;
+  /** when the current run's decision was recorded (stable across re-renders/remounts) */
+  decidedAt: number | null;
+  /** session ledger of every run: in progress, decided, or cancelled */
+  runs: RunRecord[];
   /** Monotonic id of the current/most recent run (0 before any run). */
   runId: number;
   /** Attach a what-if scenario to the audit trail (the sandbox becomes record). */
@@ -143,6 +174,10 @@ export function useCreditAgent(): CreditAgentApi {
   const [decisionAmendments, setDecisionAmendments] = useState<Amendment[] | null>(null);
   const [decisionAuto, setDecisionAuto] = useState(false);
   const [runSeq, setRunSeq] = useState(0);
+  const [decidedAt, setDecidedAt] = useState<number | null>(null);
+  const [runs, setRuns] = useState<RunRecord[]>([]);
+  /** runId of a run that has started but not finished (null when none is open) */
+  const openRunRef = useRef<number | null>(null);
   // the deal chosen when the intent gate opened (approvePlan runs THIS deal)
   const pendingDealRef = useRef<Deal | null>(null);
 
@@ -170,6 +205,20 @@ export function useCreditAgent(): CreditAgentApi {
       { ...full, dealName: runDealNameRef.current, runId: runIdRef.current },
     ]);
   }, []);
+
+  /** An open run is being abandoned (reset, deal switch, upload, restart):
+      close its ledger entry as cancelled and say so on the trail. */
+  const cancelOpenRun = useCallback(
+    (why: string) => {
+      const runId = openRunRef.current;
+      if (runId == null) return;
+      openRunRef.current = null;
+      const at = Date.now();
+      setRuns((prev) => prev.map((r) => (r.runId === runId && r.decision == null ? { ...r, decision: 'cancelled', decidedAt: at } : r)));
+      pushAudit({ kind: 'info', label: 'Run cancelled', detail: why });
+    },
+    [pushAudit],
+  );
 
   const apply = useCallback(
     (ev: AgentEvent) => {
@@ -207,21 +256,58 @@ export function useCreditAgent(): CreditAgentApi {
         case 'step_completed':
           setSteps((prev) => prev.map((s) => (s.id === ev.stepId ? { ...s, status: 'done' } : s)));
           break;
-        case 'awaiting_approval':
+        case 'awaiting_approval': {
           setApprovalPackage(ev.package);
           setStatus('awaiting_approval');
+          const runId = runIdRef.current;
+          setRuns((prev) =>
+            prev.map((r) =>
+              r.runId === runId
+                ? { ...r, recommendation: ev.package.recommendation, revision: ev.package.revision, restructured: !!ev.package.restructure }
+                : r,
+            ),
+          );
           pushAudit({
             kind: 'human',
             label: `Awaiting human approval${ev.package.revision > 1 ? ` · rev ${ev.package.revision}` : ''}`,
             detail: `recommendation: ${ev.package.recommendation}`,
           });
           break;
+        }
         case 'plan_updated':
           setPlan(ev.plan);
           pushAudit({ kind: 'info', label: 'Plan extended · reviewer send-back', detail: ev.plan[ev.plan.length - 1]?.title });
           break;
         case 'run_finished': {
           setStatus(ev.outcome === 'approve' ? 'approved' : 'rejected');
+          const at = Date.now();
+          setDecidedAt(at);
+          const decision: RunDecision = ev.auto
+            ? 'auto-countersigned'
+            : ev.outcome === 'approve'
+              ? ev.amendments && ev.amendments.length > 0
+                ? 'countersigned-amended'
+                : 'countersigned'
+              : 'rejected';
+          const finishedRunId = runIdRef.current;
+          openRunRef.current = null;
+          setRuns((prev) =>
+            prev.map((r) =>
+              r.runId === finishedRunId
+                ? {
+                    ...r,
+                    recommendation: ev.package.recommendation,
+                    revision: ev.package.revision,
+                    restructured: !!ev.package.restructure,
+                    decision,
+                    decidedAt: at,
+                    note: ev.note,
+                    noteProvenance: ev.note ? ev.noteProvenance : undefined,
+                    amendments: ev.amendments && ev.amendments.length > 0 ? ev.amendments : undefined,
+                  }
+                : r,
+            ),
+          );
           setDecisionNote(ev.note ?? null);
           setDecisionNoteProvenance(ev.note ? ev.noteProvenance ?? null : null);
           setDecisionAmendments(ev.amendments && ev.amendments.length > 0 ? ev.amendments : null);
@@ -259,8 +345,10 @@ export function useCreditAgent(): CreditAgentApi {
   // plan for consent/editing. Nothing executes until approvePlan — the industry
   // two-gate pattern (consent to intent up front, countersign the outcome).
   const start = useCallback((dealId?: string) => {
+    cancelOpenRun('restarted before a decision');
     abortRef.current?.abort();
     approvalResolver.current = null;
+    setDecidedAt(null);
     setSteps([]);
     setApprovalPackage(null);
     setAudit([]);
@@ -278,7 +366,7 @@ export function useCreditAgent(): CreditAgentApi {
     if (dealId) setDealId(dealId);
     pendingDealRef.current = runDeal;
     setStatus('plan_review');
-  }, []);
+  }, [cancelOpenRun]);
 
   /** Consent to the (possibly edited) plan → execute. Undefined = full plan. */
   const approvePlan = useCallback(
@@ -294,6 +382,22 @@ export function useCreditAgent(): CreditAgentApi {
       setRunSeq(runIdRef.current);
       runDealNameRef.current = runDeal.name;
       setStatus('running');
+      openRunRef.current = runIdRef.current;
+      setDecidedAt(null);
+      setRuns((prev) => [
+        ...prev,
+        {
+          runId: runIdRef.current,
+          dealId: runDeal.id,
+          dealName: runDeal.name,
+          startedAt: Date.now(),
+          recommendation: null,
+          revision: 1,
+          restructured: false,
+          decision: null,
+          decidedAt: null,
+        },
+      ]);
 
       const full = getPlan();
       const ids = enabledStepIds ?? full.map((p) => p.id);
@@ -373,6 +477,8 @@ export function useCreditAgent(): CreditAgentApi {
   }, []);
 
   const reset = useCallback(() => {
+    cancelOpenRun('reset before a decision');
+    setDecidedAt(null);
     abortRef.current?.abort();
     approvalResolver.current = null;
     pendingDealRef.current = null;
@@ -386,10 +492,12 @@ export function useCreditAgent(): CreditAgentApi {
     setDecisionNoteProvenance(null);
     setDecisionAmendments(null);
     setDecisionAuto(false);
-  }, []);
+  }, [cancelOpenRun]);
 
   // Switching deals clears the current transcript and returns to idle.
   const selectDeal = useCallback((id: string) => {
+    cancelOpenRun('switched deals before a decision');
+    setDecidedAt(null);
     abortRef.current?.abort();
     approvalResolver.current = null;
     pendingDealRef.current = null;
@@ -404,10 +512,12 @@ export function useCreditAgent(): CreditAgentApi {
     setDecisionNoteProvenance(null);
     setDecisionAmendments(null);
     setDecisionAuto(false);
-  }, []);
+  }, [cancelOpenRun]);
 
   // Simulated document ingestion: derive a deal from the file name, then load it.
   const uploadDeal = useCallback((file: File) => {
+    cancelOpenRun('a new document was uploaded before a decision');
+    setDecidedAt(null);
     abortRef.current?.abort();
     approvalResolver.current = null;
     setParsing({ name: file.name });
@@ -428,7 +538,7 @@ export function useCreditAgent(): CreditAgentApi {
       setDealId(synthesized.id);
       setParsing(null);
     }, 1500);
-  }, []);
+  }, [cancelOpenRun]);
 
   // Composer follow-ups: a rule-based answer over the current deal + run state.
   const sendMessage = useCallback(
@@ -508,6 +618,8 @@ export function useCreditAgent(): CreditAgentApi {
     decisionNoteProvenance,
     decisionAmendments,
     decisionAuto,
+    decidedAt,
+    runs,
     runId: runSeq,
     logWhatIf,
   };

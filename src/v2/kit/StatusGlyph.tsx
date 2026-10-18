@@ -80,13 +80,15 @@ export interface StatusLabelProps {
   state: StatusKey;
   children: string;
   role?: 'small' | 'body' | 'label' | 'strong';
+  /** One line that ends in an ellipsis when its box is too narrow (a doc-bar status), never cut mid-word. */
+  truncate?: boolean;
 }
 
-export function StatusLabel({ state, children, role = 'body' }: StatusLabelProps) {
+export function StatusLabel({ state, children, role = 'body', truncate = false }: StatusLabelProps) {
   return (
-    <span className={`k-status t-${role}`} data-role={role}>
+    <span className={`k-status t-${role}${truncate ? ' k-status--truncate' : ''}`} data-role={role}>
       <StatusGlyph state={state} />
-      <span className={QUIET.has(state) ? 'k-tone-ink3' : 'k-tone-ink'}>{children}</span>
+      <span className={`k-status__text ${QUIET.has(state) ? 'k-tone-ink3' : 'k-tone-ink'}`}>{children}</span>
     </span>
   );
 }

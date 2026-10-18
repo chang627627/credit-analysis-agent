@@ -47,14 +47,27 @@
   background: var(--paper);
   border-right: 1px solid var(--line);
 }
-/* below 1432 the open source floats over the canvas's left edge (no scrim) */
+/* below 1432 the open source floats over the canvas's left edge (no scrim). It starts under the
+   44px doc bar, which stays on top (z 3 over 2), so the bar's Source toggle, crumb and any confirm
+   strip stay visible and clickable; and it is never wider than the case-file pane (the 64px rail
+   leaves a phone less than 360), so its own close button always shows. No right: 0 on the frame:
+   it has no background and would swallow taps across the whole canvas. */
 @media (max-width: 1431px) {
-  .file-source { position: absolute; top: 0; left: 0; height: 100%; }
+  .file-source {
+    position: absolute;
+    top: 44px;
+    bottom: 0;
+    left: 0;
+    z-index: 2;
+    width: min(360px, 100%);
+    height: auto;
+  }
   .file-source__panel {
     position: absolute;
     top: 0;
     left: 0;
     bottom: 0;
+    width: 100%;
     box-shadow: var(--shadow-pop);
   }
 }
@@ -123,10 +136,14 @@
   top: 0;
   z-index: 3;
   background: var(--canvas);
+  /* the bar folds on its OWN width: the sidebar (216 or the 64 rail) and a pushed source both
+     narrow it, so viewport breakpoints cannot know how much room the status sentence has */
+  container: file-docbar / inline-size;
 }
 .file-docbar {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  /* the status keeps a floor, so the left zone's buttons ellipsize before the sentence vanishes */
+  grid-template-columns: auto minmax(min(160px, 40%), 1fr) auto;
   align-items: center;
   column-gap: 16px;
   height: 44px;
@@ -148,6 +165,13 @@
 }
 .file-docbar__stepper { gap: 4px; }
 .file-docbar__sep { color: var(--ink-3); }
+/* every left-zone child may shrink (the file switcher's label ellipsizes first); the crumb and
+   the Source toggle keep their size, so the toggle never truncates */
+.file-docbar__left > * { min-width: 0; }
+.file-docbar__crumb,
+.file-docbar__source,
+.file-docbar__source-icon { flex: none; }
+.file-docbar__source-icon { display: none; }
 .file-docbar__center {
   display: flex;
   align-items: center;
@@ -155,11 +179,38 @@
   min-width: 0;
   overflow: hidden;
 }
+/* the status sentence ellipsizes instead of being cut mid-word (StatusLabel truncate) */
 .file-docbar__status { display: flex; min-width: 0; overflow: hidden; }
 .file-docbar__elapsed,
 .file-docbar__suffix { flex: none; color: var(--ink-3); }
 .file-docbar__count { padding: 0 4px; color: var(--ink); }
 .file-docbar__more { display: none; }
+
+/* The folds key on the bar's own width (container file-docbar), measured at the gate, the widest
+   state: left 348 (crumb 42 + file switcher 128 + Source 162, gaps 16), status floor 205
+   ("Awaiting your countersignature" + glyph), right 279 (stepper 96 + Go to signature 122 + Stop
+   45, gaps 16), plus 48 padding and 32 column gaps. */
+/* below 940 the Source toggle drops to its icon (same name and tip): 911 needed with the label */
+@container file-docbar (max-width: 939px) {
+  .file-docbar__source { display: none; }
+  .file-docbar__source-icon { display: flex; }
+}
+/* below 800 the reader controls fold into "More" so the status sentence keeps its room: 777
+   needed with them */
+@container file-docbar (max-width: 799px) {
+  .file-docbar__full { display: none; }
+  .file-docbar__more--mid { display: flex; }
+}
+/* below 680 the Desk crumb, the note stepper and the policy suffix fold too (J/K still step):
+   665 needed with them. The Source icon stays. */
+@container file-docbar (max-width: 679px) {
+  .file-docbar__crumb,
+  .file-docbar__stepper,
+  .file-docbar__full,
+  .file-docbar__suffix { display: none; }
+  .file-docbar__more--mid { display: none; }
+  .file-docbar__more--narrow { display: flex; }
+}
 
 /* ---- content wrapper and the page: ONE column, like V1's single pane (owner feedback: no
    side margin of notes and no empty gaps beside them). Each section's notes render inside the
@@ -335,14 +386,8 @@
   padding: 32px 40px;
 }
 
-/* ---- 760–999: the reader controls fold into More ---- */
-@media (max-width: 999px) {
-  /* the reader controls fold into "More" so the status sentence keeps its room */
-  .file-docbar__full { display: none; }
-  .file-docbar__more--mid { display: flex; }
-}
-
-/* ---- below 760: 16px gutter, page padding 20, doc-bar actions fold into More ---- */
+/* ---- below 760: 16px gutter, page padding 20; the doc bar's padding follows the gutter (its
+   folds are the container queries above) ---- */
 @media (max-width: 759px) {
   .file-content { padding: 16px 16px 48px; }
   .file-pagecell { padding: 0 20px 32px; }
@@ -350,10 +395,4 @@
   .file-row:last-child .file-pagecell { padding-bottom: 20px; }
   .file-margincell { padding: 0 20px 24px; }
   .file-docbar { column-gap: 8px; padding: 0 16px; }
-  .file-docbar__crumb,
-  .file-docbar__stepper,
-  .file-docbar__full,
-  .file-docbar__suffix { display: none; }
-  .file-docbar__more--mid { display: none; }
-  .file-docbar__more--narrow { display: flex; }
 }

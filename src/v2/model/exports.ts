@@ -9,12 +9,15 @@
 import type { V2Store } from '../state/store';
 import { fileFilename, fmtIso, sessionFilename } from './format';
 import { selectExhibits } from './select-decision';
-import { fileContext, runTiming } from './select-file';
+import { fileContext, runTiming, snapshotContext } from './select-file';
 import { actorOf, relabel } from './select-ledger';
 import { provenanceText, VERB_WORD } from './vocab';
 
 export function buildFileExport(s: V2Store, dealId: string): { filename: string; payload: unknown } {
-  const ctx = fileContext(s, dealId);
+  // a sealed file exports its sealed record: when the deal has been re-run since (plan review,
+  // drafting, gate or cancelled), the file shows the new run but the export reads the snapshot
+  const shown = fileContext(s, dealId);
+  const ctx = shown && shown.mode === 'sealed' ? shown : (snapshotContext(s, dealId) ?? shown);
   const deal = ctx?.deal ?? s.agent.dealsFull.find((d) => d.id === dealId);
   const memoId = ctx?.pkg?.memoId ?? deal?.memoId ?? dealId;
   const file = {
@@ -55,7 +58,7 @@ export function buildFileExport(s: V2Store, dealId: string): { filename: string;
       package: ctx.pkg,
       steps: ctx.steps.map((st) => ({ title: st.title, call: st.call ?? null, result: st.result ?? null, flags: st.flags, thinking: st.thinking })),
       events: ctx.runId === null ? [] : s.agent.auditHistory.filter((e) => e.runId === ctx.runId),
-      exhibits: selectExhibits(s, dealId),
+      exhibits: selectExhibits(s, dealId, ctx),
     },
   };
 }

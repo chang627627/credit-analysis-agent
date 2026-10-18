@@ -6,6 +6,7 @@
 // ---------------------------------------------------------------------------
 
 import type { Deal } from '../../agent/mockData';
+import { recommendationFor } from '../../agent/runAgent';
 import type { Recommendation } from '../../agent/types';
 import { baselineScenario, driversFor, evaluate } from '../../agent/whatif';
 import type { Driver, DriverKey, Scenario } from '../../agent/whatif';
@@ -96,35 +97,83 @@ function scanFrom(deal: Deal, scenario: Scenario, d: Driver, start: number, dir:
 }
 
 /**
- * Appendix A: the nearest single-driver change of the call.
+ * How faithfully the engine's sensitivity model reproduces the filed memo at the
+ * base scenario. It is calibrated so the canned deals reproduce exactly; for an
+ * uploaded file it can drift (the fixed-charge base clamps at zero, the implied
+ * rate rounds): 'approximate' when the call matches but a risk score or a
+ * covenant reading differs, 'differs' when even the call does not. The filed
+ * call is the engine's own `recommendationFor(deal)`, the rule the memo used.
+ */
+export type BaseFidelity = 'exact' | 'approximate' | 'differs';
+
+const FIDELITY_CACHE = new WeakMap<Deal, BaseFidelity>();
+
+export function baseFidelity(deal: Deal): BaseFidelity {
+  const hit = FIDELITY_CACHE.get(deal);
+  if (hit !== undefined) return hit;
+  const b = evaluate(deal, baselineScenario(deal));
+  const same = (i: number) => {
+    const f = deal.covenants[i];
+    const m = b.covenants[i];
+    return !!f && !!m && f.status === m.status && f.actual === m.actual;
+  };
+  const v: BaseFidelity =
+    b.recommendation !== recommendationFor(deal)
+      ? 'differs'
+      : b.risk.score === deal.risk.score && b.covenants.length === deal.covenants.length && b.covenants.every((_, i) => same(i))
+        ? 'exact'
+        : 'approximate';
+  FIDELITY_CACHE.set(deal, v);
+  return v;
+}
+
+/** A point to read the nearest flip from: the scenario and the call standing there. */
+export interface FlipOrigin {
+  scenario: Scenario;
+  rec: Recommendation;
+}
+
+/**
+ * Appendix A: the nearest single-driver change of the call, read from the filed
+ * figures (or from `origin`, e.g. a revised structure). It only ever names a
+ * DIFFERENT call than the one standing: under APPROVE it says how far the call
+ * is from losing APPROVE, never "→ APPROVE".
  *  'Nearest flip · Total debt ≤ $90.4M (−$5.9M) → APPROVE'
  *  'No single driver reaches APPROVE in range · nearest change: Total debt ≤ $98.3M (−$13.7M) → ESCALATE'
+ *  'Nearest flip · Total debt ≥ $90.4M (+$0.1M) → ESCALATE' (from an APPROVE)
+ * When the model does not reproduce the standing call there, no flip is claimed.
  */
-export function nearestFlip(deal: Deal): string {
-  const base = baselineScenario(deal);
-  const baseRec = evaluate(deal, base).recommendation;
-  const candidates: { d: Driver; b: Boundary; dist: number }[] = [];
+export function nearestFlip(deal: Deal, origin?: FlipOrigin): string {
+  const scenario = origin ? origin.scenario : baselineScenario(deal);
+  const standing = origin ? origin.rec : recommendationFor(deal);
+  const fidelity: BaseFidelity = origin ? (evaluate(deal, scenario).recommendation === standing ? 'exact' : 'differs') : baseFidelity(deal);
+  if (fidelity === 'differs') {
+    return `The sensitivity model does not reproduce the ${tokenWord(standing)} call on these figures, so no nearest flip is shown`;
+  }
+  const lead = fidelity === 'approximate' ? 'Model approximation · ' : '';
+  const candidates: { d: Driver; b: Boundary; dist: number; from: number }[] = [];
   for (const d of driversFor(deal)) {
+    const from = scenario[d.key];
     for (const dir of [-1, 1] as const) {
-      const b = scanFrom(deal, base, d, d.base, dir);
-      if (!b) continue;
-      const dist = d.base !== 0 ? Math.abs(b.value - d.base) / Math.abs(d.base) : Math.abs(b.value - d.base);
-      candidates.push({ d, b, dist });
+      const b = scanFrom(deal, scenario, d, from, dir);
+      if (!b || b.rec === standing) continue;
+      const dist = from !== 0 ? Math.abs(b.value - from) / Math.abs(from) : Math.abs(b.value - from);
+      candidates.push({ d, b, dist, from });
     }
   }
   const nearest = (list: typeof candidates) => list.reduce<(typeof candidates)[number] | null>((best, c) => (!best || c.dist < best.dist ? c : best), null);
   const phrase = (c: (typeof candidates)[number]) =>
-    `${c.d.label} ${c.b.dir < 0 ? '≤' : '≥'} ${fmtDriverValue(c.d, c.b.value)} (${fmtDriverDelta(c.d, c.b.value - c.d.base)}) → ${tokenWord(c.b.rec)}`;
+    `${c.d.label} ${c.b.dir < 0 ? '≤' : '≥'} ${fmtDriverValue(c.d, c.b.value)} (${fmtDriverDelta(c.d, c.b.value - c.from)}) → ${tokenWord(c.b.rec)}`;
 
-  if (baseRec !== 'approve') {
+  if (standing !== 'approve') {
     const toApprove = nearest(candidates.filter((c) => c.b.rec === 'approve'));
-    if (toApprove) return `Nearest flip · ${phrase(toApprove)}`;
+    if (toApprove) return `${lead}Nearest flip · ${phrase(toApprove)}`;
     const any = nearest(candidates);
-    if (any) return `No single driver reaches ${tokenWord('approve')} in range · nearest change: ${phrase(any)}`;
-    return 'No single driver changes the recommendation in range';
+    if (any) return `${lead}No single driver reaches ${tokenWord('approve')} in range · nearest change: ${phrase(any)}`;
+    return `${lead}No single driver changes the recommendation in range`;
   }
   const any = nearest(candidates);
-  return any ? `Nearest flip · ${phrase(any)}` : 'No single driver changes the recommendation in range';
+  return any ? `${lead}Nearest flip · ${phrase(any)}` : `${lead}No single driver changes the recommendation in range`;
 }
 
 /**
@@ -200,18 +249,25 @@ export function changedDrivers(deal: Deal, scenario: Scenario): Driver[] {
  */
 export function stressRecord(deal: Deal, scenario: Scenario): { label: string; detail: string; key: string } {
   const base = baselineScenario(deal);
-  const b = evaluate(deal, base);
   const l = evaluate(deal, scenario);
+  // the base side is the FILED memo (its call, risk and breaches), never the model's
+  // re-computation, which can drift from the filed figures on an uploaded file
+  const filed = filedBase(deal);
   const parts = changedDrivers(deal, scenario).map(
     (d) => `${d.label} ${fmtDriverValue(d, base[d.key])}→${fmtDriverValue(d, scenario[d.key])}`,
   );
-  const result = b.recommendation !== l.recommendation ? 'flips' : 'holds';
+  const result = filed.rec !== l.recommendation ? 'flips' : 'holds';
   const changes = parts.length > 0 ? parts.join(', ') : 'Base case';
   return {
-    label: `Stress test attached · ${tokenWord(b.recommendation)} → ${tokenWord(l.recommendation)} (${result})`,
-    detail: `${changes} ⇒ risk ${b.risk.score}→${l.risk.score}, breaches ${b.breaches}→${l.breaches}`,
+    label: `Stress test attached · ${tokenWord(filed.rec)} → ${tokenWord(l.recommendation)} (${result})`,
+    detail: `${changes} ⇒ risk ${filed.score}→${l.risk.score}, breaches ${filed.breaches}→${l.breaches}`,
     key: scenarioKey(deal, scenario),
   };
+}
+
+/** The filed memo's base: its call (the engine's own rule), risk score and breach count. */
+export function filedBase(deal: Deal): { rec: Recommendation; score: number; breaches: number } {
+  return { rec: recommendationFor(deal), score: deal.risk.score, breaches: deal.covenants.filter((c) => c.status === 'breach').length };
 }
 
 const WORD_REC: Record<string, Recommendation> = { APPROVE: 'approve', ESCALATE: 'escalate', DECLINE: 'decline' };

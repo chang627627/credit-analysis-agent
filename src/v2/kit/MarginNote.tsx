@@ -1,6 +1,10 @@
 // MarginNote: a flag as a note in the margin beside the section it concerns (P-03).
 // Counted notes are washed in their meaning colour; info and signed-over notes sit on paper.
 // `active` (its anchored row is hovered) draws a 2px ink outline.
+// The note is a programmatic focus target (tabIndex -1, outside the tab order): the J / K
+// stepper and "Show note" hand focus to it, and its body is its description, so a screen
+// reader speaks the note's text on focus, not only its heading.
+import { useId } from 'react';
 import { LinkButton } from './LinkButton';
 import { StatusGlyph } from './StatusGlyph';
 import type { StatusKey } from './types';
@@ -23,10 +27,14 @@ export interface MarginNoteProps {
 }
 
 export function MarginNote({ id, tone, status, heading, children, meta, actions, active = false, onHover }: MarginNoteProps) {
+  // unique per rendered note (the kit page shows one note in several states at once)
+  const bodyId = useId();
   return (
     <aside
       className={`k-note k-note--${tone}${active ? ' is-active' : ''}`}
       aria-label={heading}
+      aria-describedby={bodyId}
+      tabIndex={-1}
       data-note={id}
       data-pattern="P-03"
       onPointerEnter={onHover ? () => onHover(true) : undefined}
@@ -44,7 +52,7 @@ export function MarginNote({ id, tone, status, heading, children, meta, actions,
         <StatusGlyph state={status} />
         <span className="k-note__heading t-label">{heading}</span>
       </div>
-      <p className="k-note__body t-small">{children}</p>
+      <p id={bodyId} className="k-note__body t-small">{children}</p>
       {meta ? <p className="k-note__meta t-meta">{meta}</p> : null}
       {actions && actions.length > 0 ? (
         <div className="k-note__actions">

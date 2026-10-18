@@ -117,7 +117,7 @@ export {
 // ---- selectors
 export { selectLiveDealId, isRunLive, onLiveFile, SPEED_STEPS, selectTopBar, selectTabTitle, policyChecks, selectPolicy } from './select-top';
 export { selectDesk } from './select-desk';
-export { selectFile, selectAsk, askRoute } from './select-file';
+export { selectFile, selectAsk, askRoute, routesOnSign } from './select-file';
 export { selectSignature, selectStress, selectExhibits } from './select-decision';
 export { selectBook } from './select-book';
 export { actorOf, chipOf, relabel, relabelMonitor, selectLedger } from './select-ledger';

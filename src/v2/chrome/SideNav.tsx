@@ -7,6 +7,7 @@ import { IconButton, NavItem, Tip } from '../kit';
 import { COPY, selectTopBar } from '../model';
 import type { Route } from '../state/route';
 import { useV2 } from '../state/store';
+import { useNarrowViewport } from '../state/nav';
 
 const ICONS = { desk: FileStack, book: Activity, ledger: ScrollText } as const;
 
@@ -20,6 +21,8 @@ export function SideNav({ collapsed, onToggle }: { collapsed: boolean; onToggle:
   const s = useV2();
   const v = selectTopBar(s);
   const a = s.actions;
+  const narrow = useNarrowViewport();
+  const rail = collapsed || narrow;
   return (
     <nav className="app-sidenav" aria-label={COPY.sectionsLabel}>
       <div className="app-sidenav__brand t-heading">
@@ -39,7 +42,7 @@ export function SideNav({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       <ul className="app-sidenav__list">
         {v.tabs.map((t) => (
           <li key={t.id}>
-            {collapsed ? (
+            {rail ? (
               <Tip label={t.count ? `${t.label} · ${t.count}` : t.label}>
                 <NavItem
                   icon={ICONS[t.id]}

@@ -7,7 +7,7 @@
 import type { AuditHistoryEntry, RunRecord } from '../../hooks/useCreditAgent';
 import type { CaseFileSnapshot, LedgerChip, MonitorLogEntry, V2Store } from '../state/store';
 import { EM, fmtClock, fmtDuration, fmtElapsed, fmtHM, fmtIso, plural } from './format';
-import { countedFlagsOf, runTiming } from './select-file';
+import { countedFlagsOf, runTiming, signedVerdict } from './select-file';
 import type { Actor, LedgerRow, LedgerRun, LedgerView, StatusKey, StatusText } from './types';
 import { COPY, provenanceText, STATUS_WORD, TOOL_LABEL, tokenWord, VERB_WORD } from './vocab';
 
@@ -191,7 +191,11 @@ function runHeader(s: V2Store, run: RunRecord, entries: AuditHistoryEntry[]): St
   }
   if (run.decision) {
     const state: StatusKey = run.decision === 'auto-countersigned' ? 'signed-auto' : 'signed';
-    return { state, text: `Run ${run.runId} · ${VERB_WORD[run.decision]}${word ? ` · concurs ${word}` : ''}${rev}`, meta };
+    // name what was signed: on amended terms that is the amended outcome, not the agent's call
+    const deal = s.snapshotList.find((x) => x.runId === run.runId)?.deal ?? a.dealsFull.find((d) => d.id === run.dealId);
+    const verdict =
+      run.recommendation && deal ? signedVerdict(deal, run.recommendation, run.amendments ?? null, 'amended terms') : word ? `concurs ${word}` : null;
+    return { state, text: `Run ${run.runId} · ${VERB_WORD[run.decision]}${verdict ? ` · ${verdict}` : ''}${rev}`, meta };
   }
   if (current && a.status === 'awaiting_approval') {
     return { state: 'awaiting', text: `Run ${run.runId} · ${STATUS_WORD.awaiting}${rev}`, meta };

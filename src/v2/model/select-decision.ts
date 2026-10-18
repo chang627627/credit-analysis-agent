@@ -12,10 +12,11 @@ import { amendedOutcome, baselineScenario, driversFor, evaluate } from '../../ag
 import type { DriverKey, Scenario } from '../../agent/whatif';
 import type { V2Store } from '../state/store';
 import { flagClause, overridesFromAmendments } from './flags';
-import { changedDrivers, fmtDriverDelta, fmtDriverValue, parseStressLabel, scenarioKey, stressRecord, stressZones } from './flip';
+import { baseFidelity, changedDrivers, filedBase, fmtDriverDelta, fmtDriverValue, parseStressLabel, scenarioKey, stressRecord, stressZones } from './flip';
 import { fmtHM, fmtM, fmtStamp, listJoin, plural } from './format';
 import { policyChecks, selectPolicy, verbsDead } from './select-top';
 import {
+  amendedRecOf,
   amendmentName,
   amendmentsOf,
   awaitingAtOf,
@@ -27,6 +28,8 @@ import {
   fileContext,
   returnedRecord,
   reworkN,
+  routesOnSign,
+  signedVerdict,
 } from './select-file';
 import type { FileCtx } from './select-file';
 import type { ExhibitView, PolicyView, SignatureState, SignatureView, StressView, TokenView } from './types';
@@ -67,22 +70,28 @@ function signsOver(n: number, breaches: number): string {
 /** §10 attestations: the consequence of the primary, stated before the reviewer commits. */
 function attestationFor(ctx: FileCtx, pkg: ApprovalPackage, amendments: Amendment[], n: number, breaches: number): string {
   const memo = pkg.memoId;
+  const agentRec = pkg.recommendation;
   if (amendments.length > 0) {
-    const amendedRec = amendedOutcome(ctx.deal, overridesFromAmendments(amendments)).recommendation;
+    const amendedRec = amendedRecOf(ctx.deal, amendments) ?? agentRec;
     const terms = listJoin(amendments.map((a) => `${amendmentName(a)} ${a.to}`));
     const recorded = amendments.length === 1 ? 'Your amended term is recorded with your signature.' : 'Your amended terms are recorded with your signature.';
+    // agreement is claimed only when the amended outcome IS the agent's call
+    const stance =
+      amendedRec === agentRec
+        ? `concurs with ${tokenWord(amendedRec)} on your amended terms (${terms})`
+        : `records ${tokenWord(amendedRec)} on your amended terms (${terms}), against the agent's ${tokenWord(agentRec)}`;
     if (amendedRec === 'approve') {
-      const tail = pkg.recommendation === 'escalate' ? 'Nothing routes onward: the amendment resolves the escalation.' : 'The memo is committed to the record.';
+      const tail = agentRec === 'escalate' ? 'Nothing routes onward: the amendment resolves the escalation.' : 'The memo is committed to the record.';
       return `Countersigning as amended approves ${memo} on your amended terms (${terms}). ${recorded} ${tail}`;
     }
     if (amendedRec === 'escalate') {
-      const tail =
-        pkg.recommendation === 'escalate'
-          ? 'The memo then routes to the escalation queue for senior credit review.'
-          : 'The memo is committed to the record.';
-      return `Countersigning as amended concurs with ${tokenWord('escalate')} on your amended terms. ${recorded} ${tail}`;
+      // the consequence comes from the routing rule itself, never from the outcome word
+      const tail = routesOnSign(pkg, ctx.deal, amendments, false)
+        ? 'The memo then routes to the escalation queue for senior credit review.'
+        : 'The memo is committed to the record. Nothing routes onward.';
+      return `Countersigning as amended ${stance}. ${recorded} ${tail}`;
     }
-    return `Countersigning as amended concurs with ${tokenWord('decline')} on your amended terms. ${recorded} The facility is recorded as declined as structured.`;
+    return `Countersigning as amended ${stance}. ${recorded} The facility is recorded as declined on your amended terms.`;
   }
   if (pkg.restructure) {
     const cure = cureOf(ctx, pkg.revision);
@@ -119,6 +128,10 @@ function breachSentence(deal: Deal): string {
  * The decision, stated where it is made: the agent's overall recommendation as a question to the
  * reviewer, with the reason the agent cannot settle it alone, and what each verb does. Lives beside
  * the verbs (the reviewer must never scroll back to the top of the memo to learn what they decide).
+ *
+ * "The agent recommends [TOKEN]" is ALWAYS the agent's own call (pkg.recommendation): an amendment
+ * is the reviewer's, so on amended terms the title asks about the amended outcome and the reason
+ * states it, but the token never moves. Every consequence caption reads the real routing rule.
  */
 function callFor(ctx: FileCtx, pkg: ApprovalPackage, amendments: Amendment[], notesLeft: number): {
   call: NonNullable<SignatureView['call']>;
@@ -129,26 +142,28 @@ function callFor(ctx: FileCtx, pkg: ApprovalPackage, amendments: Amendment[], no
   const nextRev = pkg.revision + 1;
   const breach = breachSentence(ctx.deal);
   const toReview = notesLeft > 0 ? ` ${plural(notesLeft, 'note')} above ${notesLeft === 1 ? 'is' : 'are'} yours to sign over.` : '';
-  let rec = pkg.recommendation;
+  const rec = pkg.recommendation;
   let title: string;
   let why: string;
   let sign: string;
   if (amendments.length > 0) {
-    rec = amendedOutcome(ctx.deal, overridesFromAmendments(amendments)).recommendation;
+    const amendedRec = amendedRecOf(ctx.deal, amendments) ?? rec;
     const terms = listJoin(amendments.map((a) => `${amendmentName(a)} ${a.to}`));
-    title =
-      rec === 'approve'
-        ? `Approve ${name} on your amended terms?`
-        : rec === 'escalate'
-          ? `Send ${name} to senior credit review on your amended terms?`
-          : `Decline ${name} on your amended terms?`;
-    why = `Re-tested on your amended terms (${terms}) with the same decision rule the agent uses.`;
-    sign =
-      rec === 'approve'
-        ? 'Approves on your amended terms.'
-        : rec === 'escalate'
-          ? 'Routes the memo to senior credit review.'
-          : 'Records the facility as declined.';
+    const routes = routesOnSign(pkg, ctx.deal, amendments, false);
+    why = `On your amended terms (${terms}) the same decision rule ${amendedRec === rec ? 'still gives' : 'gives'} ${tokenWord(amendedRec)}.`;
+    if (amendedRec === 'approve') {
+      title = `Approve ${name} on your amended terms?`;
+      sign = rec === 'escalate' ? 'Approves on your amended terms. Nothing routes onward.' : 'Approves on your amended terms.';
+    } else if (amendedRec === 'escalate' && routes) {
+      title = `Send ${name} to senior credit review on your amended terms?`;
+      sign = 'Routes the memo to senior credit review.';
+    } else if (amendedRec === 'escalate') {
+      title = `Countersign ${name} on your amended terms?`;
+      sign = 'Records the memo on your amended terms. Nothing routes onward.';
+    } else {
+      title = `Decline ${name} on your amended terms?`;
+      sign = 'Records the facility as declined on your amended terms.';
+    }
   } else if (pkg.restructure) {
     title = `Approve ${name} on the revised structure?`;
     why = `With ${fmtM(pkg.restructure.contribution)} of sponsor equity every covenant passes, so the same decision rule now approves.${toReview}`;
@@ -164,14 +179,16 @@ function callFor(ctx: FileCtx, pkg: ApprovalPackage, amendments: Amendment[], no
   } else {
     title = `Decline ${name}?`;
     why = `${breach} The risk score of ${score} is at or over the ${DECLINE_SCORE} decline line.`;
-    sign = 'Records the facility as declined.';
+    sign = 'You agree with the analysis: the facility is recorded as declined.';
   }
+  // On a DECLINE memo both verbs end the credit; what differs is whether you agree with the analysis.
+  const rej = rec === 'decline' ? 'You disagree with the analysis: the memo is refused. Note required.' : 'The credit does not proceed. Note required.';
   return {
     call: { lead: COPY.agentRecommends, token: tokenOf(rec), title, why },
     notes: {
       sign,
       ret: `The agent revises and returns rev ${nextRev}. Note required.`,
-      rej: 'The credit does not proceed. Note required.',
+      rej,
     },
   };
 }
@@ -266,8 +283,10 @@ export function selectSignature(s: V2Store, dealId: string): SignatureView | nul
     const stamp = fmtStamp(sealed.decidedAt);
     if (sealed.decision === 'auto-countersigned') sealedCaption = `${VERB_WORD['auto-countersigned']} · clean-approval policy · ${stamp}`;
     else if (sealed.outcome === 'reject') sealedCaption = `${VERB_WORD.rejected} · Reviewer · ${fmtHM(sealed.decidedAt)}`;
-    else if (sealed.decision === 'countersigned-amended') sealedCaption = `${VERB_WORD['countersigned-amended']} · approves on your amended terms · Reviewer · ${stamp}`;
-    else sealedCaption = `${VERB_WORD.countersigned} · concurs ${recWord} · Reviewer · ${stamp}`;
+    else if (sealed.decision === 'countersigned-amended' && pkg) {
+      // what was actually signed: the amended outcome re-tested on the recorded terms
+      sealedCaption = `${VERB_WORD['countersigned-amended']} · ${signedVerdict(ctx.deal, pkg.recommendation, sealed.amendments, 'your amended terms')} · Reviewer · ${stamp}`;
+    } else sealedCaption = `${VERB_WORD.countersigned} · concurs ${recWord} · Reviewer · ${stamp}`;
   }
   const js = g.justSigned;
   const animate =
@@ -438,13 +457,21 @@ export function selectStress(s: V2Store, dealId: string): StressView | null {
     };
   });
 
-  const b = evaluate(deal, base);
+  // The base is the FILED memo: its call, tests, risk and breaches. The engine's model is
+  // calibrated to reproduce them, but on an uploaded file it can drift, so "matches the
+  // filed figures" is claimed only when the model really reproduces them at base.
+  const filed = filedBase(deal);
+  const reproduces = baseFidelity(deal) === 'exact';
   const l = evaluate(deal, scenario);
-  const result = b.recommendation !== l.recommendation ? 'flips' : 'holds';
+  const result = filed.rec !== l.recommendation ? 'flips' : 'holds';
   const outcome = {
-    base: tokenOf(b.recommendation),
-    live: tokenOf(l.recommendation),
-    text: atBase ? 'matches the filed figures' : `${result} · risk ${b.risk.score} → ${l.risk.score} · breaches ${b.breaches} → ${l.breaches}`,
+    base: tokenOf(filed.rec),
+    live: tokenOf(atBase ? filed.rec : l.recommendation),
+    text: atBase
+      ? reproduces
+        ? 'matches the filed figures'
+        : 'the model approximates this file and differs from the filed figures'
+      : `${result} · risk ${filed.score} → ${l.risk.score} · breaches ${filed.breaches} → ${l.breaches}`,
     key: scenarioKey(deal, scenario),
   };
 
@@ -466,12 +493,13 @@ export function selectStress(s: V2Store, dealId: string): StressView | null {
     collapsedLine: COPY.stressCollapsed,
     openLabel: COPY.stressOpen,
     eyebrow: COPY.stressEyebrow,
-    baseLabel: pkg.restructure
-      ? `Base = filed figures · rev ${rev} proposes a restructure (see Revision ${rev})`
-      : `Base = filed figures (rev ${rev})`,
+    baseLabel:
+      (pkg.restructure
+        ? `Base = filed figures · rev ${rev} proposes a restructure (see Revision ${rev})`
+        : `Base = filed figures (rev ${rev})`) + (reproduces ? '' : ' · the sensitivity model approximates this file'),
     drivers,
     outcome,
-    covenants: l.covenants.map((c) => covenantRow(c, [], [], null)),
+    covenants: (atBase ? deal.covenants : l.covenants).map((c) => covenantRow(c, [], [], null)),
     attach,
     readonlyNote: available === 'readonly' ? COPY.attachLiveOnly : null,
     resetLabel: COPY.resetToBase,
@@ -483,8 +511,9 @@ export function selectStress(s: V2Store, dealId: string): StressView | null {
 // Exhibits (solid, part of the memo; always read from auditHistory by runId)
 // =============================================================================
 
-export function selectExhibits(s: V2Store, dealId: string): ExhibitView[] {
-  const ctx = fileContext(s, dealId);
+/** Exhibits of the run the file shows, or of an explicit context (the export passes the sealed one). */
+export function selectExhibits(s: V2Store, dealId: string, from?: FileCtx | null): ExhibitView[] {
+  const ctx = from ?? fileContext(s, dealId);
   if (!ctx) return [];
   const decidedAt = ctx.seal ? ctx.seal.decidedAt : null;
   const fallback: TokenView = tokenOf(ctx.pkg ? ctx.pkg.recommendation : 'escalate');

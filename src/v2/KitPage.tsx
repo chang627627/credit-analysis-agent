@@ -861,6 +861,13 @@ function StatusBoard() {
               {STATUS_WORD.breach}
             </StatusLabel>
           </Cell>
+          <Cell caption="truncate · one line, ellipsis in a 120px box (the doc-bar status)">
+            <span className="kp-truncbox">
+              <StatusLabel state="awaiting" role="label" truncate>
+                {STATUS_WORD.awaiting}
+              </StatusLabel>
+            </span>
+          </Cell>
         </Grid>
       </Group>
     </Board>

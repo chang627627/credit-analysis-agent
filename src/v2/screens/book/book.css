@@ -124,6 +124,21 @@
   color: var(--bad-ink);
 }
 
+/* ---- narrow tables: Tests, Risk and Checked hide on the table's OWN width ----
+   The kit hides those hideBelow-760 columns only below a 760 VIEWPORT, but beside the sidebar the
+   table is far narrower than the viewport: at 1100 with the sidebar expanded it is 802 wide, and
+   File (minmax(0, 1fr) next to 728 of fixed tracks) shrank to about 74, wrapping file names and
+   breaking borrowers mid-word. Below 948 (File's 220 floor + 728) the table switches to the
+   kit's template without them, so File keeps at least 280 down to the 760 stack point. */
+@container k-table (max-width: 947.98px) {
+  .v2 .book [role="table"] {
+    --k-cols-active: var(--k-cols-760);
+  }
+  .v2 .book [data-hide="760"] {
+    display: none;
+  }
+}
+
 /* ---- sub-rows: the span content of each indented item row, on the screen's own grid ---- */
 .book-sub {
   container: book-sub / inline-size;

@@ -12,19 +12,23 @@ import { useV2 } from '../../state/store';
 import type { V2Actions } from '../../state/store';
 
 /**
- * Column template from §7.1. Facility hides below 1120 and reappears under the borrower.
- * Action is 192, not 168: the md primary "Review and countersign" is about 166 wide and the
- * cell pads 12 + 12, so 168 would ellipsize the screen's one primary. File keeps its 1fr share
- * (238 at the 1040 column, above the 220 floor); its floor is 160 so that, once Facility hides,
- * the row still fits every container width down to the 760 stack point instead of clipping.
+ * Column template from §7.1. Facility reappears under the borrower whenever its column hides:
+ * below a 1120 viewport (kit) and whenever the TABLE is narrower than 1036 (desk.css container
+ * query), since the sidebar takes 216 (or the 64 rail) out of the viewport.
+ * Action is 208: the md primary "Review and countersign" measures about 175 to 178 with its
+ * 1px border and 12 + 12 padding, and the cell pads 12 + 12, so 192 left it 168 and ellipsized
+ * the screen's one primary. File keeps its 1fr share, 222 at the 1040 column, above the 220
+ * floor; desk.css hides Facility below a 1036 table (where File would drop under 220). File's
+ * own floor is 144 so that, once Facility hides, the row (144 + 88 + 120 + 200 + 208 = 760)
+ * fits every table width down to the 760 stack point instead of clipping the Action column.
  */
 const COLUMNS: TableColumn[] = [
-  { key: 'file', label: 'File', width: 'minmax(160px, 1fr)' },
+  { key: 'file', label: 'File', width: 'minmax(144px, 1fr)' },
   { key: 'facility', label: 'Facility', width: '200px', hideBelow: 1120 },
   { key: 'leverage', label: 'Leverage', width: '88px', align: 'end' },
   { key: 'call', label: "Agent's call", width: '120px' },
   { key: 'stage', label: 'Stage', width: '200px' },
-  { key: 'action', label: 'Action', width: '192px', align: 'end' },
+  { key: 'action', label: 'Action', width: '208px', align: 'end' },
 ];
 
 type DeskAction = NonNullable<DeskRow['action']>;

@@ -13,7 +13,7 @@ import { useEffect, useRef } from 'react';
 import { announceFor, selectFile, selectTabTitle } from '../model';
 import { toHash } from './route';
 import type { V2Internals, V2Store } from './store';
-import { buildSnapshot, routeEscalation, shouldRoute } from './files';
+import { buildSnapshot, isLiveStatus, routeEscalation, shouldRoute } from './files';
 import { clearReading, fileKeyOf, placeKeyOf, routeHygiene } from './ui';
 
 function safe<T>(fn: () => T, fallback: T): T {
@@ -66,6 +66,16 @@ export function useV2Effects(s: V2Store, x: V2Internals): void {
     prevRunId.current = agent.runId;
     clearReading(x);
   }, [agent.runId, x]);
+
+  // a confirm strip only ever offers to discard or replace a LIVE run: once the
+  // run is decided, cancelled or stopped by an error, the strip would promise a
+  // cancellation that can no longer happen, so it closes (none can reopen there:
+  // startFile and requestStop both require a live run)
+  const live = isLiveStatus(status);
+  useEffect(() => {
+    if (live) return;
+    x.setUi((u) => (u.confirm === null ? u : { ...u, confirm: null }));
+  }, [live, x]);
 
   // route changes that bypass navigate() (back / forward / a typed hash)
   const fileKey = fileKeyOf(s.route, x.hygiene.current.file);

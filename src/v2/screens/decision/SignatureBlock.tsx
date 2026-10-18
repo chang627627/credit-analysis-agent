@@ -9,10 +9,14 @@
 //
 // This file renders selectSignature verbatim and calls only store actions. Every rule (two-press
 // A, the policy countdown and its holds, need-note, the leaving and justSigned guards) lives in
-// state/gate.ts. Motion is CSS only: the ink draw and the rule recolour are the kit's, and the
+// state/gate.ts. Two-press is for the A key: a click (or Enter) on the visible primary verb is
+// deliberate and signs at once. requestSign('line') signs only while the reviewer line is in view,
+// so the primary first brings the line, instantly and minimally, into the band requestSign checks
+// (below the sticky doc bar); the ink then draws where the reviewer can see it.
+// Motion is CSS only: the ink draw and the rule recolour are the kit's, and the
 // sealed record and the swapped caption enter after the ink (delay --dur-3) only while the model
 // says the ink animates. Reduced motion zeroes every token, so the whole sequence is instant.
-import { useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import {
   Button,
   Chip,
@@ -37,6 +41,29 @@ const CLEARED_SUFFIX = ` · ${COPY.clearedByAmendment}`;
 
 /** States in which the reviewer line is the live, open line (registered for two-press A). */
 const OPEN_STATES: ReadonlySet<SignatureState> = new Set<SignatureState>(['gate', 'countdown', 'held', 'leaving']);
+
+/** Clearance kept between the revealed line and the doc bar / the window's bottom edge. */
+const REVEAL_PAD = 8;
+
+/**
+ * Scroll the reviewer line into the band state/gate.ts requestSign treats as visible (top at or
+ * below the [data-docbar] wrapper's bottom, bottom inside the window). Instant, so requestSign
+ * measures the new position in the same tick, and minimal, so the verbs usually stay in view too.
+ */
+function revealLine(el: HTMLElement): void {
+  const bar = document.querySelector('[data-docbar]');
+  const top = (bar ? bar.getBoundingClientRect().bottom : 0) + REVEAL_PAD;
+  const bottom = window.innerHeight - REVEAL_PAD;
+  const r = el.getBoundingClientRect();
+  const dy = r.top < top ? r.top - top : r.bottom > bottom ? r.bottom - bottom : 0;
+  if (dy === 0) return;
+  let box = el.parentElement;
+  while (box && !(box.scrollHeight > box.clientHeight && /(auto|scroll)/.test(getComputedStyle(box).overflowY))) {
+    box = box.parentElement;
+  }
+  const scroller = box ?? document.scrollingElement;
+  if (scroller) scroller.scrollTop += dy;
+}
 
 function Checks({ checks }: { checks: { ok: boolean; text: string }[] }) {
   return (
@@ -85,6 +112,22 @@ export function SignatureBlock({ dealId }: DecisionBlockProps) {
   const callId = useId();
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const [checksOpen, setChecksOpen] = useState(false);
+
+  // the open reviewer line: registered with the store (two-press A) and kept here for the primary
+  const lineEl = useRef<HTMLDivElement | null>(null);
+  const register = a.registerSignatureLine;
+  const lineRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      lineEl.current = el;
+      register(el);
+    },
+    [register],
+  );
+  const signFromPrimary = () => {
+    const el = lineEl.current;
+    if (el && el.isConnected) revealLine(el);
+    a.requestSign('line');
+  };
 
   // R or S with an empty note bumps focusTick: focus the note field (never on mount, never
   // when the tick resets for a new package).
@@ -162,7 +205,7 @@ export function SignatureBlock({ dealId }: DecisionBlockProps) {
               ink={r.ink}
               rejectedWord={r.rejectedWord ?? undefined}
               fillMs={r.fillMs}
-              lineRef={open ? a.registerSignatureLine : undefined}
+              lineRef={open ? lineRef : undefined}
               onActivate={live ? () => a.requestSign('line') : undefined}
             />
           </div>
@@ -236,7 +279,7 @@ export function SignatureBlock({ dealId }: DecisionBlockProps) {
               ) : null}
               <ul className="decision-sig__choices">
                 <li className="decision-sig__choice">
-                  <Button variant="primary" kbd={v.verbs.kbd.sign} onClick={() => a.requestSign('line')} disabled={v.verbs.disabled}>
+                  <Button variant="primary" kbd={v.verbs.kbd.sign} onClick={signFromPrimary} disabled={v.verbs.disabled}>
                     {v.verbs.primary}
                   </Button>
                   <span className="decision-ink3 t-meta">{v.verbs.notes.sign}</span>

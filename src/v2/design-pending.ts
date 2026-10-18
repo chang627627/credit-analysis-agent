@@ -62,9 +62,9 @@ export const PENDING: PendingPattern[] = [
   {
     id: 'P-04',
     type: 'component',
-    name: 'Evidence classes: Quoted ¶ / Derived / Unquoted / Model output',
+    name: 'Evidence classes: Quoted / Derived / Unquoted / Model output',
     description:
-      'One classifier gives every memo figure exactly one evidence class: Quoted with a ¶ cite into the CIM, Derived with its formula and operand cites, Unquoted (extracted) when no CIM sentence states it, or Model output. V1 made a figure citable only when it appeared in the document, and said nothing about the rest.',
+      'One classifier gives every memo figure exactly one evidence class: Quoted with a paragraph cite into the CIM ("CIM para 2"), Derived with its formula and operand cites, Unquoted (extracted) when no CIM sentence states it, or Model output. V1 made a figure citable only when it appeared in the document, and said nothing about the rest.',
     evidence: 'V2 spec §1 pillar 1 and §9.4 evidenceFor; V1 click-through provenance (CLAUDE.md, backlog #3)',
     proposedBy: BY,
     proposedDate: ON,
@@ -160,7 +160,7 @@ export const PENDING: PendingPattern[] = [
     type: 'layout',
     name: 'Source on demand from the doc bar (push ≥ 1432px, overlay below)',
     description:
-      'The CIM opens from a horizontal "Source CIM · n quoted" toggle in the doc bar, or from any ¶ cite: as a pushed 360px column at 1432px and wider, or as an overlay below that. Revised on owner feedback: the first version used a 40px vertical spine whose rotated label was unreadable.',
+      'The CIM opens from a horizontal "Source CIM · n quoted" toggle in the doc bar, or from any paragraph cite: as a pushed 360px column at 1432px and wider, or as an overlay below that. Revised on owner feedback: the first version used a 40px vertical spine whose rotated label was unreadable.',
     evidence: 'V2 spec §3 Source pane; V1 document panel and width guard (CLAUDE.md, backlog #3)',
     proposedBy: BY,
     proposedDate: ON,

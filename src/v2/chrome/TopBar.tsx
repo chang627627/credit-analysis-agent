@@ -1,20 +1,16 @@
-// The top bar (spec §3): the current section's name, then the policy switch, demo pace,
-// search and Compare V1. Navigation lives in the sidebar (P-21). No theme toggle, no primary.
+// The top bar (spec §3): the current section's name, then the policy switch and search.
+// Navigation lives in the sidebar (P-21). Demo pace and Compare V1 were removed on owner
+// request (V1 stays reachable at /?v=1). No theme toggle, no primary.
 import { Search } from 'lucide-react';
-import { Button, IconButton, LinkButton, Menu, Switch } from '../kit';
+import { Button, IconButton, Menu, Switch } from '../kit';
 import { COPY, selectTopBar } from '../model';
 import { useV2 } from '../state/store';
-
-const COMPARE_HREF = '/?v=1';
 
 export function TopBar() {
   const s = useV2();
   const v = selectTopBar(s);
   const a = s.actions;
   const togglePolicy = (on: boolean) => a.setPolicy(on ? 'auto' : 'gate');
-  const openCompare = () => {
-    window.open(COMPARE_HREF, '_blank', 'noopener');
-  };
 
   return (
     <header className="app-topbar">
@@ -32,16 +28,6 @@ export function TopBar() {
             <Switch checked={v.policyOn} onChange={togglePolicy} ariaLabel={v.policyLabel} />
           </label>
           <span className="app-divider" aria-hidden="true" />
-          <Menu
-            label={COPY.paceLabel}
-            trigger={{ text: v.speedLabel, variant: 'ghost' }}
-            items={v.speeds.map((sp) => ({
-              id: `speed-${sp.value}`,
-              label: sp.label,
-              checked: sp.checked,
-              onSelect: () => a.setSpeed(sp.value),
-            }))}
-          />
         </div>
 
         <div className="app-topbar__search">
@@ -51,12 +37,6 @@ export function TopBar() {
         </div>
         <div className="app-topbar__search-compact">
           <IconButton icon={Search} label="Search" size="sm" onClick={() => a.setPaletteOpen(true)} />
-        </div>
-
-        <div className="app-topbar__full">
-          <LinkButton role="label" href={COMPARE_HREF} newTab>
-            {COPY.compareV1}
-          </LinkButton>
         </div>
 
         <div className="app-topbar__more">
@@ -70,13 +50,6 @@ export function TopBar() {
                 checked: v.policyOn,
                 onSelect: () => togglePolicy(!v.policyOn),
               },
-              ...v.speeds.map((sp) => ({
-                id: `more-speed-${sp.value}`,
-                label: `${COPY.paceLabel} ${sp.label}`,
-                checked: sp.checked,
-                onSelect: () => a.setSpeed(sp.value),
-              })),
-              { id: 'compare', label: COPY.compareV1, onSelect: openCompare },
             ]}
           />
         </div>

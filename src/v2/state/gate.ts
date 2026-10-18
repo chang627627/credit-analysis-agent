@@ -9,6 +9,11 @@
 //   - no countdown completes off screen: it arms only while the live file is
 //     the route and the tab is visible, and re-checks every condition at the
 //     deadline;
+//   - an open Stop or Re-run confirm strip is engagement: the countdown holds
+//     under it and never arms, so the policy cannot sign a memo the reviewer is
+//     deciding whether to discard;
+//   - a note counts as opened only at the live gate, before the seal, so a
+//     sealed record never changes after the signature;
 //   - every verb is dead while the block recedes (leaving) and once this run
 //     has been signed;
 //   - signing is two-phase: the first press only brings the line into view.
@@ -140,9 +145,16 @@ export function holdAuto(x: V2Internals, reason: HoldReason): void {
   if (counting) x.announce('held');
 }
 
-/** Record that the reviewer explicitly opened a flag's note (never blocks). */
+/**
+ * Record that the reviewer was shown a flag's note (never blocks). Only the
+ * live gate's draft takes a mark: before the package's draft exists, while the
+ * block recedes, and once the run is signed (a sealed record) nothing changes.
+ */
 export function markOpenedIn(x: V2Internals, flagId: string): void {
+  const s = x.current();
+  if (!atGate(s) || verbsDead(s)) return;
   const g = x.gateRef.current;
+  if (g.pkgKey !== pkgKeyOf(s.agent)) return;
   if (g.opened.includes(flagId)) return;
   x.setGate({ ...g, opened: [...g.opened, flagId] });
 }
@@ -382,11 +394,20 @@ export function useGateEffects(s: V2Store, x: V2Internals): void {
     x.announce('gate');
   }, [key, x]);
 
-  // arm while eligible and visible; when that stops, say why (a hold) or just stop
+  // arm while eligible and visible; when that stops, say why (a hold) or just stop.
+  // An open confirm strip (Stop, or a start that would replace this run) is
+  // engagement: it holds instead of arming. This covers a gate reached under a
+  // strip opened while drafting, and a palette Stop or Re-run that navigates to
+  // the file and opens its strip in the same tick.
   const armed = isArmed(s);
+  const confirmOpen = s.ui.confirm !== null;
   useEffect(() => {
     const g = x.gateRef.current;
     if (armed) {
+      if (x.uiRef.current.confirm !== null) {
+        holdAuto(x, 'engaged');
+        return;
+      }
       if (g.autoDeadline === null && !g.held) x.setGate({ ...g, autoDeadline: Date.now() + AUTO_COUNTDOWN_MS });
       return;
     }
@@ -397,7 +418,7 @@ export function useGateEffects(s: V2Store, x: V2Internals): void {
     else if (!onLiveFile(c)) holdAuto(x, 'left');
     else if (!c.tabVisible) holdAuto(x, 'hidden');
     else x.setGate({ ...g, autoDeadline: null });
-  }, [armed, s.gate.autoDeadline, s.gate.held, x]);
+  }, [armed, confirmOpen, s.gate.autoDeadline, s.gate.held, x]);
 
   // at the deadline, re-check EVERY arming condition before the policy signs
   const deadline = s.gate.autoDeadline;
@@ -407,6 +428,10 @@ export function useGateEffects(s: V2Store, x: V2Internals): void {
       const c = x.current();
       if (c.gate.autoDeadline !== deadline) return;
       if (!isArmed(c)) return;
+      if (c.ui.confirm !== null) {
+        holdAuto(x, 'engaged');
+        return;
+      }
       signAuto(x, c);
     }, Math.max(0, deadline - Date.now()));
     return () => window.clearTimeout(id);

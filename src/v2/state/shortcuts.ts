@@ -2,8 +2,11 @@
 // The keyboard map (spec §7.6), implemented once.
 //
 //   ⌘K / Ctrl K   toggle the palette (everywhere)
-//   ⌘↵ / Ctrl ↵   approve the live plan as edited; else Draft memo on a file
-//                 whose primary is draft (never while extraction runs)
+//   ⌘↵ / Ctrl ↵   on the live file in plan review: approve its plan as edited;
+//                 on any other file: that file's own primary when it is Draft
+//                 memo (never while extraction runs), which opens the confirm
+//                 strip if a run is live. A plan is never approved from a route
+//                 where it is not on screen.
 //   A / S / R     live file at the gate only: sign (two-phase) / return / reject
 //   J / K         file route: next / previous counted note
 //   [             file route: toggle the source pane
@@ -19,6 +22,7 @@
 import { useEffect } from 'react';
 import { selectFile, selectLiveDealId } from '../model';
 import type { V2Internals } from './store';
+import { SOURCE_OVERLAY_MAX } from './ui';
 
 /** Focus is in a field that consumes letters (input, textarea, select, contenteditable). */
 function isTyping(target: EventTarget | null): boolean {
@@ -53,12 +57,13 @@ export function useShortcuts(x: V2Internals): void {
       }
 
       if (mod && !e.altKey && e.key === 'Enter') {
-        if (s.agent.status === 'plan_review') {
+        const r = s.route;
+        // the plan the reviewer approves is the one on screen: the live file's route only
+        if (s.agent.status === 'plan_review' && r.name === 'file' && r.dealId === selectLiveDealId(s)) {
           e.preventDefault();
           a.approvePlan();
           return;
         }
-        const r = s.route;
         if (r.name === 'file' && !s.agent.parsing) {
           const view = selectFile(s, r.dealId);
           if (view && view.primary && view.primary.action === 'draft' && !view.primary.disabled) {
@@ -121,7 +126,7 @@ export function useShortcuts(x: V2Internals): void {
             a.cancelConfirm();
             return;
           }
-          if (onFile && s.ui.sourceOpen && window.innerWidth < 1432) {
+          if (onFile && s.ui.sourceOpen && window.innerWidth <= SOURCE_OVERLAY_MAX) {
             a.closeSource();
             return;
           }

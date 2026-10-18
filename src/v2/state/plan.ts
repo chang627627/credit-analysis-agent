@@ -4,9 +4,11 @@
 // route switch never re-checks an excluded step or re-arms a held countdown.
 //
 // The countdown arms only while the live file is on screen with the tab
-// visible; leaving or hiding the tab holds it, and an expiry re-checks every
-// condition before calling approvePlan(..., { auto: true }), which the engine
-// records as "Plan auto-started · unattended countdown", never as approval.
+// visible; leaving or hiding the tab holds it, an open confirm strip (Stop, or
+// a start that would close this review) holds it as engagement, and an expiry
+// re-checks every condition before calling approvePlan(..., { auto: true }),
+// which the engine records as "Plan auto-started · unattended countdown",
+// never as approval.
 // ---------------------------------------------------------------------------
 
 import { useEffect, useRef } from 'react';
@@ -77,14 +79,21 @@ export function usePlanEffects(s: V2Store, x: V2Internals): void {
     }
   }, [status, x]);
 
-  // arm while armable; leaving the file or hiding the tab while armed holds it
+  // arm while armable; leaving the file or hiding the tab while armed holds it,
+  // and an open confirm strip holds it instead of arming (a palette start
+  // navigates to the file and opens its strip in the same tick)
   const canArm = armable(s);
   const inReview = status === 'plan_review';
+  const confirmOpen = s.ui.confirm !== null;
   useEffect(() => {
     if (!inReview) return;
     const p = x.planRef.current;
     if (p.held) return;
     if (canArm) {
+      if (x.uiRef.current.confirm !== null) {
+        x.setPlan({ ...p, held: true, holdReason: 'manual', deadline: null });
+        return;
+      }
       if (p.deadline === null) {
         x.setPlan({ ...p, deadline: Date.now() + PLAN_COUNTDOWN_S(x.current().agent.speed) * 1000 });
       }
@@ -93,7 +102,7 @@ export function usePlanEffects(s: V2Store, x: V2Internals): void {
     if (p.deadline === null) return; // never armed (gate reached off-file): wait for the file to open
     const c = x.current();
     x.setPlan({ ...p, held: true, holdReason: onLiveFile(c) ? 'hidden' : 'left', deadline: null });
-  }, [canArm, inReview, s.plan.held, s.plan.deadline, x]);
+  }, [canArm, inReview, confirmOpen, s.plan.held, s.plan.deadline, x]);
 
   // the expiry re-checks every arming condition, then starts the plan as edited, unattended
   const deadline = s.plan.deadline;
@@ -103,6 +112,10 @@ export function usePlanEffects(s: V2Store, x: V2Internals): void {
       const c = x.current();
       if (c.plan.deadline !== deadline) return;
       if (!armable(c)) return;
+      if (c.ui.confirm !== null) {
+        x.setPlan({ ...c.plan, held: true, holdReason: 'manual', deadline: null });
+        return;
+      }
       x.setPlan({ ...c.plan, deadline: null });
       c.agent.approvePlan([...c.plan.enabledIds], { auto: true });
     }, Math.max(0, deadline - Date.now()));

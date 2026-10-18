@@ -1,13 +1,15 @@
 // ---------------------------------------------------------------------------
 // Case file · the source pane (spec §3 "Source pane", §7.2 "Source pane").
 // Closed: nothing (the doc bar carries a horizontal toggle). Open: the CIM with
-// ¶ addresses and every quoted span marked; the active cite carries a 2px ink
-// outline and scrolls into view. At 1432px and up it pushes the canvas
-// (360px column); below it floats over the canvas's left edge (file.css).
-// Esc and `[` are handled once in state/shortcuts.ts.
+// numbered paragraphs and every quoted span marked; the active cite carries a
+// 2px ink outline and scrolls into view. At 1432px and up it pushes the canvas
+// (360px column); below it floats over the canvas under the doc bar, never
+// wider than the pane (file.css). Esc and `[` are handled once in
+// state/shortcuts.ts. Closing it while focus is inside (its close button, Esc,
+// `[`) hands focus back to the doc bar's Source toggle instead of dropping it.
 // ---------------------------------------------------------------------------
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { ArrowDown, ArrowUp, ChevronsLeft, X } from 'lucide-react';
 import { Chip, IconButton, LinkButton } from '../../kit';
 import { COPY } from '../../model';
@@ -21,9 +23,22 @@ const CLEAR_CITES = 'Clear cites';
 const BORROWER = 'Borrower';
 const FACILITY = 'Facility';
 
+/** The doc bar's Source toggle that is showing (DocBar renders a labelled and an icon form). */
+function focusSourceToggle(): void {
+  const candidates = document.querySelectorAll<HTMLElement>('[data-source-toggle] button');
+  for (const el of Array.from(candidates)) {
+    if (el.getClientRects().length > 0) {
+      el.focus({ preventScroll: true });
+      return;
+    }
+  }
+}
+
 export function SourcePane(props: { source: SourceView; dealId: string; actions: V2Actions; reducedMotion: boolean }) {
   const { source: v, dealId, actions: a, reducedMotion } = props;
   const bodyRef = useRef<HTMLDivElement>(null);
+  // the last element focused inside the pane: if closing removes it, focus would fall to <body>
+  const lastFocus = useRef<HTMLElement | null>(null);
 
   // the active span (block centre) whenever the cite index moves
   let activeMark: string | null = null;
@@ -39,11 +54,29 @@ export function SourcePane(props: { source: SourceView; dealId: string; actions:
     if (el) el.scrollIntoView({ block: 'center', behavior: reducedMotion ? 'auto' : 'smooth' });
   }, [v.open, activeMark, stepLabel]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // closed with focus inside (close button, Esc, `[`): return it to the toggle, after the commit
+  // that removed the pane and relabelled the toggle. Focus that already moved elsewhere stays.
+  useLayoutEffect(() => {
+    if (v.open) return;
+    const el = lastFocus.current;
+    lastFocus.current = null;
+    if (!el || el.isConnected) return;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    focusSourceToggle();
+  }, [v.open]);
+
   // closed: no column at all. The doc bar's horizontal 'Source CIM · n quoted' toggle opens it.
   if (!v.open) return null;
 
   return (
-    <aside className="file-source" aria-label={v.heading}>
+    <aside
+      className="file-source"
+      aria-label={v.heading}
+      onFocus={(e) => {
+        lastFocus.current = e.target instanceof HTMLElement ? e.target : null;
+      }}
+    >
       <div className="file-source__panel">
         <div className="file-source__head">
           <span className="file-source__heading t-label">{v.heading}</span>

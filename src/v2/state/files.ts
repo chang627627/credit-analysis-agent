@@ -12,10 +12,9 @@ import { useCallback, useState } from 'react';
 import type { Deal } from '../../agent/mockData';
 import { getPlan } from '../../agent/runAgent';
 import type { Amendment, ApprovalPackage } from '../../agent/types';
-import { amendedOutcome } from '../../agent/whatif';
 import type { RunDecision, RunStatus } from '../../hooks/useCreditAgent';
 import type { MonitorApi } from '../../hooks/useMonitor';
-import { buildFileExport, buildSessionExport, overridesFromAmendments } from '../model';
+import { buildFileExport, buildSessionExport, routesOnSign } from '../model';
 import type { CaseFileSnapshot, V2Actions, V2Internals, V2Store } from './store';
 import { holdAuto } from './gate';
 
@@ -48,13 +47,13 @@ export function download(filename: string, payload: unknown): void {
  * decide rule, return APPROVE. Overrides are read from the RECORD (the
  * amendments on run_finished), never from gate state after the seal. A policy
  * signature never routes (it only ever signs a clean APPROVE).
+ *
+ * The rule itself lives in the model (`routesOnSign`), which every consequence
+ * line reads (decision panel caption, attestation, seal, Ledger); routing
+ * delegates to it so what the reviewer is told and what happens cannot diverge.
  */
 export function shouldRoute(pkg: ApprovalPackage, deal: Deal, amendments: Amendment[] | null, auto: boolean): boolean {
-  if (pkg.recommendation !== 'escalate' || auto) return false;
-  if (amendments && amendments.length > 0) {
-    if (amendedOutcome(deal, overridesFromAmendments(amendments)).recommendation === 'approve') return false;
-  }
-  return true;
+  return routesOnSign(pkg, deal, amendments, auto);
 }
 
 /** Raise the routed memo into the monitor queue (the hook dedupes by key forever). */
@@ -149,19 +148,26 @@ export type FileActions = Pick<
 export function createFileActions(x: V2Internals): FileActions {
   /**
    * Asking to discard the live run (Stop, or a start that would replace it) is
-   * engagement: a running clean-approval countdown holds before the confirm
-   * strip opens, so the policy can never sign the memo while the reviewer is
-   * deciding whether to throw it away. Only a running countdown is held; a gate
-   * that never armed (reached off screen) keeps its own state.
+   * engagement: a running clean-approval countdown, or a running plan
+   * auto-start countdown, holds before the confirm strip opens, so neither can
+   * fire while the reviewer is deciding whether to throw the run away. A
+   * countdown that never armed (reached off screen) is held by the gate and
+   * plan effects instead, which refuse to arm under an open strip.
    */
   const holdRunningCountdown = () => {
     if (x.gateRef.current.autoDeadline !== null) holdAuto(x, 'engaged');
+    if (x.planRef.current.deadline !== null) {
+      x.setPlan((p) => ({ ...p, held: true, holdReason: 'manual', deadline: null }));
+    }
   };
 
   const doStart = (dealId: string) => {
     const s = x.current();
     if (s.agent.parsing) return;
     if (!s.agent.dealsFull.some((d) => d.id === dealId)) return;
+    // a new run never inherits a strip written about the previous one (effects.ts also
+    // closes any strip once a run stops being live; this covers a start in the same tick)
+    x.setUi((u) => (u.confirm === null ? u : { ...u, confirm: null }));
     s.agent.start(dealId);
     // a fresh plan review even when one was already open (plan_review to plan_review)
     x.setPlan({ enabledIds: getPlan().map((p) => p.id), held: false, holdReason: null, deadline: null });

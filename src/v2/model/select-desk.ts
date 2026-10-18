@@ -38,7 +38,9 @@ export function selectDesk(s: V2Store): DeskView {
     const lev = deal.covenants.find((c) => covenantKind(c.name) === 'leverage');
     const ceiling = lev ? parseThreshold(lev.threshold).value : null;
     const showCall = !!ctx.pkg && (ctx.mode === 'gate' || ctx.mode === 'sealed');
-    const confirm = s.ui.confirm && s.ui.confirm.kind === 'start' && s.ui.confirm.dealId === deal.id ? startConfirmCopy(s, deal.id) : null;
+    // a start confirm is about discarding a LIVE run; once that run is decided it never renders
+    const confirm =
+      s.ui.confirm && s.ui.confirm.kind === 'start' && s.ui.confirm.dealId === deal.id && isRunLive(s) ? startConfirmCopy(s, deal.id) : null;
     const row: DeskRow = {
       dealId: deal.id,
       name: deal.name,

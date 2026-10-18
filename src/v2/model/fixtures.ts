@@ -1018,6 +1018,8 @@ export const FX_FILE_ATLAS_REV2: FileView = {
       sentence: 'Approve the revised structure. $6.0M sponsor equity clears every covenant; risk 55 (B2 / Speculative).',
       summary: ATLAS_REV2_SUMMARY,
       keyFigures: KEYFIGS_ATLAS_REV2,
+      // read from the revised figures: how far the revised APPROVE is from being lost
+      nearestFlip: `${COPY.flipOnRevised} · Nearest flip · Total debt ≥ $90.5M (+$0.2M) → ESCALATE`,
     }),
     secFinancials(),
     secRisk(),
@@ -1319,10 +1321,10 @@ const NOTE_EMPTY: NonNullable<SignatureView['note']> = {
   chip: null,
   hint: null,
 };
-const VERB_NOTES = (sign: string, _cure: boolean, nextRev = 2): NonNullable<SignatureView['verbs']>['notes'] => ({
+const VERB_NOTES = (sign: string, _cure: boolean, nextRev = 2, rej = 'The credit does not proceed. Note required.'): NonNullable<SignatureView['verbs']>['notes'] => ({
   sign,
   ret: `The agent revises and returns rev ${nextRev}. Note required.`,
-  rej: 'The credit does not proceed. Note required.',
+  rej,
 });
 const VERBS = (primary: string, notes: NonNullable<SignatureView['verbs']>['notes'] = VERB_NOTES('Routes the memo to senior credit review.', true)): NonNullable<SignatureView['verbs']> => ({
   primary,
@@ -1388,8 +1390,9 @@ export const FX_SIG_ATLAS_AMENDED: SignatureView = {
   amendment: { text: 'Amended terms · Max Total Leverage ≤ 4.00x → ≤ 4.30x · as amended', token: APPROVE, revertLabel: COPY.revert },
   attestation:
     'Countersigning as amended approves CAM-2026-0417 on your amended terms (Max Total Leverage ≤ 4.30x). Your amended term is recorded with your signature. Nothing routes onward: the amendment resolves the escalation.',
-  call: { lead: COPY.agentRecommends, token: APPROVE, title: 'Approve Project Atlas on your amended terms?', why: 'Re-tested on your amended terms (Max Total Leverage ≤ 4.30x) with the same decision rule the agent uses.' },
-  verbs: VERBS('Countersign as amended', VERB_NOTES('Approves on your amended terms.', false)),
+  // the token stays the AGENT's call (ESCALATE); the amended outcome is the reviewer's, stated in the reason
+  call: { lead: COPY.agentRecommends, token: ESCALATE, title: 'Approve Project Atlas on your amended terms?', why: 'On your amended terms (Max Total Leverage ≤ 4.30x) the same decision rule gives APPROVE.' },
+  verbs: VERBS('Countersign as amended', VERB_NOTES('Approves on your amended terms. Nothing routes onward.', false)),
 };
 
 /** Atlas rev 2 gate on the revised structure; policy on and correctly not eligible. */
@@ -1476,7 +1479,10 @@ export const FX_SIG_COBALT_GATE: SignatureView = {
   attestation:
     "Countersigning concurs with the agent's DECLINE on CAM-2026-0419 and signs over 5 notes, including 4 covenant breaches. The facility is recorded as declined as structured.",
   call: { lead: COPY.agentRecommends, token: DECLINE, title: 'Decline Project Cobalt?', why: 'All 4 covenants breach, led by Max Total Leverage 5.66x against ≤ 4.00x. The risk score of 82 is at or over the 75 decline line.' },
-  verbs: VERBS('Countersign decline', VERB_NOTES('Records the facility as declined.', true)),
+  verbs: VERBS(
+    'Countersign decline',
+    VERB_NOTES('You agree with the analysis: the facility is recorded as declined.', true, 2, 'You disagree with the analysis: the memo is refused. Note required.'),
+  ),
   sealed: null,
 };
 

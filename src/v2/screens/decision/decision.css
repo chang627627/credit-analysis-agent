@@ -22,6 +22,8 @@
   padding-top: 32px;
   border-top: 1px solid var(--line);
   transition: opacity var(--dur-2) var(--ease-out);
+  /* the verbs size against the block's own width (the sidebar and the source change it) */
+  container: decision-sig / inline-size;
 }
 /* return for revision: the whole block recedes while the loop waits out --dur-2 */
 .decision-sig--leaving { opacity: 0.4; }
@@ -83,22 +85,38 @@
 .decision-sig__calllead { display: flex; align-items: center; gap: 8px; }
 .decision-sig__why { max-width: 64ch; }
 .decision-sig__choices {
-  /* one horizontal row of verbs; each consequence sits under its own button */
-  display: grid;
-  grid-auto-flow: column;
-  grid-template-rows: auto auto;
-  justify-content: start;
-  column-gap: 16px;
-  row-gap: 8px;
+  /* ONE horizontal row of verbs (owner decision): each verb is a unit, its button with the
+     consequence under it. Where the row does not fit, the next verb wraps sideways onto a new
+     line; it never turns into a one-column table and never squeezes a label into an ellipsis. */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px 16px;
   list-style: none;
 }
-.decision-sig__choice { display: contents; }
-/* the caption takes its button's width without widening the column */
+.decision-sig__choice {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 100%;
+}
+/* the caption takes its button's width without widening the unit */
 .decision-sig__choice > span { width: 0; min-width: 100%; }
 .decision-sig__decide .decision-sig__attest { max-width: none; color: var(--ink-3); }
-@media (max-width: 759px) {
-  .decision-sig__choices { grid-auto-flow: row; grid-template-rows: none; grid-template-columns: minmax(0, 1fr); row-gap: 4px; }
-  .decision-sig__choice > span { width: auto; margin-bottom: 8px; }
+/* A phone-width block (under 288, below about a 426 viewport beside the rail): the panel goes
+   flat (rules above and below, no side padding or frame) and the verbs drop their decorative,
+   aria-hidden Kbd chips (A/S/R still work), so the longest verb, "Countersign revised structure"
+   (about 212 without its chip, 238 with it), stays whole down to a 360 viewport (222 block). */
+@container decision-sig (max-width: 287px) {
+  .decision-sig__decide {
+    padding: 16px 0;
+    border-width: 1px 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .decision-sig__choice button > span[aria-hidden="true"] { display: none; }
 }
 
 /* the sealed record enters; on the signing transition it waits for the ink (--dur-3) */

@@ -14,7 +14,7 @@ import type { CovenantTest, Deal, ExtractedFinancials, RiskScore } from '../../a
 import { DECLINE_SCORE, ratingFor, riskTone } from '../../agent/rating';
 import { getPlan } from '../../agent/runAgent';
 import type { Amendment, ApprovalPackage, Flag, NoteProvenance, PlanStep, Recommendation } from '../../agent/types';
-import { amendedOutcome, decide, findCure } from '../../agent/whatif';
+import { amendedOutcome, baselineScenario, decide, findCure } from '../../agent/whatif';
 import type { AuditHistoryEntry, RunDecision, RunRecord, StepView } from '../../hooks/useCreditAgent';
 import type { CaseFileSnapshot, PresentedAtSign, V2Store } from '../state/store';
 import {
@@ -33,7 +33,8 @@ import {
 } from './evidence';
 import type { QuotedSpan } from './evidence';
 import { amendmentsFor, anchorFor, classifyFlag, covenantKind, isCounted, overridesFromAmendments, sectionOfStep } from './flags';
-import { nearestFlip } from './flip';
+import { nearestFlip, scenarioKey } from './flip';
+import type { FlipOrigin } from './flip';
 import {
   dotJoin,
   fmtAgo,
@@ -53,6 +54,7 @@ import { startConfirmCopy, stopConfirmCopy } from './select-commands';
 import {
   dealOf,
   entriesOf,
+  isRunLive,
   latestAwaitingAt,
   latestRunOfDeal,
   runOf,
@@ -310,13 +312,39 @@ export function amendmentName(a: Amendment): string {
   return a.label.replace(/ covenant$/, '');
 }
 
-/** A countersigned ESCALATE routes onward unless the recorded amendments resolve it to APPROVE (mirrors state/files). */
+/**
+ * A countersigned ESCALATE routes onward unless the recorded amendments resolve it to APPROVE.
+ * This is the ONE predicate every consequence line reads (decision panel, attestation, seal);
+ * state/files `shouldRoute` performs the routing and must stay identical to it.
+ */
 export function routesOnSign(pkg: ApprovalPackage, deal: Deal, amendments: Amendment[] | null, auto: boolean): boolean {
   if (pkg.recommendation !== 'escalate' || auto) return false;
-  if (amendments && amendments.length > 0 && amendedOutcome(deal, overridesFromAmendments(amendments)).recommendation === 'approve') {
-    return false;
-  }
+  if (amendedRecOf(deal, amendments) === 'approve') return false;
   return true;
+}
+
+/** The call the same decide rule gives on the amended terms (null when nothing is amended). */
+export function amendedRecOf(deal: Deal, amendments: Amendment[] | null): Recommendation | null {
+  return amendments && amendments.length > 0 ? amendedOutcome(deal, overridesFromAmendments(amendments)).recommendation : null;
+}
+
+/**
+ * What a countersignature commits, said against the agent's own call, for the sealed caption,
+ * the case-file seal and the Ledger run header. As filed: 'concurs ESCALATE'. As amended, the
+ * amended outcome (never the agent's call): 'approves on <terms>', 'concurs ESCALATE on <terms>'
+ * when it is the agent's call too, else 'records ESCALATE on <terms>'.
+ */
+export function signedVerdict(deal: Deal, agentRec: Recommendation, amendments: Amendment[] | null, terms: string): string {
+  const am = amendedRecOf(deal, amendments);
+  if (am === null) return `concurs ${tokenWord(agentRec)}`;
+  if (am === 'approve') return `approves on ${terms}`;
+  return `${am === agentRec ? 'concurs' : 'records'} ${tokenWord(am)} on ${terms}`;
+}
+
+/** The case-file seal's reviewer clause for an amended countersignature: what was signed. */
+function amendedWho(deal: Deal, amendments: Amendment[] | null): string {
+  const am = amendedRecOf(deal, amendments);
+  return am === null ? 'You countersigned as amended.' : `You countersigned as amended: ${tokenWord(am)} on your amended terms.`;
 }
 
 /** Effective threshold of a covenant under amendments (the recorded `to`, else as filed). */
@@ -443,14 +471,10 @@ function snapshotSeal(s: V2Store, snap: CaseFileSnapshot): SealInfo {
   };
 }
 
-/** Resolve the run a file shows. Null for an unknown deal id. */
-export function fileContext(s: V2Store, dealId: string): FileCtx | null {
-  const deal = dealOf(s, dealId);
-  if (!deal) return null;
-  const a = s.agent;
+function ctxBase(s: V2Store, deal: Deal) {
   const paras = paragraphsOf(deal.document.body);
   const spans = quotedSpans(deal, paras);
-  const base = {
+  return {
     s,
     deal,
     paras,
@@ -460,6 +484,39 @@ export function fileContext(s: V2Store, dealId: string): FileCtx | null {
     snapshot: null as CaseFileSnapshot | null,
     cancelled: null as FileCtx['cancelled'],
   };
+}
+
+/**
+ * The file's latest SEALED record, read from its snapshot regardless of what the file shows now
+ * (a re-run in plan review, drafting, at the gate or cancelled). Null when nothing was sealed.
+ * The file export reads this, so a sealed record exports intact even after the deal is re-run.
+ */
+export function snapshotContext(s: V2Store, dealId: string): FileCtx | null {
+  const deal = dealOf(s, dealId);
+  const snap = s.snapshots[dealId];
+  if (!deal || !snap) return null;
+  return {
+    ...ctxBase(s, deal),
+    live: false,
+    source: 'snapshot',
+    mode: 'sealed',
+    runId: snap.runId,
+    run: runOf(s, snap.runId),
+    plan: snap.plan,
+    steps: snap.steps,
+    pkg: snap.pkg,
+    seal: snapshotSeal(s, snap),
+    snapshot: snap,
+    entries: entriesOf(s, snap.runId),
+  };
+}
+
+/** Resolve the run a file shows. Null for an unknown deal id. */
+export function fileContext(s: V2Store, dealId: string): FileCtx | null {
+  const deal = dealOf(s, dealId);
+  if (!deal) return null;
+  const a = s.agent;
+  const base = ctxBase(s, deal);
 
   if (dealId === selectLiveDealId(s)) {
     if (a.status === 'plan_review') {
@@ -516,22 +573,7 @@ export function fileContext(s: V2Store, dealId: string): FileCtx | null {
       entries: [],
     };
   }
-  if (snap) {
-    return {
-      ...base,
-      live: false,
-      source: 'snapshot',
-      mode: 'sealed',
-      runId: snap.runId,
-      run: runOf(s, snap.runId),
-      plan: snap.plan,
-      steps: snap.steps,
-      pkg: snap.pkg,
-      seal: snapshotSeal(s, snap),
-      snapshot: snap,
-      entries: entriesOf(s, snap.runId),
-    };
-  }
+  if (snap) return snapshotContext(s, dealId);
   return { ...base, live: false, source: 'deal', mode: 'not-started', runId: null, run: undefined, plan: getPlan(), steps: [], pkg: null, entries: [] };
 }
 
@@ -562,7 +604,8 @@ function stepData(ctx: FileCtx, stepId: string): unknown {
 /** The Structuring Engine's result for revision N (fallback: the same pure search). */
 export function cureOf(ctx: FileCtx, n: number): CureData | null {
   const c = asCure(stepData(ctx, `step_rework_${n}`));
-  if (c && c.viable) return c;
+  // a viable result with no contribution means the filed structure already passes: nothing was proposed
+  if (c && c.viable) return c.contributionM > 0 ? c : null;
   if (c && !c.viable) return null;
   return cureFromEngine(ctx.deal);
 }
@@ -1048,14 +1091,34 @@ function keyFigures(ctx: FileCtx, pkg: ApprovalPackage, rows: FigureRow[]): KeyF
   });
 }
 
-/** Cache: the nearest-flip scan is pure over an immutable deal object. */
-const FLIP_CACHE = new WeakMap<Deal, string>();
-function nearestFlipCached(deal: Deal): string {
-  const hit = FLIP_CACHE.get(deal);
+/** Cache: the nearest-flip scan is pure over an immutable deal object (and an optional origin). */
+const FLIP_CACHE = new WeakMap<Deal, Map<string, string>>();
+function nearestFlipCached(deal: Deal, origin?: FlipOrigin): string {
+  let byKey = FLIP_CACHE.get(deal);
+  if (!byKey) {
+    byKey = new Map();
+    FLIP_CACHE.set(deal, byKey);
+  }
+  const k = origin ? `${origin.rec}@${scenarioKey(deal, origin.scenario)}` : 'filed';
+  const hit = byKey.get(k);
   if (hit !== undefined) return hit;
-  const v = nearestFlip(deal);
-  FLIP_CACHE.set(deal, v);
+  const v = nearestFlip(deal, origin);
+  if (byKey.size > 40) byKey.clear();
+  byKey.set(k, v);
   return v;
+}
+
+/**
+ * The analysis aid under the recommendation. On a revised structure the standing call is the
+ * revised one, so the flip is read from the revised figures (how far that APPROVE is from being
+ * lost), never from the filed figures, which would offer a flip "to APPROVE" under an APPROVE.
+ */
+function flipLine(ctx: FileCtx, pkg: ApprovalPackage): string {
+  if (!pkg.restructure) return nearestFlipCached(ctx.deal);
+  const cure = cureOf(ctx, pkg.revision);
+  if (!cure) return COPY.flipSeeStress;
+  const scenario = { ...baselineScenario(ctx.deal), debt: cure.revised.totalDebtM, liquidity: cure.revised.liquidityM };
+  return `${COPY.flipOnRevised} · ${nearestFlipCached(ctx.deal, { scenario, rec: pkg.recommendation })}`;
 }
 
 function filedCounts(ctx: FileCtx): { breaches: number; score: number } {
@@ -1102,7 +1165,7 @@ function recommendationBody(ctx: FileCtx, pkg: ApprovalPackage, rows: FigureRow[
     summary: pkg.summary,
     keyFigures: keyFigures(ctx, pkg, rows),
     aidLabel: COPY.aidLabel,
-    nearestFlip: nearestFlipCached(ctx.deal),
+    nearestFlip: flipLine(ctx, pkg),
     stressLinkLabel: COPY.stressLink,
     reworkLine,
   };
@@ -1153,6 +1216,11 @@ function revisionBody(ctx: FileCtx, n: number, data: unknown): RevisionBody {
   if (parsed && !parsed.viable) {
     return { n, returned, viable: false, summary: null, redline: [], noCure: noCureTextFor(ctx.deal) };
   }
+  // The filed structure already clears every covenant (the search returns a zero contribution, or
+  // finds nothing to cure): no restructure was proposed and the recommendation stands. Never a
+  // "$0.0M sponsor equity" proposal, and never the no-cure line, which would be false here.
+  const needsNone = parsed && parsed.viable ? parsed.contributionM <= 0 : filedCounts(ctx).breaches === 0;
+  if (needsNone) return { n, returned, viable: true, summary: COPY.noRestructureNeeded, redline: [], noCure: null };
   const cure = parsed && parsed.viable ? parsed : cureFromEngine(ctx.deal);
   if (!cure) return { n, returned, viable: false, summary: null, redline: [], noCure: noCureTextFor(ctx.deal) };
   const f = ctx.deal.financials;
@@ -1323,7 +1391,7 @@ function headerView(ctx: FileCtx): HeaderView {
         : sl.decision === 'rejected'
           ? 'You rejected the memo.'
           : sl.decision === 'countersigned-amended'
-            ? 'You countersigned as amended.'
+            ? amendedWho(ctx.deal, sl.amendments)
             : 'You countersigned.';
     const timing = runTiming(ctx.entries, startedAt ?? sl.decidedAt, sl.decidedAt);
     const finalWait = timing.finalWaitMs ?? (preparedAt !== null ? Math.max(0, sl.decidedAt - preparedAt) : 0);
@@ -1448,7 +1516,9 @@ function appendixView(ctx: FileCtx): AppendixView {
 /** The doc-bar / Desk confirm for this file, if one is open (start on this file, or stop of the live run here). */
 export function confirmFor(s: V2Store, dealId: string): ConfirmView | null {
   const c = s.ui.confirm;
-  if (!c) return null;
+  // both confirms are about discarding a LIVE run: once it is decided (or gone) the strip would
+  // promise a cancellation that cannot happen, so a stale confirm never renders
+  if (!c || !isRunLive(s)) return null;
   if (c.kind === 'start') return c.dealId === dealId ? startConfirmCopy(s, dealId) : null;
   return selectLiveDealId(s) === dealId ? stopConfirmCopy(s) : null;
 }

@@ -10,9 +10,10 @@ import { baselineScenario } from '../../agent/whatif';
 import type { Deal } from '../../agent/mockData';
 import type { Scenario } from '../../agent/whatif';
 import { askRoute, fmtX, selectAsk, selectFile, selectLedger, selectLiveDealId, stressRecord } from '../model';
+import type { NoteView } from '../model';
 import type { Route } from './route';
 import type { Box, UiState, V2Actions, V2Internals, V2Store } from './store';
-import { markOpenedIn } from './gate';
+import { markOpenedIn, pkgKeyOf } from './gate';
 
 // ---- the motion-token bridge -------------------------------------------------
 
@@ -172,10 +173,20 @@ export function clearReading(x: V2Internals): void {
   );
 }
 
+/** Below 1432px the open source is an overlay over the case file's left edge (file.css). */
+export const SOURCE_OVERLAY_MAX = 1431;
+
+function sourceIsOverlay(): boolean {
+  return typeof window !== 'undefined' && window.innerWidth <= SOURCE_OVERLAY_MAX;
+}
+
 /**
  * Apply route hygiene for a route the app is moving to. Called synchronously
  * by navigate() (so a palette "navigate, then open a confirm" sequence keeps
  * its confirm) and from an effect for hash changes that bypass navigate().
+ * Opening another file also closes an overlaid source, so the next file never
+ * opens already covered (at 1432px and up the pushed column is a reading
+ * preference and stays open).
  */
 export function routeHygiene(x: V2Internals, to: Route): void {
   const h = x.hygiene.current;
@@ -184,6 +195,7 @@ export function routeHygiene(x: V2Internals, to: Route): void {
   if (file !== h.file) {
     x.hygiene.current = { file, place };
     clearReading(x);
+    if (sourceIsOverlay()) x.setUi((u) => (u.sourceOpen ? { ...u, sourceOpen: false } : u));
     return;
   }
   if (place !== h.place) {
@@ -216,6 +228,47 @@ function isBase(deal: Deal, scenario: Scenario): boolean {
 }
 
 let threadSeq = 0;
+
+// ---- the note stepper: focus, announce, then count -------------------------
+
+function cssEscape(v: string): string {
+  return typeof CSS !== 'undefined' && typeof CSS.escape === 'function' ? CSS.escape(v) : v.replace(/["\\]/g, '\\$&');
+}
+
+/** The rendered note element for a note id, or null when it is not on the page. */
+function noteElement(noteId: string): HTMLElement | null {
+  const el = document.querySelector(`[data-note="${cssEscape(noteId)}"]`);
+  if (!(el instanceof HTMLElement) || !el.isConnected || el.getClientRects().length === 0) return null;
+  return el;
+}
+
+/** The live-region sentence for a note the reviewer is taken to. */
+function noteAnnouncement(note: NoteView, position: { index: number; count: number } | null): string {
+  const heading = note.heading.replace(/[.\s]+$/, '');
+  const lead = position ? `Note ${position.index + 1} of ${position.count} · ${heading}` : heading;
+  return note.text.trim() ? `${lead}. ${note.text}` : `${lead}.`;
+}
+
+/**
+ * Hand focus to the note the reviewer was taken to (J / K, the doc-bar
+ * stepper, "Show note"), once it is on the page, and only then count it as
+ * opened: a note is opened when it was actually shown, rendered and holding
+ * focus (so it is in view and read out), at the same live gate it was asked
+ * for. FileScreen scrolls it into view on the same noteFocus tick, so focus
+ * never scrolls. markOpenedIn refuses any mark after the seal.
+ */
+function presentNote(x: V2Internals, note: NoteView, countable: boolean): void {
+  const key = pkgKeyOf(x.current().agent);
+  window.requestAnimationFrame(() => {
+    const el = noteElement(note.id);
+    if (!el) return;
+    // the kit note sits outside the tab order; a programmatic focus target needs tabindex -1
+    if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
+    el.focus({ preventScroll: true });
+    if (document.activeElement !== el) return;
+    if (countable && note.flagId && key !== null && pkgKeyOf(x.current().agent) === key) markOpenedIn(x, note.flagId);
+  });
+}
 
 // ---- actions -----------------------------------------------------------------
 
@@ -276,6 +329,7 @@ export function createUiActions(x: V2Internals): UiActions {
     trace: (stepId, anchorId) => x.setUi((u) => ({ ...u, trace: { stepId, anchorId, tick: nextTick(u.trace) } })),
     flashAnchor: (anchorId) => x.setUi((u) => ({ ...u, flash: { anchorId, tick: nextTick(u.flash) } })),
 
+    // move focus to the note and announce it; it counts as opened only once shown (presentNote)
     focusNote: (delta) => {
       const s = x.current();
       const view = reviewNotes(s);
@@ -285,8 +339,9 @@ export function createUiActions(x: V2Internals): UiActions {
       const cur = s.ui.noteCursor;
       const next = cur < 0 || cur >= n ? (delta === 1 ? 0 : n - 1) : (cur + delta + n) % n;
       const note = notes[next];
-      x.setUi((u) => ({ ...u, noteCursor: next, noteFocus: { noteId: note.id, tick: nextTick(u.noteFocus) } }));
-      if (note.flagId && view.live) markOpenedIn(x, note.flagId);
+      const announce = noteAnnouncement(note, { index: next, count: n });
+      x.setUi((u) => ({ ...u, noteCursor: next, noteFocus: { noteId: note.id, tick: nextTick(u.noteFocus) }, announce }));
+      presentNote(x, note, view.live);
     },
     focusNoteById: (noteId) => {
       const s = x.current();
@@ -298,12 +353,14 @@ export function createUiActions(x: V2Internals): UiActions {
           : view
             ? view.sections.flatMap((sec) => sec.notes).find((n) => n.id === noteId) ?? null
             : null;
+      const announce = note && view ? noteAnnouncement(note, idx >= 0 ? { index: idx, count: view.toReview.length } : null) : null;
       x.setUi((u) => ({
         ...u,
         noteCursor: idx >= 0 ? idx : u.noteCursor,
         noteFocus: { noteId, tick: nextTick(u.noteFocus) },
+        announce: announce ?? u.announce,
       }));
-      if (note && note.flagId && view && view.live) markOpenedIn(x, note.flagId);
+      if (note && view) presentNote(x, note, view.live);
     },
     focusAmend: (kind) => x.setUi((u) => ({ ...u, amendFocus: { kind, tick: nextTick(u.amendFocus) } })),
 

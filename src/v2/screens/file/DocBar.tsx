@@ -2,9 +2,12 @@
 // Case file · the doc bar (spec §7.2 "Doc bar"). 44px, sticky inside the
 // canvas, three zones: breadcrumb · status sentence · reader controls. It sits
 // in the data-docbar wrapper together with any open ConfirmStrip (stop/start).
-// The doc bar never holds a primary. From 760 to 999px the reader controls and
-// actions fold into a "More" menu so the status sentence is not clipped; below
-// 760px the note stepper and the Desk crumb fold too (J/K still step).
+// The doc bar never holds a primary. It folds on its OWN width (file.css
+// container queries, so the sidebar and a pushed source count): below 940 the
+// horizontal Source toggle drops to its icon (same name, shown as a tip), below
+// 800 the reader controls and actions fold into "More", and below 680 the note
+// stepper and the Desk crumb fold too (J/K still step). The status sentence
+// keeps a floor and ellipsizes rather than being cut mid-word.
 // ---------------------------------------------------------------------------
 
 import { ArrowDown, ArrowUp, FileText } from 'lucide-react';
@@ -47,9 +50,10 @@ export function DocBar(props: { docBar: DocBarView; source: SourceView; dealId: 
   };
 
   const goToSignature = () => a.requestSign('button');
+  const toggleSource = () => (source.open ? a.closeSource() : a.openSource());
 
-  // the same controls, as menu rows. From 760 to 999 the reader controls fold into "More" so the
-  // status sentence keeps its room (the stepper stays visible); below 760 the stepper folds too.
+  // the same controls, as menu rows. Below 800 (the bar's own width) the reader controls fold into
+  // "More" so the status sentence keeps its room (the stepper stays visible); below 680 it folds too.
   const actionItems: MenuItem[] = [];
   if (d.countdown) actionItems.push({ id: 'review', label: d.countdown.reviewLabel, onSelect: () => a.reviewManually() });
   if (d.goToSignature) actionItems.push({ id: 'signature', label: COPY.goToSignature, onSelect: goToSignature });
@@ -90,14 +94,22 @@ export function DocBar(props: { docBar: DocBarView; source: SourceView; dealId: 
               onSelect: () => a.navigate({ name: 'file', dealId: f.dealId, at: null }),
             }))}
           />
-          <Button variant="ghost" size="sm" icon={FileText} onClick={() => (source.open ? a.closeSource() : a.openSource())}>
-            {source.toggleLabel}
-          </Button>
+          {/* one toggle, two widths: the labelled button, or (tight bar) its icon with the same
+              name as a tip. CSS shows exactly one; data-source-toggle lets the source pane hand
+              focus back here when it closes from inside. */}
+          <span className="file-docbar__source" data-source-toggle="">
+            <Button variant="ghost" size="sm" icon={FileText} onClick={toggleSource}>
+              {source.toggleLabel}
+            </Button>
+          </span>
+          <span className="file-docbar__source-icon" data-source-toggle="">
+            <IconButton icon={FileText} label={source.toggleLabel} onClick={toggleSource} />
+          </span>
         </div>
 
         <div className="file-docbar__center">
           <span className="file-docbar__status">
-            <StatusLabel state={d.status.state} role="label">
+            <StatusLabel state={d.status.state} role="label" truncate>
               {d.status.text}
             </StatusLabel>
           </span>

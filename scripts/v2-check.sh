@@ -65,7 +65,7 @@ src/components/Artifact.tsx:6177f0ce4d3bfd9b9e008e823688f161144223e999455e33701e
 v1_changes() {
   { git diff --name-only HEAD; git ls-files --others --exclude-standard; } | sort -u | while IFS= read -r f; do
     case "$f" in
-      src/v2/*|src/main.tsx|package.json|scripts/v2-check.sh|docs/v2/*|.claude/*) continue ;;
+      src/v2/*|src/main.tsx|package.json|scripts/v2-check.sh|docs/v2/*|CLAUDE.md|.claude/*) continue ;;
     esac
     want=$(printf '%s\n' "$BASELINE" | awk -F: -v p="$f" '$1==p {print $2}')
     if [ -z "$want" ]; then echo "$f  (outside the V2 build area)"

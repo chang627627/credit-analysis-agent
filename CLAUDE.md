@@ -502,6 +502,38 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       and dark boards (scoped token re-declaration), with theme-aware page chrome. Also published
       as the "Graphite & Teal" artifact.
 
+## V2 (branch `v2`, preview only; main and production still serve V1)
+
+A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-design-md research →
+5-concept judge panel → spec → parallel file-owning builders → adversarial review → fixes).
+**The engine is shared and unchanged in contract**; V2 is a second pure reduction of the same
+`useCreditAgent` / `useMonitor` state.
+
+- **Run:** `npm run dev` → V2 at `/`, V1 untouched at `/?v=1`, live kit page at `/?kit`.
+  `src/main.tsx` loads exactly one app + one stylesheet per page load.
+- **Code:** `src/v2/` = `kit/` (closed primitive set, `.k-` classes, only place kit CSS lives) ·
+  `model/` (single source of every derived number/label/sentence) · `state/` (store, gate,
+  orchestration ported from V1 with every integrity guard; browser storage only here) ·
+  `screens/{desk,file,decision,book,ledger}` · `chrome/{SideNav,TopBar,AppPalette}`.
+- **Spec:** `docs/v2/SPEC.md` (the build spec; owner decisions below supersede it).
+- **Guardrails:** `npm run v2-check` (28 greps: tokens only, 400/500/600, 4px grid, one
+  infinite animation, no hand-rolled controls outside the kit, V1 + engine hashes untouched, …).
+  New visual patterns go to `src/v2/design-pending.ts` (rendered on `/?kit`) for owner approval.
+- **Light mode only** (owner decision): no dark theme, no toggle.
+- **Thesis:** the credit memo is the product. One column (like V1's single pane): steps
+  1 Financials → 2 Risk → 3 Peers → 4 Covenants → (revisions) → 5 Recommendation at the foot,
+  then the countersignature. Each section's notes render directly under that section.
+- **Decision panel** (right above the verbs): "The agent recommends [TOKEN]" (always the
+  agent's own call) + the question + one-sentence reason; verbs in ONE horizontal row (may wrap)
+  with a one-line consequence under each. Clicking the primary signs; two-press is keyboard-only.
+- **Shell:** collapsible left sidebar (Desk · Book · Ledger, counts, 64px icon rail, persisted);
+  top bar = section name + auto-countersign switch + search.
+- **Rejected by the owner during the V2 build (do not resurrect):** vertical "Source ¶" spine
+  (source opens from a doc-bar button instead) · the ¶ citation mark (reads "CIM para 2") ·
+  recommendation at the top of the memo · side margin column of notes (left empty gaps) ·
+  stacked/vertical verb list · top-bar tabs (→ sidebar) · demo pace menu and "Compare V1" link
+  in the top bar · dark mode.
+
 ## Backlog (to-do)
 
 Items 1–6 + the Agents roster are DONE (kept for the record). Remaining work grouped by type.

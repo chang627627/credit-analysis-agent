@@ -355,7 +355,7 @@ export const PENDING: PendingPattern[] = [
     type: 'token',
     name: 'Brand mark: a signature written on a line, on the accent tile',
     description:
-      'The Countersign mark is a 20px tile in the accent (signature-ink blue) with rounded corners (rx 5 of 20) carrying a short handwritten signature stroke above a fainter signature line, both in on-accent strokes at 1.5. It reads the product name literally: the second signature on the line. It replaces the Unicode half-filled square glyph, which rendered as a crude black box. Kit BrandMark (sidebar and kit page), the V1 header, empty state and agent avatar, the design-system page and the new favicon all use the same drawing. Identity, not an icon: Lucide stays the icon system.',
+      'The Countersign mark is a 20px tile in the accent (aubergine) with rounded corners (rx 5 of 20) carrying a short handwritten signature stroke above a fainter signature line, both in on-accent strokes at 1.5. It reads the product name literally: the second signature on the line. It replaces the Unicode half-filled square glyph, which rendered as a crude black box. Kit BrandMark (sidebar and kit page), the V1 header, empty state and agent avatar, the design-system page and the new favicon all use the same drawing. Identity, not an icon: Lucide stays the icon system.',
     evidence: 'Owner feedback ("this icon is so ugly"); four options shown side by side, the owner chose option A',
     proposedBy: OWNER,
     proposedDate: ON_3P,
@@ -366,15 +366,15 @@ export const PENDING: PendingPattern[] = [
   {
     id: 'P-29',
     type: 'token',
-    name: 'Accent: signature-ink blue instead of teal',
+    name: 'Accent: aubergine, quieter than every status colour',
     description:
-      'The one accent moves from teal to signature-ink blue (fills and state strokes, hover, accent text, wash). The teal sat at nearly the approve green\'s lightness (OKLCH L 0.54 vs 0.56) and only 11.5 dE from it, so the Decision card\'s primary verb read as approve next to the green APPROVE token even when the agent escalated. Blue is 27.8 dE from the approve green (25.6 for deuteranopia), white on it is 7.17:1, and blue ink is the countersignature convention, so it backs the product name and the brand mark. Green now means pass and approve only. V1 keeps its Graphite & Teal identity.',
-    evidence: 'Owner feedback ("the theme color cyan is too close to the approve color green"); three options shown on the Decision card elements, the owner chose B',
+      'The one accent (fills and state strokes, hover, accent text, wash) is aubergine. Owner principle: the accent must read weaker than approve, escalate and decline, so the status stays the loudest colour on the page. Measured as OKLCH chroma, aubergine is 0.094, below every status ink and mark (0.106 to 0.186); white on it is 10.92:1. Path: the teal sat 11.5 dE from the approve green, so the primary verb read as approve; the blues (signature blue and cobalt) were as colourful as the decline red and looked very obvious; steel and dusk violet were also tried. Aubergine also reads as higher-end. V1 keeps its Graphite & Teal identity.',
+    evidence: 'Owner feedback ("the theme color cyan is too close to the approve color green"; the blue "looks very obvious"; the accent "should be weaker than the approved, escalate and decline state"); several options compared on the Decision card elements',
     proposedBy: OWNER,
     proposedDate: ON_3P,
     status: 'approved',
     kitAnchor: null,
-    ownerNote: 'Chosen by the owner (option B, signature-ink blue).',
+    ownerNote: 'Chosen by the owner (aubergine, after teal, blues, steel and dusk violet).',
   },
   {
     id: 'P-30',

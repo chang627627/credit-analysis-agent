@@ -333,13 +333,13 @@ The token block is the only place in `src/v2` where colour literals, raw type va
   --line: #d0d6df;                                /* 1.46:1 on paper: structure only, never a control edge */
   --line-provisional: 1px dashed #d0d6df;         /* not the record: stress frame, drop zone, amend trigger */
   --line-provisional-edge: 1px dashed #5f6b78;    /* not the record, on a control: the amend input */
-  --line-provisional-active: 1px dashed #1f4fbf;  /* drag-over, focused amend input */
+  --line-provisional-active: 1px dashed #552d5e;  /* drag-over, focused amend input */
 
-  /* ONE accent: signature-ink blue (owner, 2026-10-20: the teal sat too close to the approve green) */
-  --accent: #1f4fbf;       /* fills + 2px state strokes; white on it 7.17:1; dE 27.8 from --good-mark */
-  --accent-hover: #1a43a3; /* primary hover/pressed; white on it 8.84:1 */
-  --accent-ink: #1a46ad;   /* accent TEXT: links, cites (8.32 paper · 7.62 canvas · 7.15 accent-wash) */
-  --accent-wash: #e8eefb;  /* cited span, active menu/palette row, focus halo, flash */
+  /* ONE accent: aubergine (owner, 2026-10-20): quieter than every status colour (chroma 0.094) */
+  --accent: #552d5e;       /* fills + 2px state strokes; white on it 10.92:1; dE 29.5 from --good-mark, 24.5 from --bad-mark */
+  --accent-hover: #471f50; /* primary hover/pressed; white on it 13.29:1 */
+  --accent-ink: #552d5e;   /* accent TEXT: links, cites (10.92 paper · 10.00 canvas · 9.50 accent-wash) */
+  --accent-wash: #f8ebfb;  /* cited span, active menu/palette row, focus halo, flash */
   --on-accent: #ffffff;
 
   /* meaning: ink (text/glyph) · wash (tokens, open notes) · mark (data marks only) */
@@ -355,7 +355,7 @@ The token block is the only place in `src/v2` where colour literals, raw type va
 
   /* elevation: exactly one float shadow, plus two field halos */
   --shadow-pop: 0 8px 24px rgba(15, 36, 54, 0.12), 0 0 0 1px #d0d6df;
-  --halo-focus: 0 0 0 3px #e8eefb;
+  --halo-focus: 0 0 0 3px #f8ebfb;
   --halo-error: 0 0 0 3px #fbe9eb;
 
   /* motion: the ONLY source of visual durations (JS reads them, see cssMs) */

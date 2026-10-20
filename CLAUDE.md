@@ -555,8 +555,13 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   stored, as the Settings intro says of every setting; `initialPolicy()` (`state/gate.ts`) removes a
   stale `v2.autonomy` value once on load so an earlier On cannot linger.
 - **Light mode only** (owner decision): no dark theme, no toggle.
-- **Accent = signature-ink blue** `#1f4fbf` (owner decision, 2026-10-20; was teal `#0f7d8c`, which sat
-  11.5 dE from the approve green so the primary verb read as "approve"). Green means pass/approve only.
+- **Accent = aubergine** `#552d5e` (owner decision, 2026-10-20; hover `#471f50`, accent text `#552d5e`,
+  wash `#f8ebfb`). Owner principle: **the accent stays quieter than the status colours** (approve /
+  escalate / decline must be the loudest colour on the page), measured as OKLCH chroma: aubergine is
+  0.094, below every status ink and mark (0.106 to 0.186). Path there: teal `#0f7d8c` sat 11.5 dE from
+  the approve green (the primary verb read as "approve"); the blues `#1f4fbf` and cobalt `#2d5ed4`
+  (chroma ~0.18-0.19, as colourful as the decline red) "look very obvious"; steel, dusk violet and others
+  were tried. Aubergine also reads as higher-end. White on it 10.92:1. Green means pass/approve only.
   V1 keeps "Graphite & Teal". Brand mark tile and favicon follow the accent.
 - **Thesis:** the credit memo is the product; the agent panel beside it is command and control.
   Owner, verbatim: 中间只搞high level。命令与指挥。显示的都看右边。("The middle is high level only:

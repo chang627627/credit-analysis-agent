@@ -59,7 +59,10 @@
   overscroll-behavior: contain;
   padding: 16px;
 }
+/* top-down, as in Claude Code: the lines, then the plan prompt as the next message */
+.chat-flow { display: flex; flex-direction: column; gap: 16px; }
 .chat-list { display: flex; flex-direction: column; gap: 8px; list-style: none; }
+.chat-list:empty { display: none; }
 .chat-pill {
   position: absolute;
   left: 50%;
@@ -98,15 +101,15 @@
 }
 .chat-line__link { display: flex; align-items: center; height: var(--t-body-lh); white-space: nowrap; }
 
-/* ---- the foot: the plan prompt (plan review) above the composer, under one rule ---- */
+/* ---- the foot: the composer only. No rule across the panel: the composer's own frame closes
+   the column (a full-width line never meets the sidebar's). ---- */
 .chat-foot {
   display: flex;
   flex: none;
   flex-direction: column;
-  border-top: 1px solid var(--line);
   background: var(--paper);
 }
-.chat-plan { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px 0; }
+.chat-plan { display: flex; flex-direction: column; gap: 8px; }
 .chat-plan__text { color: var(--ink); overflow-wrap: anywhere; }
 .chat-plan__steps { display: flex; flex-direction: column; list-style: none; border-top: 1px solid var(--line); }
 .chat-plan__step {
@@ -124,14 +127,8 @@
 .chat-plan__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .chat-plan__countdown { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; color: var(--ink-3); }
 
-/* ---- composer: flat (no shadow, no glass, no kbd hints) ---- */
-.chat-composer {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  padding: 12px 16px 16px;
-}
-.chat-composer__field { display: flex; flex: 1 1 auto; flex-direction: column; gap: 4px; min-width: 0; }
+/* ---- composer: one frame with the send button inside (kit TextArea "composer"); flat, no kbd hints ---- */
+.chat-composer { padding: 12px 16px; }  /* bottom edge meets the Settings item's (both 12px off the foot) */
+.chat-composer__field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .chat-composer__reason { color: var(--ink-3); }
-.chat-composer__send { display: flex; flex: none; align-items: center; height: 36px; }
 

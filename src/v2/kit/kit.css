@@ -74,6 +74,10 @@
 .v2 .k-iconbtn:hover, .v2 .k-iconbtn:active, .v2 .k-iconbtn[data-force="hover"], .v2 .k-iconbtn[data-force="active"], .v2 .k-iconbtn[aria-pressed="true"] { background: var(--sunken); color: var(--ink); }
 .v2 .k-iconbtn:active, .v2 .k-iconbtn[data-force="active"] { transition-duration: var(--dur-press); }
 .v2 .k-iconbtn:disabled, .v2 .k-iconbtn:disabled[data-force] { color: var(--ink-3); background: var(--sunken); cursor: not-allowed; }
+/* send: a round accent button inside the composer frame; nothing to send = a quiet disc, not a grey box */
+.v2 .k-iconbtn--send { border-radius: var(--r-pill); background: var(--accent); color: var(--on-accent); }
+.v2 .k-iconbtn--send:hover, .v2 .k-iconbtn--send:active, .v2 .k-iconbtn--send[data-force="hover"], .v2 .k-iconbtn--send[data-force="active"] { background: var(--accent-hover); color: var(--on-accent); }
+.v2 .k-iconbtn--send:disabled, .v2 .k-iconbtn--send:disabled[data-force] { background: var(--sunken); color: var(--ink-3); }
 
 /* ---- LinkButton ---- */
 .v2 .k-link {
@@ -215,7 +219,34 @@
   overflow-y: auto;
   transition: border-color var(--dur-1) var(--ease-out);
 }
-.v2 .k-textarea--composer { height: var(--k-ta-h, 36px); min-height: 36px; }
+/* composer: one frame (soft edge at rest, ink-3 on hover, accent + halo on focus) holding a
+   borderless auto-growing textarea and the send button, bottom right */
+.v2 .k-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-2);
+  width: 100%;
+  padding: 8px 8px 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--paper);
+  cursor: text;
+  transition: border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
+}
+.v2 .k-composer:hover { border-color: var(--ink-3); }
+.v2 .k-composer:focus-within, .v2 .k-composer[data-force="focus"] { border-color: var(--accent); box-shadow: var(--halo-focus); }
+.v2 .k-composer[data-disabled] { background: var(--sunken); border-color: var(--line); box-shadow: none; cursor: not-allowed; }
+.v2 .k-composer__trail { display: flex; flex: none; align-items: center; }
+.v2 .k-textarea--composer {
+  flex: 1 1 auto;
+  height: var(--k-ta-h, 28px);
+  min-height: 28px;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.v2 .k-composer .k-textarea--composer:focus, .v2 .k-composer .k-textarea--composer:disabled { border: 0; background: transparent; box-shadow: none; }
 .v2 .k-textarea::placeholder { color: var(--ink-3); }
 .v2 .k-textarea:focus, .v2 .k-textarea[data-force="focus"] { outline: none; border-color: var(--accent); box-shadow: var(--halo-focus); }
 .v2 .k-textarea--invalid, .v2 .k-textarea--invalid:focus, .v2 .k-textarea--invalid[data-force] { border-color: var(--bad-ink); box-shadow: var(--halo-error); }

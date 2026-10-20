@@ -186,7 +186,7 @@
 .kp-figlabel { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 
 /* ---- board 11 · composer specimen (the agent panel's composer row, P-25) ---- */
-.kp-composer { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; min-width: 0; }
+.kp-composer { min-width: 0; }
 
 /* ---- board 16b · memo cards on the canvas (P-26); blocks mirror the memo's .file-block ---- */
 .kp-canvas {

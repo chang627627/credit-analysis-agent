@@ -1121,7 +1121,7 @@ function TipCiteEvidenceBoard() {
 // Board 11 · TextArea · AmendField · TextInput · Checkbox · Switch
 // =============================================================================
 
-/** The agent panel's composer (P-25): one line, "Ask or instruct"; TextArea size composer + Send, Enter sends, Shift+Enter adds a line. */
+/** The agent panel's composer (P-25): one framed line, "Ask or instruct", the send button inside the frame; Enter sends, Shift+Enter adds a line. */
 function ComposerSpecimen() {
   const [draft, setDraft] = useState('');
   const [sent, setSent] = useState<string | null>(null);
@@ -1134,8 +1134,15 @@ function ComposerSpecimen() {
   return (
     <Cell caption={sent === null ? 'live · Enter sends, Shift+Enter adds a line, IME and ⌘↵ never send · nothing sent yet' : `live · sent “${sent}”`} block>
       <div className="kp-composer" data-pattern="P-25">
-        <TextArea size="composer" value={draft} onChange={setDraft} onSubmit={send} placeholder={COPY.composerPlaceholder} ariaLabel={COPY.composerLabel} />
-        <IconButton icon={ArrowUp} label={COPY.send} disabled={blank} onClick={send} />
+        <TextArea
+          size="composer"
+          value={draft}
+          onChange={setDraft}
+          onSubmit={send}
+          placeholder={COPY.composerPlaceholder}
+          ariaLabel={COPY.composerLabel}
+          trailing={<IconButton icon={ArrowUp} label={COPY.send} variant="send" disabled={blank} onClick={send} />}
+        />
       </div>
     </Cell>
   );
@@ -1152,7 +1159,7 @@ function FieldsBoard() {
   const amend = LEV_ROW?.amend ?? null;
   const amendTo = (v: number) => (amend ? `${amend.prefix}${fmtX(v)}` : fmtX(v));
   return (
-    <Board id={B.fields.id} name={B.fields.name} spec="Fields: paper, 1px --ink-3 control edge, --r-sm; focus = --accent edge + --halo-focus; invalid = --bad-ink + --halo-error · TextArea size note 64 to 160 / composer 36 to 160, optional onSubmit on Enter · AmendField: --line-provisional-edge (P-05) · Switch: ink track when on (P-10)">
+    <Board id={B.fields.id} name={B.fields.name} spec="Fields: paper, 1px --ink-3 control edge, --r-sm; focus = --accent edge + --halo-focus; invalid = --bad-ink + --halo-error · TextArea size note 64 to 160 / composer one frame 28 to 160 with the send button inside (IconButton variant send), optional onSubmit on Enter · AmendField: --line-provisional-edge (P-05) · Switch: ink track when on (P-10)">
       <Group label="TextArea · size note (the reviewer note on the memo's Decision card)">
         <Grid size="wide">
           <Cell caption="rest · type to auto-grow (64 to 160)">
@@ -1175,10 +1182,17 @@ function FieldsBoard() {
       <Group id="board-composer" label="TextArea · size composer (the agent panel's composer, P-25; it never signs, returns or rejects)">
         <Grid size="wide">
           <ComposerSpecimen />
-          <Cell caption="focus · the composer is never disabled on a case file" block>
+          <Cell caption="focus with a draft · the send button fills with the accent; the composer is never disabled on a case file" block>
             <div className="kp-composer">
-              <TextArea size="composer" value="" onChange={noop} placeholder={COPY.composerPlaceholder} ariaLabel={COPY.composerLabel} force="focus" />
-              <IconButton icon={ArrowUp} label={COPY.send} disabled onClick={noop} />
+              <TextArea
+                size="composer"
+                value="what is the leverage"
+                onChange={noop}
+                placeholder={COPY.composerPlaceholder}
+                ariaLabel={COPY.composerLabel}
+                force="focus"
+                trailing={<IconButton icon={ArrowUp} label={COPY.send} variant="send" onClick={noop} />}
+              />
             </div>
           </Cell>
         </Grid>
@@ -2054,8 +2068,15 @@ function PanelSpecimen({ v }: { v: AgentPanelView }) {
       ) : null}
       <div className="kp-panel__composer">
         <div className="kp-composer">
-          <TextArea size="composer" value="" onChange={noop} placeholder={v.composer.placeholder} ariaLabel={COPY.composerLabel} disabled={v.composer.disabled} />
-          <IconButton icon={ArrowUp} label={COPY.send} disabled onClick={noop} />
+          <TextArea
+            size="composer"
+            value=""
+            onChange={noop}
+            placeholder={v.composer.placeholder}
+            ariaLabel={COPY.composerLabel}
+            disabled={v.composer.disabled}
+            trailing={<IconButton icon={ArrowUp} label={COPY.send} variant="send" disabled onClick={noop} />}
+          />
         </div>
       </div>
     </div>

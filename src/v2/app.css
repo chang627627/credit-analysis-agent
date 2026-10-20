@@ -92,7 +92,6 @@
 .app-sidenav__foot {
   margin-top: auto;
   padding: 12px;
-  border-top: 1px solid var(--line);
 }
 /* below 1100 the rail is forced: no room for the expanded sidebar, so no toggle either
    (the no-JS fallback; it agrees with the shell's data-nav-forced) */

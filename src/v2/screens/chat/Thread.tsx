@@ -4,7 +4,9 @@
 // glyph and an optional trailing link ("Covenants →", "Decision →",
 // "Record →") that scrolls the memo to that card. No boxes, no cards, no
 // records, no reasoning, no buttons: the detail and the decision are on the
-// right, and a line only points at them. Rendered verbatim.
+// right, and a line only points at them. Rendered verbatim. The conversation
+// runs top-down; `children` (the plan prompt, the Start drafting button) follow
+// the lines in the same scroller, as a message would.
 //
 // Links: every target is a memo card (cueMemo; the Decision card at the live
 // gate comes into view like "Go to decision", and drawer mode closes the
@@ -21,6 +23,7 @@
 // ---------------------------------------------------------------------------
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { ArrowDown } from 'lucide-react';
 import { Button, LinkButton, StatusGlyph } from '../../kit';
 import { newActivityLabel } from '../../model';
@@ -41,6 +44,8 @@ export interface ThreadProps {
   labelledBy: string;
   /** bumps on every composer send */
   sendSeq: number;
+  /** after the lines, in the same flow: the plan prompt / the Start drafting button */
+  children?: ReactNode;
 }
 
 function atFoot(el: HTMLElement): boolean {
@@ -54,10 +59,10 @@ function textClass(line: ThreadLine): string {
   return cls.join(' ');
 }
 
-export function Thread({ dealId, lines, labelledBy, sendSeq }: ThreadProps) {
+export function Thread({ dealId, lines, labelledBy, sendSeq, children }: ThreadProps) {
   const a = useV2().actions;
   const scrollRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLOListElement>(null);
+  const flowRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
   const [unseen, setUnseen] = useState(0);
 
@@ -103,16 +108,16 @@ export function Thread({ dealId, lines, labelledBy, sendSeq }: ThreadProps) {
     else setUnseen((u) => u + Math.max(1, count - prev.count));
   }, [count, lastId, jump]);
 
-  // a resize of the list (an answer rewrapping) or the scroller (the plan prompt, the composer growing)
+  // a resize of the flow (an answer rewrapping, the plan prompt arriving) or the scroller (the composer growing)
   useEffect(() => {
     const sc = scrollRef.current;
-    const list = listRef.current;
-    if (!sc || !list || typeof ResizeObserver === 'undefined') return;
+    const flow = flowRef.current;
+    if (!sc || !flow || typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(() => {
       if (pinnedRef.current) jump();
     });
     ro.observe(sc);
-    ro.observe(list);
+    ro.observe(flow);
     return () => ro.disconnect();
   }, [jump]);
 
@@ -134,28 +139,31 @@ export function Thread({ dealId, lines, labelledBy, sendSeq }: ThreadProps) {
   return (
     <div className="chat-threadbox">
       <div className="chat-thread" ref={scrollRef} onScroll={onScroll}>
-        <ol className="chat-list" ref={listRef} aria-labelledby={labelledBy}>
-          {lines.map((line) => {
-            const link = line.link;
-            return (
-              <li
-                key={line.id}
-                className={`chat-line chat-line--${line.kind}${link ? ' chat-line--linked' : ''}`}
-                data-thread-item={line.id}
-              >
-                <span className="chat-line__glyph">{line.glyph !== null ? <StatusGlyph state={line.glyph} /> : null}</span>
-                <span className={textClass(line)}>{line.text}</span>
-                {link ? (
-                  <span className="chat-line__link">
-                    <LinkButton role="small" onClick={() => go(link.target)}>
-                      {link.label}
-                    </LinkButton>
-                  </span>
-                ) : null}
-              </li>
-            );
-          })}
-        </ol>
+        <div className="chat-flow" ref={flowRef}>
+          <ol className="chat-list" aria-labelledby={labelledBy}>
+            {lines.map((line) => {
+              const link = line.link;
+              return (
+                <li
+                  key={line.id}
+                  className={`chat-line chat-line--${line.kind}${link ? ' chat-line--linked' : ''}`}
+                  data-thread-item={line.id}
+                >
+                  <span className="chat-line__glyph">{line.glyph !== null ? <StatusGlyph state={line.glyph} /> : null}</span>
+                  <span className={textClass(line)}>{line.text}</span>
+                  {link ? (
+                    <span className="chat-line__link">
+                      <LinkButton role="small" onClick={() => go(link.target)}>
+                        {link.label}
+                      </LinkButton>
+                    </span>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ol>
+          {children}
+        </div>
       </div>
       {unseen > 0 ? (
         <div className="chat-pill">

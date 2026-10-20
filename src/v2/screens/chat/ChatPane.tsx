@@ -2,7 +2,8 @@
 // Case file · the agent panel (THREE-PANE.md R2.1, §1.8). Command and control
 // only, like a coding agent's conversation: the head, one-line status lines
 // that point at the memo, the plan prompt that starts drafting, and the
-// composer. It never displays data and holds no decision: every number, record
+// composer. As in Claude Code, the conversation runs top-down and the plan is
+// a message in it (after the lines); only the composer is pinned to the foot. It never displays data and holds no decision: every number, record
 // and the whole decision (the Decision card) live in the memo pane on the right.
 // Renders selectAgentPanel verbatim.
 //
@@ -60,8 +61,7 @@ export function ChatPane({ dealId, layout }: ChatPaneProps) {
       onKeyDown={onKeyDown}
     >
       <ChatHead heading={view.title} headingId={headingId} layout={layout} />
-      <Thread dealId={dealId} lines={view.lines} labelledBy={headingId} sendSeq={sendSeq} />
-      <div className="chat-foot">
+      <Thread dealId={dealId} lines={view.lines} labelledBy={headingId} sendSeq={sendSeq}>
         {view.start ? (
           <div className="chat-plan">
             <div className="chat-plan__actions">
@@ -72,6 +72,8 @@ export function ChatPane({ dealId, layout }: ChatPaneProps) {
           </div>
         ) : null}
         {view.plan ? <PlanPrompt plan={view.plan} dealId={dealId} /> : null}
+      </Thread>
+      <div className="chat-foot">
         <Composer dealId={dealId} composer={view.composer} onSent={onSent} />
       </div>
     </aside>

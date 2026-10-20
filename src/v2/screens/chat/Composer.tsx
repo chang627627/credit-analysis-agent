@@ -6,7 +6,8 @@
 // is never doubled). The draft lives in the store per file (ui.composerDraft):
 // typing engages (holds a running countdown), and a send clears it. The model
 // parses and answers; typing can never sign, return or reject (such text is
-// answered "Decide in the memo: Decision →"). Flat: no kbd hints. The shell
+// answered "Decide in the memo: Decision →"). Flat: no kbd hints. One frame: the send button
+// sits inside the field (kit TextArea `trailing`), accent once there is a draft. The shell
 // focuses this field when the panel is opened explicitly, through the P-25
 // wrapper.
 // ---------------------------------------------------------------------------
@@ -51,6 +52,7 @@ export function Composer({ dealId, composer, onSent }: ComposerProps) {
           ariaLabel={COPY.composerLabel}
           disabled={composer.disabled}
           describedBy={reason ? reasonId : undefined}
+          trailing={<IconButton icon={ArrowUp} label={COPY.send} variant="send" onClick={send} disabled={blank || composer.disabled} />}
         />
         {reason ? (
           <p id={reasonId} className="chat-composer__reason t-meta">
@@ -58,9 +60,6 @@ export function Composer({ dealId, composer, onSent }: ComposerProps) {
           </p>
         ) : null}
       </div>
-      <span className="chat-composer__send">
-        <IconButton icon={ArrowUp} label={COPY.send} onClick={send} disabled={blank || composer.disabled} />
-      </span>
     </div>
   );
 }

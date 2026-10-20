@@ -1357,7 +1357,14 @@ export const FX_PANEL_PLAN_REVIEW: AgentPanelView = {
   start: null,
   lines: [L('e1', 'you', null, 'You · draft the memo')],
   plan: {
-    text: "I'll draft 5 steps. Peer benchmarks is optional.",
+    text: 'My plan: 5 steps. Peer benchmarks is optional; untick it to skip.',
+    steps: [
+      { id: 'step_extract', n: 1, title: 'Financials', tool: 'Document Intelligence', optional: false, included: true, toggleLabel: 'Skip Financials' },
+      { id: 'step_risk', n: 2, title: 'Risk score and rating', tool: 'Risk Engine', optional: false, included: true, toggleLabel: 'Skip Risk score and rating' },
+      { id: 'step_peers', n: 3, title: 'Peer benchmarks', tool: 'Peer Benchmarks', optional: true, included: true, toggleLabel: 'Skip Peer benchmarks' },
+      { id: 'step_covenants', n: 4, title: 'Covenant compliance', tool: 'Covenant Tester', optional: false, included: true, toggleLabel: 'Skip Covenant compliance' },
+      { id: 'step_package', n: 5, title: 'Recommendation', tool: 'Memo Builder', optional: false, included: true, toggleLabel: 'Skip Recommendation' },
+    ],
     start: { label: COPY.startDrafting, kbd: '⌘↵', disabled: false },
     optional: { stepId: 'step_peers', label: 'Skip peers', included: true },
     cancelLabel: COPY.cancel,

@@ -282,6 +282,8 @@ export interface ThreadLine {
 }
 export interface PlanPromptView {
   text: string;
+  /** the plan itself, one line per step (Claude Code style checklist); optional steps carry a checkbox */
+  steps: { id: string; n: number; title: string; tool: string; optional: boolean; included: boolean; toggleLabel: string }[];
   start: { label: string; kbd: string; disabled: boolean };
   optional: { stepId: string; label: string; included: boolean } | null; // 'Skip peers' / 'Include peers'
   cancelLabel: string;

@@ -172,6 +172,15 @@ function planPrompt(s: V2Store, ctx: FileCtx): PlanPromptView {
       optional.map((x) => sectionHeading(sectionOfPlanStep(x))),
       optional.every(isIn),
     ),
+    steps: runnable.map((st, i) => ({
+      id: st.id,
+      n: i + 1,
+      title: sectionHeading(sectionOfPlanStep(st)),
+      tool: TOOL_LABEL[st.toolName],
+      optional: !!st.optional,
+      included: isIn(st),
+      toggleLabel: isIn(st) ? COPY.skipOptional(sectionHeading(sectionOfPlanStep(st))) : COPY.includeOptional(sectionHeading(sectionOfPlanStep(st))),
+    })),
     start: { label: COPY.startDrafting, kbd: `${s.modKey}↵`, disabled: false },
     optional: first
       ? {

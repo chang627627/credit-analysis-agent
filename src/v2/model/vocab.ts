@@ -404,11 +404,10 @@ export const COPY = {
   skippedLine: (heading: string): string => `${heading} skipped`,
   youLine: (text: string): string => `You · ${text}`,
   planPrompt: (included: number, total: number, optional: string[], allIn: boolean): string => {
-    const steps = included === total ? `I'll draft ${total} steps.` : `I'll draft ${included} of ${total} steps.`;
-    if (optional.length === 0) return steps;
+    const lead = included === total ? `My plan: ${total} steps.` : `My plan: ${included} of ${total} steps.`;
+    if (optional.length === 0) return `${lead} Start drafting when it looks right.`;
     const names = optional.length === 1 ? optional[0] : `${optional.slice(0, -1).join(', ')} and ${optional[optional.length - 1]}`;
-    const verb = optional.length === 1 ? 'is' : 'are';
-    return `${steps} ${names} ${verb} ${allIn ? 'optional' : 'skipped'}.`;
+    return allIn ? `${lead} ${names} is optional; untick it to skip.` : `${lead} ${names} is skipped.`;
   },
   skipOptional: (short: string): string => `Skip ${short}`,
   includeOptional: (short: string): string => `Include ${short}`,

@@ -1,16 +1,16 @@
 // ---------------------------------------------------------------------------
 // Agent panel · the plan prompt (THREE-PANE.md R2.1). Plan review only, above
-// the composer: one line ("I'll draft 5 steps. Peer benchmarks is optional."),
-// one row of actions (Start drafting, Skip / Include the optional step,
-// Cancel) and, while the auto-start countdown runs, one quiet line with Hold.
-// The step list itself is shown on the right (the memo's skeleton cards).
+// the composer: one line ("My plan: 5 steps. Peer benchmarks is optional; untick it to skip."),
+// the plan as a one-line-per-step checklist (optional steps toggle with their checkbox), one row
+// of actions (Start drafting, Cancel) and, while the auto-start countdown runs, one quiet line
+// with Hold. Like Claude Code's plan: the intent is approved here, the work shows on the right.
 // Start drafting is the panel's one primary (C13). When the prompt leaves
 // (Start drafting, Cancel, the countdown) with focus inside it, the composer
 // takes focus instead of the body.
 // ---------------------------------------------------------------------------
 
 import { useLayoutEffect, useRef } from 'react';
-import { Button, LinkButton } from '../../kit';
+import { Button, Checkbox, LinkButton } from '../../kit';
 import type { PlanPromptView } from '../../model';
 import { useV2 } from '../../state/store';
 import { focusComposerIfLost } from './focus';
@@ -21,7 +21,6 @@ export interface PlanPromptProps {
 
 export function PlanPrompt({ plan }: PlanPromptProps) {
   const a = useV2().actions;
-  const optional = plan.optional;
   const countdown = plan.countdown;
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -38,15 +37,24 @@ export function PlanPrompt({ plan }: PlanPromptProps) {
   return (
     <div ref={rootRef} className="chat-plan">
       <p className="chat-plan__text t-body">{plan.text}</p>
+      <ol className="chat-plan__steps">
+        {plan.steps.map((st) => (
+          <li key={st.id} className={st.included ? 'chat-plan__step' : 'chat-plan__step chat-plan__step--skipped'}>
+            {st.optional ? (
+              <Checkbox checked={st.included} onChange={() => a.togglePlanStep(st.id)} ariaLabel={st.toggleLabel} />
+            ) : (
+              <Checkbox checked locked onChange={() => undefined} ariaLabel={st.title} />
+            )}
+            <span className="chat-plan__n t-meta">{st.n}</span>
+            <span className="chat-plan__title t-body">{st.title}</span>
+            <span className="chat-plan__tool t-meta">{st.tool}</span>
+          </li>
+        ))}
+      </ol>
       <div className="chat-plan__actions">
         <Button variant="primary" kbd={plan.start.kbd} disabled={plan.start.disabled} onClick={() => a.approvePlan()}>
           {plan.start.label}
         </Button>
-        {optional ? (
-          <Button variant="secondary" onClick={() => a.togglePlanStep(optional.stepId)}>
-            {optional.label}
-          </Button>
-        ) : null}
         <Button variant="ghost" onClick={() => a.cancelPlan()}>
           {plan.cancelLabel}
         </Button>

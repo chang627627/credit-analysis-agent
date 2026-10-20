@@ -6,6 +6,7 @@ import { ToolCallView } from './ToolCallView';
 import { Artifact } from './Artifact';
 import type { Cite } from './Artifact';
 import { FlagPill } from './FlagPill';
+import { fmtM } from '../agent/format';
 
 /** A gate figure being traced back to the tool observation that produced it. */
 export interface TraceTarget {
@@ -34,7 +35,10 @@ function stepSummary(step: StepView): string {
       return 'Assembled the approval memo';
     case 'propose_restructure': {
       const r = d as { viable?: boolean; contributionM?: number } | undefined;
-      return r?.viable ? `Found the minimal cure · $${r.contributionM}M sponsor equity` : 'No cure within policy limits';
+      if (!r?.viable) return 'No cure within policy limits';
+      return r.contributionM
+        ? `Found the minimal cure · ${fmtM(r.contributionM)} sponsor equity`
+        : 'No restructure needed · the structure is already clean';
     }
     default:
       return 'Reasoned through this step';

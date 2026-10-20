@@ -25,6 +25,7 @@ export function OutcomeBanner({
   noteProvenance,
   amendments,
   auto = false,
+  routed: routedProp,
   onReset,
   onExport,
   onOpenQueue,
@@ -39,12 +40,18 @@ export function OutcomeBanner({
   amendments?: Amendment[] | null;
   /** The autonomy policy resolved this approval (clean-approval auto-countersign). */
   auto?: boolean;
+  /**
+   * The signature stood behind an ESCALATE (as amended, when terms were
+   * amended), so the memo was routed to the escalation queue. App computes it
+   * with the same rule as the gate's amended preview.
+   */
+  routed?: boolean;
   onReset: () => void;
   onExport: () => void;
   /** Present when a countersigned ESCALATE was routed to the escalation queue. */
   onOpenQueue?: () => void;
 }) {
-  const routed = approved && pkg.recommendation === 'escalate';
+  const routed = routedProp ?? (approved && pkg.recommendation === 'escalate' && !amendments?.length);
   const amendedTitle = amendments && amendments.length > 0;
   // decision time, fixed at mount — the moment the human acted
   const signedAt = useMemo(

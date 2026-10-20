@@ -11,6 +11,8 @@ import type { CovenantTest, ExtractedFinancials, RiskScore } from '../agent/mock
 import { useCountUp } from '../hooks/useCountUp';
 import { HeadroomBar } from './HeadroomBar';
 import { riskTone } from '../agent/rating';
+import { fmtM } from '../agent/format';
+import { MIN_HEADROOM } from '../agent/policy';
 
 interface MemoData {
   memoId: string;
@@ -96,31 +98,67 @@ interface RestructureData {
   contributionM?: number;
   debtPaydownM?: number;
   liquidityTopUpM?: number;
-  revised?: { totalDebtM: number; leverageX: number; interestCoverageX: number; liquidityM: number; riskScore: number };
+  revised?: {
+    totalDebtM: number;
+    leverageX: number;
+    interestCoverageX: number;
+    liquidityM: number;
+    riskScore: number;
+    /** the tightest covenant's headroom on the revised structure, % (the cure targets the policy cushion) */
+    minHeadroomPct?: number | null;
+  };
   searched?: string;
   reason?: string;
 }
 
-/** The Structuring Engine's answer: the minimal cure, or an honest "no cure". */
+const cushionPct = Math.round(MIN_HEADROOM * 100);
+const capitalize = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
+/**
+ * The Structuring Engine's answer: the minimal cure (the smallest sponsor
+ * equity that leaves every covenant with the policy cushion), "none needed"
+ * when the structure is already clean, or an honest "no cure".
+ */
 function RestructureArtifact({ data }: { data: RestructureData }) {
   if (!data.viable || !data.revised) {
     return (
       <div className="art">
         <div className="art__head">Restructure search · simulated</div>
         <p className="art__nocure">
-          No viable structure within policy limits — searched {data.searched}. {data.reason}.
+          No viable structure within policy limits — searched {data.searched}.
+          {data.reason ? ` ${capitalize(data.reason)}.` : ''}
+        </p>
+      </div>
+    );
+  }
+  if (!data.contributionM) {
+    return (
+      <div className="art">
+        <div className="art__head">Restructure search · simulated</div>
+        <p className="art__peerpos">
+          No restructure needed: the filed structure already clears every covenant with at least the {cushionPct}%
+          policy cushion.
         </p>
       </div>
     );
   }
   const r = data.revised;
   const cards = [
-    { k: 'Sponsor equity', v: `$${data.contributionM}M` },
-    { k: 'Debt paydown', v: `$${data.debtPaydownM}M` },
-    ...(data.liquidityTopUpM ? [{ k: 'To liquidity', v: `$${data.liquidityTopUpM}M` }] : []),
-    { k: 'New total debt', v: `$${r.totalDebtM}M` },
+    { k: 'Sponsor equity', v: fmtM(data.contributionM) },
+    { k: 'Debt paydown', v: fmtM(data.debtPaydownM ?? 0) },
+    ...(data.liquidityTopUpM ? [{ k: 'To liquidity', v: fmtM(data.liquidityTopUpM) }] : []),
+    { k: 'New total debt', v: fmtM(r.totalDebtM) },
     { k: 'New leverage', v: `${r.leverageX.toFixed(2)}x`, tone: 'good' as const },
     { k: 'New coverage', v: `${r.interestCoverageX.toFixed(2)}x` },
+    ...(r.minHeadroomPct != null
+      ? [
+          {
+            k: 'Min headroom',
+            v: `${r.minHeadroomPct.toFixed(1)}%`,
+            tone: r.minHeadroomPct >= cushionPct ? ('good' as const) : undefined,
+          },
+        ]
+      : []),
     { k: 'New risk score', v: `${r.riskScore}` },
   ];
   return (

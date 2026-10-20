@@ -6,7 +6,8 @@
 // ---------------------------------------------------------------------------
 
 import type { AgentContext, ToolName, ToolResult } from './types';
-import { findCure } from './whatif';
+import { cureBlockFor, describeCureBlock, findCure } from './whatif';
+import { CURE_CAP, MIN_HEADROOM } from './policy';
 import { sleep } from './util';
 
 /**
@@ -88,21 +89,26 @@ export const TOOLS: Record<ToolName, ToolDef> = {
     name: 'propose_restructure',
     label: 'Structuring Engine',
     defaultArgs: {
-      objective: 'clear the covenant package',
+      objective: `every covenant with ≥ ${Math.round(MIN_HEADROOM * 100)}% headroom (a clean approval under the decision rule)`,
       instrument: 'sponsor equity contribution',
-      policyLimit: 'contribution ≤ 35% of total debt',
+      policyLimit: `contribution ≤ ${Math.round(CURE_CAP * 100)}% of total debt`,
     },
     // Runs the same pure cure search the what-if model exposes: the smallest
-    // equity contribution whose revised structure makes `decide` say approve.
+    // equity contribution whose revised structure is clean — every covenant
+    // with the policy cushion, i.e. exactly what `decide` approves.
     run: async (ctx) => {
       await sleep(950 / ctx.speed, ctx.signal);
       const cure = findCure(ctx.deal);
       if (!cure) {
+        // the constraint that binds, not a generic "no structure clears the cushion"
+        const block = cureBlockFor(ctx.deal);
         return {
           data: {
             viable: false,
-            searched: 'equity contributions up to 35% of total debt (paydown and liquidity splits)',
-            reason: 'no structure within policy limits clears the covenant package',
+            searched: `equity contributions up to ${Math.round(CURE_CAP * 100)}% of total debt (paydown and liquidity splits)`,
+            reason: block
+              ? describeCureBlock(block)
+              : `no structure within policy limits clears every covenant with ${Math.round(MIN_HEADROOM * 100)}% headroom`,
           },
           confidence: conf(ctx, 0.92),
           durationMs: 950,
@@ -121,6 +127,7 @@ export const TOOLS: Record<ToolName, ToolDef> = {
             interestCoverageX: Math.round(o.ratios.interestCoverageX * 100) / 100,
             liquidityM: cure.scenario.liquidity,
             riskScore: o.risk.score,
+            minHeadroomPct: o.minHeadroom === null ? null : Math.round(o.minHeadroom * 1000) / 10,
           },
           breachesRemaining: o.breaches,
           decidedBy: 'same decide() rule as the analysis and the what-if panel',

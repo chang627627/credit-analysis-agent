@@ -12,6 +12,8 @@
 
 import type { Deal } from './mockData';
 import { sleep, uid } from './util';
+import { fmtHeadroom, headroomOf, headroomStatus } from './whatif';
+import { MIN_HEADROOM } from './policy';
 
 export type CovenantHealth = 'pass' | 'watch' | 'breach';
 export type DealHealth = 'healthy' | 'watch' | 'breach';
@@ -135,11 +137,17 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 
 // --- covenant tests (shared thresholds across the book) ----------------------
 
-function maxLimit(v: number, breach: number, watch: number): CovenantHealth {
-  return v > breach ? 'breach' : v > watch ? 'watch' : 'pass';
-}
-function minLimit(v: number, breach: number, watch: number): CovenantHealth {
-  return v < breach ? 'breach' : v < watch ? 'watch' : 'pass';
+/**
+ * A covenant's health read the way the decision rule reads it: signed headroom
+ * against the house policy cushion (MIN_HEADROOM) — past the line = breach,
+ * inside the cushion = watch. So the Book and the analysis can never call the
+ * same headroom different things (a file at 3.60x on a 4.00x ceiling, 10%
+ * headroom, is "watch" here because `decide` escalates it as thin).
+ */
+function healthOf(dir: 'max' | 'min', v: number, limit: number): { status: CovenantHealth; headroom: number | null } {
+  const headroom = headroomOf(dir, v, limit);
+  const s = headroomStatus(headroom);
+  return { status: s === 'breach' ? 'breach' : s === 'thin' ? 'watch' : 'pass', headroom };
 }
 
 export async function* sweepPortfolio(
@@ -170,12 +178,13 @@ export async function* sweepPortfolio(
     const liq = clamp(r1(baseLiq + step(deal.id, sweepId, 4, 1.4) - bias * 0.5), 1, 60);
     const risk = clamp(Math.round(baseRisk + step(deal.id, sweepId, 5, 2.5) + bias * 1.5), 5, 95);
 
-    const covenants: MonitorCovenant[] = [
-      { name: 'Max Total Leverage', threshold: '≤ 4.00x', actual: `${lev.toFixed(2)}x`, status: maxLimit(lev, 4.0, 3.7) },
-      { name: 'Min Interest Coverage', threshold: '≥ 2.00x', actual: `${ic.toFixed(2)}x`, status: minLimit(ic, 2.0, 2.3) },
-      { name: 'Min Fixed-Charge Coverage', threshold: '≥ 1.10x', actual: `${fcc.toFixed(2)}x`, status: minLimit(fcc, 1.1, 1.25) },
-      { name: 'Min Liquidity', threshold: '≥ $10.0M', actual: `$${liq.toFixed(1)}M`, status: minLimit(liq, 10, 12.5) },
+    const tests = [
+      { name: 'Max Total Leverage', threshold: '≤ 4.00x', actual: `${lev.toFixed(2)}x`, ...healthOf('max', lev, 4.0) },
+      { name: 'Min Interest Coverage', threshold: '≥ 2.00x', actual: `${ic.toFixed(2)}x`, ...healthOf('min', ic, 2.0) },
+      { name: 'Min Fixed-Charge Coverage', threshold: '≥ 1.10x', actual: `${fcc.toFixed(2)}x`, ...healthOf('min', fcc, 1.1) },
+      { name: 'Min Liquidity', threshold: '≥ $10.0M', actual: `$${liq.toFixed(1)}M`, ...healthOf('min', liq, 10) },
     ];
+    const covenants: MonitorCovenant[] = tests.map(({ name, threshold, actual, status }) => ({ name, threshold, actual, status }));
 
     const health: DealHealth = covenants.some((c) => c.status === 'breach')
       ? 'breach'
@@ -208,8 +217,9 @@ export async function* sweepPortfolio(
     // raise escalations for anything not passing (the hook dedups by key and
     // upgrades/refreshes an open item in place)
     const now = Date.now();
-    for (const c of covenants) {
+    for (const c of tests) {
       if (c.status === 'pass') continue;
+      const room = c.headroom !== null ? ` (${fmtHeadroom(c.headroom)} headroom)` : '';
       yield {
         type: 'escalation',
         item: {
@@ -220,8 +230,8 @@ export async function* sweepPortfolio(
           severity: c.status === 'breach' ? 'critical' : 'warning',
           reason:
             c.status === 'breach'
-              ? `${c.name} ${c.actual} breaches the ${c.threshold} covenant`
-              : `${c.name} ${c.actual} is approaching its ${c.threshold} limit — thin headroom`,
+              ? `${c.name} ${c.actual} breaches the ${c.threshold} covenant${room}`
+              : `${c.name} ${c.actual} is inside the ${Math.round(MIN_HEADROOM * 100)}% policy cushion of its ${c.threshold} limit${room} — thin headroom`,
           at: now,
           status: 'open',
           origin: 'monitor',

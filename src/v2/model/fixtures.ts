@@ -175,13 +175,18 @@ const ATLAS_FCC_MSG = 'Fixed-charge coverage 1.18x leaves only thin headroom ove
 /** The rev 1 send-back note: Draft from notes, then edited by the reviewer. */
 const ATLAS_RETURN_NOTE = 'Breaches on record: Max Total Leverage 4.26x breaches the ≤ 4.00x covenant. Bring back a structure that clears it.';
 const ATLAS_SENDBACK_MSG = `Reviewer send-back (rev 1 · note agent-drafted, edited by reviewer): ${ATLAS_RETURN_NOTE}`;
-const ATLAS_RESTRUCTURE_MSG = `Restructure proposed: $6M sponsor equity ($6M debt paydown) ${EM} every covenant passes on the revised structure.`;
+const ATLAS_RESTRUCTURE_MSG = `Restructure proposed: $19.5M sponsor equity ($19.5M debt paydown) ${EM} every covenant clears with at least 15% headroom on the revised structure.`;
 const ATLAS_SUMMARY =
-  'Atlas offers an acceptable spread for the risk, but total leverage of 4.26x breaches the proposed 4.00x covenant. Recommend escalation to a credit officer for a waiver or a structure adjustment (e.g. a step-down or additional equity) before approval.';
+  'Atlas offers an acceptable spread for the risk, but total leverage of 4.26x breaches the proposed 4.00x covenant, and interest and fixed-charge coverage sit inside the policy cushion. Recommend escalation to a credit officer: approval needs additional sponsor equity, or a reset of the leverage covenant together with both coverage tests (a leverage waiver alone leaves the coverage tests thin).';
 const ATLAS_REV2_SUMMARY =
-  `Revised structure: $6M sponsor equity ${EM} $6M debt paydown. Total debt falls to $90.3M (leverage 4.00x), ` +
-  `every covenant passes, and the risk score recomputes to 55 (B2 / Speculative) ${EM} through the same ` +
+  `Revised structure: $19.5M sponsor equity ${EM} $19.5M debt paydown. Total debt falls to $76.8M (leverage 3.40x), ` +
+  `every covenant clears with at least 15% headroom (tightest: total leverage at 15.1%), and the risk score recomputes to 47 (B2 / Speculative) ${EM} through the same ` +
   'decision rule as the original analysis. Recommend approval of the revised structure, subject to the sponsor commitment.';
+/** The engine's decision reasons on the Atlas packages (the decide rule's own sentences). */
+const ATLAS_REASON_BREACH =
+  `Total leverage 4.26x breaches the ≤ 4.00x covenant (${M}6.5% headroom). Approve subject to $19.5M sponsor equity or a reset of the leverage, interest coverage and fixed-charge coverage covenants.`;
+const ATLAS_REASON_THIN = 'Thin headroom: interest coverage 4.8%, fixed-charge coverage 6.8% (policy cushion 15%).';
+const ATLAS_REASON_REV2 = 'Every covenant clears with at least 15% headroom; risk score 47 (B2).';
 
 const FILES_INITIAL: DocBarView['files'] = [
   { dealId: 'atlas', label: 'Project Atlas', meta: 'Not started' },
@@ -197,12 +202,13 @@ const REASON_RISK =
   'With the financials extracted I can score the credit. Leverage and coverage dominate here, so I weight those most heavily and map the result onto the internal rating scale.';
 const REASON_PEERS = `The reviewer kept peer benchmarking in the plan, so I'll place the credit in its sector context ${EM} leverage, coverage and margin against the comparable set ${EM} before testing covenants.`;
 const REASON_COVENANTS =
-  'Now the part that actually gates the deal: testing each proposed covenant against the extracted figures. A single breach changes the recommendation.';
-const REASON_PACKAGE_ATLAS = `I have what I need ${EM} but 1 covenant fails, so I will not auto-approve. I’ll assemble the memo and route it to a human credit officer.`;
+  `Now the part that actually gates the deal: testing each proposed covenant against the extracted figures and measuring its headroom. A breach ${EM} or a pass with less than the 15% policy cushion ${EM} changes the recommendation.`;
+const REASON_PACKAGE_ATLAS = `I have what I need ${EM} but the deal carries 2 policy exceptions, so I will not recommend approval as filed. I’ll assemble the memo with the exceptions sized and escalate it to a human credit officer.`;
 const REASON_REWORK_ATLAS =
   `The reviewer sent this back: “${ATLAS_RETURN_NOTE}” Restating the filed figures wouldn't change anything ${EM} so I'll treat the send-back as ` +
-  'authorization to restructure within policy limits: search for the smallest sponsor equity contribution that clears the whole covenant package, ' +
+  'authorization to restructure within policy limits: search for the smallest sponsor equity contribution that leaves every covenant with the 15% policy cushion, ' +
   're-derive the recommendation through the same decide rule, and reassemble revision 2 for a fresh countersign.';
+const REWORK_OBJECTIVE = 'every covenant with ≥ 15% headroom (a clean approval under the decision rule)';
 
 const ATLAS_FINANCIALS = {
   revenueTtm: 128.4,
@@ -318,7 +324,7 @@ const STUB_REWORK_ATLAS: StubView = {
   argsLabel: COPY.argsLabel,
   argsCount: '5 fields',
   args: {
-    objective: 'clear the covenant package',
+    objective: REWORK_OBJECTIVE,
     instrument: 'sponsor equity contribution',
     policyLimit: 'contribution ≤ 35% of total debt',
     revision: 2,
@@ -328,10 +334,10 @@ const STUB_REWORK_ATLAS: StubView = {
   resultCount: '7 fields',
   result: {
     viable: true,
-    contributionM: 6,
-    debtPaydownM: 6,
+    contributionM: 19.5,
+    debtPaydownM: 19.5,
     liquidityTopUpM: 0,
-    revised: { totalDebtM: 90.3, leverageX: 4, interestCoverageX: 2.24, liquidityM: 14.2, riskScore: 55 },
+    revised: { totalDebtM: 76.8, leverageX: 3.4, interestCoverageX: 2.63, liquidityM: 14.2, riskScore: 47, minHeadroomPct: 15 },
     breachesRemaining: 0,
     decidedBy: 'same decide() rule as the analysis and the what-if panel',
   },
@@ -520,11 +526,11 @@ const REC_ATLAS: RecommendationBody = {
   basis: COPY.basisFiled,
   prior: null,
   token: ESCALATE,
-  sentence: 'Escalate to a credit officer. 1 covenant breach rules out approval; risk 58 sits below the 75 decline line.',
+  sentence: `Escalate to a credit officer. ${ATLAS_REASON_BREACH}`,
   summary: ATLAS_SUMMARY,
   keyFigures: KEYFIGS_ATLAS,
   aidLabel: COPY.aidLabel,
-  nearestFlip: `Nearest flip · Total debt ≤ $90.4M (${M}$5.9M) → APPROVE`,
+  nearestFlip: `Nearest flip · Total debt ≤ $76.8M (${M}$19.5M) → APPROVE`,
   stressLinkLabel: COPY.stressLink,
   reworkLine: null,
   summaryLabel: COPY.summaryBlock,
@@ -584,7 +590,7 @@ const COVENANTS_ATLAS: CovenantRow[] = [
     amended: null,
     actual: '2.10x',
     actualTone: 'ink',
-    cushion: { pct: 5, text: '+5.0%', tone: 'warn' },
+    cushion: { pct: 4.8, text: '+4.8%', tone: 'warn' },
     status: 'pass',
     statusText: 'Pass',
     amend: null,
@@ -596,7 +602,7 @@ const COVENANTS_ATLAS: CovenantRow[] = [
     amended: null,
     actual: '1.18x',
     actualTone: 'ink',
-    cushion: { pct: 7.3, text: '+7.3%', tone: 'warn' },
+    cushion: { pct: 6.8, text: '+6.8%', tone: 'warn' },
     status: 'pass',
     statusText: 'Pass',
     amend: null,
@@ -608,7 +614,7 @@ const COVENANTS_ATLAS: CovenantRow[] = [
     amended: null,
     actual: '$14.2M',
     actualTone: 'ink',
-    cushion: { pct: 42, text: '+42.0%', tone: 'neutral' },
+    cushion: { pct: 29.6, text: '+29.6%', tone: 'neutral' },
     status: 'pass',
     statusText: 'Pass',
     amend: null,
@@ -624,14 +630,15 @@ const REVISION_ATLAS: RevisionBody = {
   returned: { quote: `“${ATLAS_RETURN_NOTE}”`, attribution: 'Reviewer · rev 1 · 14:05 · agent-drafted, edited by the reviewer' },
   viable: true,
   summary:
-    'The Structuring Engine proposes $6.0M sponsor equity as $6.0M debt paydown. Every covenant passes on the revised structure, and risk recomputes to 55 (B2 / Speculative) through the same decide rule.',
+    'The Structuring Engine proposes $19.5M sponsor equity as $19.5M debt paydown. Every covenant clears with at least 15% headroom on the revised structure (tightest: total leverage 15.1%), and risk recomputes to 47 (B2 / Speculative) through the same decide rule.',
   redline: [
-    { label: 'Sponsor equity', from: '–', to: '$6.0M', unchanged: false, anchorId: 'rev2:equity' },
-    { label: 'Total debt', from: '$96.3M', to: '$90.3M', unchanged: false, anchorId: 'rev2:debt' },
-    { label: 'Total leverage', from: '4.26x', to: '4.00x', unchanged: false, anchorId: 'rev2:leverage' },
-    { label: 'Interest coverage', from: '2.10x', to: '2.24x', unchanged: false, anchorId: 'rev2:interest' },
+    { label: 'Sponsor equity', from: '–', to: '$19.5M', unchanged: false, anchorId: 'rev2:equity' },
+    { label: 'Total debt', from: '$96.3M', to: '$76.8M', unchanged: false, anchorId: 'rev2:debt' },
+    { label: 'Total leverage', from: '4.26x', to: '3.40x', unchanged: false, anchorId: 'rev2:leverage' },
+    { label: 'Interest coverage', from: '2.10x', to: '2.63x', unchanged: false, anchorId: 'rev2:interest' },
     { label: 'Liquidity', from: '$14.2M', to: '$14.2M', unchanged: true, anchorId: 'rev2:liquidity' },
-    { label: 'Risk score', from: '58', to: '55', unchanged: false, anchorId: 'rev2:risk' },
+    { label: 'Tightest headroom', from: `${M}6.5%`, to: '15.1%', unchanged: false, anchorId: 'rev2:headroom' },
+    { label: 'Risk score', from: '58', to: '47', unchanged: false, anchorId: 'rev2:risk' },
     { label: 'Recommendation', from: 'ESCALATE', to: 'APPROVE', unchanged: false, anchorId: 'rev2:recommendation' },
   ],
   noCure: null,
@@ -679,11 +686,11 @@ const EYEBROW = {
 } as const;
 
 const TAKE_ATLAS = {
-  financials: take('breach', 'Total leverage 4.26x breaches the ≤ 4.00x covenant; the other 3 tested figures clear theirs.'),
-  risk: take('watch', 'Risk 58 (B2 / Speculative) is 17 points under the 75 decline line.'),
+  financials: take('breach', 'Total leverage 4.26x breaches the ≤ 4.00x covenant; the other 3 tested figures clear theirs, 2 with thin headroom.'),
+  risk: take('watch', 'Risk 58 (B2 / Speculative) is 2 points under the 60 referral line and 17 under the 75 decline line.'),
   peers: take('info', 'Total leverage 4.26x is above the sector median of 3.96x.', COPY.peersBasis),
-  covenants: take('breach', '1 of 4 covenants breached: Max Total Leverage.'),
-  revision: take('pass', '$6.0M sponsor equity brings total leverage to 4.00x: ESCALATE becomes APPROVE.'),
+  covenants: take('breach', '1 of 4 covenants breached: Max Total Leverage; 2 more pass with thin headroom.'),
+  revision: take('pass', '$19.5M sponsor equity brings total leverage to 3.40x and every covenant to at least 15% headroom: ESCALATE becomes APPROVE.'),
 };
 
 const secFinancials = (body: FigureRow[] = FIGURES_ATLAS, record = STUB_EXTRACT, takeaway = TAKE_ATLAS.financials, flagLines: SectionFlagLine[] = [EVIDENCE_ATLAS]): SecOf<'financials'> => ({
@@ -990,26 +997,26 @@ const KEYFIGS_ATLAS_REV2: KeyFigureView[] = [
   KEYFIGS_ATLAS[1],
   {
     label: 'Total leverage',
-    value: '4.00x',
+    value: '3.40x',
     sub: null,
-    caption: '0.00x room · ≤ 4.00x',
-    tone: 'warn',
-    dot: 'warn',
+    caption: '0.60x room · ≤ 4.00x',
+    tone: 'ink',
+    dot: null,
     evidenceText: 'Model output · Structuring Engine',
     anchorId: 'rev2:leverage',
-    ariaLabel: 'Total leverage 4.00x, 0.00x room · ≤ 4.00x. Model output · Structuring Engine. Show in Revision 2.',
+    ariaLabel: 'Total leverage 3.40x, 0.60x room · ≤ 4.00x. Model output · Structuring Engine. Show in Revision 2.',
     target: { section: 'revision-2', anchorId: 'rev2:leverage' },
   },
   {
     label: 'Interest coverage',
-    value: '2.24x',
+    value: '2.63x',
     sub: null,
-    caption: '0.24x room · ≥ 2.00x',
+    caption: '0.63x room · ≥ 2.00x',
     tone: 'ink',
     dot: null,
     evidenceText: 'Model output · Structuring Engine',
     anchorId: 'rev2:interest',
-    ariaLabel: 'Interest coverage 2.24x, 0.24x room · ≥ 2.00x. Model output · Structuring Engine. Show in Revision 2.',
+    ariaLabel: 'Interest coverage 2.63x, 0.63x room · ≥ 2.00x. Model output · Structuring Engine. Show in Revision 2.',
     target: { section: 'revision-2', anchorId: 'rev2:interest' },
   },
   {
@@ -1061,11 +1068,11 @@ export const FX_FILE_ATLAS_REV2: FileView = {
       basis: 'On the proposed revised structure · rev 2',
       prior: ESCALATE,
       token: APPROVE,
-      sentence: 'Approve the revised structure. $6.0M sponsor equity clears every covenant; risk 55 (B2 / Speculative).',
+      sentence: 'Approve the revised structure. With $19.5M sponsor equity, every covenant clears with at least 15% headroom; risk score 47 (B2).',
       summary: ATLAS_REV2_SUMMARY,
       keyFigures: KEYFIGS_ATLAS_REV2,
-      // read from the revised figures: how far the revised APPROVE is from being lost
-      nearestFlip: `${COPY.flipOnRevised} · Nearest flip · Total debt ≥ $90.5M (+$0.2M) → ESCALATE`,
+      // read from the revised figures: how far the revised APPROVE is from being lost (the cure is minimal)
+      nearestFlip: `${COPY.flipOnRevised} · Nearest flip · Total debt ≥ $76.9M (+$0.1M) → ESCALATE`,
     }),
   ],
   toReview: [],
@@ -1166,9 +1173,10 @@ const REC_UP: RecommendationBody = {
   basis: COPY.basisFiled,
   prior: null,
   token: ESCALATE,
-  sentence: 'Escalate to a credit officer. 1 covenant breach rules out approval; risk 54 sits below the 75 decline line.',
+  // the data gate: the Risk Engine read 70%, under the 75% floor, so the agent escalates for verification
+  sentence: 'Escalate to a credit officer. Verify the extracted figures: Risk Engine read at 70% confidence (floor 75%).',
   summary:
-    'Q3 Cim screens at 4.99x leverage with a 15.0% EBITDA margin and a risk score of 54 (B2 / Speculative). 1 of 4 covenant tests fail. Recommend escalation to a credit officer for a waiver or structure adjustment.',
+    'Q3 Cim screens at 4.99x leverage with a 15.0% EBITDA margin and a risk score of 54 (B2 / Speculative). 1 of 4 covenant tests fail. On the figures as extracted, the decision rule points to escalation to a credit officer: the breach is curable with sponsor equity within policy. Held for verification: the figures were read below the 75% confidence floor, and neither an approval nor a decline rests on unverified extraction.',
   keyFigures: [
     upKey('Revenue (TTM)', '$155.7M', 'Quoted · CIM para 2', 'fig:revenue'),
     upKey('Adj. EBITDA', '$23.4M', 'Quoted · CIM para 2', 'fig:ebitda', { sub: '15.0% margin' }),
@@ -1177,7 +1185,7 @@ const REC_UP: RecommendationBody = {
     upKey('Liquidity', '$25.7M', 'Unquoted · extracted', 'fig:liquidity', { caption: '$15.7M room · ≥ $10.0M' }),
   ],
   aidLabel: COPY.aidLabel,
-  nearestFlip: `Nearest flip · Total debt ≤ $93.6M (${M}$23.2M) → APPROVE`,
+  nearestFlip: `${COPY.flipUnverified('ESCALATE')} · Nearest flip · Total debt ≤ $79.5M (${M}$37.3M) → APPROVE`,
   stressLinkLabel: COPY.stressLink,
   reworkLine: null,
   summaryLabel: COPY.summaryBlock,
@@ -1210,9 +1218,9 @@ const COVENANTS_UP: CovenantRow[] = [
     cushion: { pct: -24.8, text: `${M}24.8%`, tone: 'bad' },
     amend: AMEND_LEVERAGE,
   },
-  { ...COVENANTS_ATLAS[1], actual: '4.25x', cushion: { pct: 112.5, text: '+112.5%', tone: 'neutral' } },
-  { ...COVENANTS_ATLAS[2], actual: '1.45x', cushion: { pct: 31.8, text: '+31.8%', tone: 'neutral' } },
-  { ...COVENANTS_ATLAS[3], actual: '$25.7M', cushion: { pct: 157, text: '+157.0%', tone: 'neutral' }, amend: AMEND_LIQUIDITY },
+  { ...COVENANTS_ATLAS[1], actual: '4.25x', cushion: { pct: 52.9, text: '+52.9%', tone: 'neutral' } },
+  { ...COVENANTS_ATLAS[2], actual: '1.45x', cushion: { pct: 24.1, text: '+24.1%', tone: 'neutral' } },
+  { ...COVENANTS_ATLAS[3], actual: '$25.7M', cushion: { pct: 61.1, text: '+61.1%', tone: 'neutral' }, amend: AMEND_LIQUIDITY },
 ];
 const upStub = (s: StubView, meta: string, confTone: StubView['confTone'], result?: unknown): StubView => ({
   ...s,
@@ -1254,9 +1262,9 @@ export const FX_FILE_UPLOAD_GATE: FileView = {
   },
   sections: [
     secFinancials(FIGURES_UP, upStub(STUB_EXTRACT, '1.1 s · 76%', 'warn'), take('breach', 'Total leverage 4.99x breaches the ≤ 4.00x covenant; the other 3 tested figures clear theirs.'), [EVIDENCE_UP]),
-    secRisk(RISK_UP, upStub(STUB_RISK, '800 ms · 70%', 'bad'), take('watch', 'Risk 54 (B2 / Speculative) is 21 points under the 75 decline line.'), [flagLine('flag_109', 'watch', 'Risk Engine returned 70% confidence (floor 75%)')]),
+    secRisk(RISK_UP, upStub(STUB_RISK, '800 ms · 70%', 'bad'), take('watch', 'Risk 54 (B2 / Speculative) is 6 points under the 60 referral line and 21 under the 75 decline line.'), [flagLine('flag_109', 'watch', 'Risk Engine returned 70% confidence (floor 75%)')]),
     secPeers(PEERS_UP, upStub(STUB_PEERS, '850 ms · 68%', 'bad'), take('info', 'Total leverage 4.99x is above the sector median of 4.64x.', COPY.peersBasis), [flagLine('flag_112', 'watch', 'Peer Benchmarks returned 68% confidence (floor 75%)')]),
-    secCovenants(COVENANTS_UP, upStub(STUB_COVENANTS, '900 ms · 79%', 'warn')),
+    secCovenants(COVENANTS_UP, upStub(STUB_COVENANTS, '900 ms · 79%', 'warn'), take('breach', '1 of 4 covenants breached: Max Total Leverage.')),
     secRecommendation(REC_UP, upStub(STUB_PACKAGE, '700 ms · 73%', 'bad'), [flagLine('flag_118', 'watch', 'Memo Builder returned 73% confidence (floor 75%)')]),
   ],
   // emission order: Risk Engine, Peer Benchmarks, Covenant Tester, then Memo Builder
@@ -1396,9 +1404,9 @@ export const FX_PANEL_ATLAS_REV2: AgentPanelView = {
     L('e2', 'you', null, 'You · countersign'),
     L('e3', 'answer', 'info', COPY.reply.decisionGate, 'signature'),
     L('e4', 'you', null, 'You · why escalate?'),
-    L('e5', 'answer', null, `I recommended ESCALATE. ${ATLAS_SUMMARY}`, 'recommendation'),
+    L('e5', 'answer', null, `The agent recommends ESCALATE. ${ATLAS_REASON_BREACH} ${ATLAS_REASON_THIN}`, 'recommendation'),
     L('returned:2', 'revision', 'returned', 'Returned for revision · rev 2', 'revision-2'),
-    L('step:step_rework_2', 'revision', 'done', 'Proposed a $6.0M sponsor equity cure', 'revision-2'),
+    L('step:step_rework_2', 'revision', 'done', 'Proposed a $19.5M sponsor equity cure', 'revision-2'),
     L('gate:2', 'gate', 'awaiting', COPY.gateLine, 'signature'),
   ],
 };
@@ -1530,28 +1538,37 @@ export const FX_SIG_ATLAS_GATE: SignatureView = {
   amendment: null,
   attestation:
     "Countersigning concurs with the agent's ESCALATE on CAM-2026-0417 and signs over 2 notes, including 1 covenant breach. The memo then routes to the escalation queue for senior credit review.",
-  call: { lead: COPY.agentRecommends, token: ESCALATE, title: 'Send Project Atlas to senior credit review?', why: 'Max Total Leverage 4.26x breaches the ≤ 4.00x covenant. With a risk score of 58, under the 75 decline line, the agent may neither approve nor decline it: a person decides.' },
+  // the reason is the decide rule's own (first two reasons, with their sizes)
+  call: { lead: COPY.agentRecommends, token: ESCALATE, title: 'Send Project Atlas to senior credit review?', why: `${ATLAS_REASON_BREACH} ${ATLAS_REASON_THIN}` },
   verbs: VERBS('Countersign escalation'),
   sealed: null,
 };
 
-/** Atlas rev 1 gate with Max Total Leverage amended in place to ≤ 4.30x (resolves to APPROVE). */
+/**
+ * Atlas rev 1 gate with Max Total Leverage amended in place to ≤ 4.30x. The breach clears, but the
+ * same rule re-tests headroom: 0.9% on leverage (and the coverages' thin cushions) still escalates.
+ */
 export const FX_SIG_ATLAS_AMENDED: SignatureView = {
   ...FX_SIG_ATLAS_GATE,
   signedOver: [{ ...SIGNED_OVER_ATLAS[0], cleared: true }, SIGNED_OVER_ATLAS[1]],
   amendment: {
     text: 'Amended terms · Max Total Leverage ≤ 4.00x → ≤ 4.30x · as amended',
-    token: APPROVE,
+    token: ESCALATE,
     revertLabel: COPY.revert,
     editLabel: COPY.editInMemo,
     editKind: 'leverage',
     editTarget: { section: 'covenants', anchorId: 'cov:Max Total Leverage' },
   },
   attestation:
-    'Countersigning as amended approves CAM-2026-0417 on your amended terms (Max Total Leverage ≤ 4.30x). Your amended term is recorded with your signature. Nothing routes onward: the amendment resolves the escalation.',
+    'Countersigning as amended concurs with ESCALATE on your amended terms (Max Total Leverage ≤ 4.30x). Your amended term is recorded with your signature. The memo then routes to the escalation queue for senior credit review.',
   // the token stays the AGENT's call (ESCALATE); the amended outcome is the reviewer's, stated in the reason
-  call: { lead: COPY.agentRecommends, token: ESCALATE, title: 'Approve Project Atlas on your amended terms?', why: 'On your amended terms (Max Total Leverage ≤ 4.30x) the same decision rule gives APPROVE.' },
-  verbs: VERBS('Countersign as amended', VERB_NOTES('Approves on your amended terms. Nothing routes onward.', false)),
+  call: {
+    lead: COPY.agentRecommends,
+    token: ESCALATE,
+    title: 'Send Project Atlas to senior credit review on your amended terms?',
+    why: 'On your amended terms (Max Total Leverage ≤ 4.30x) the same decision rule still gives ESCALATE. Thin headroom: total leverage 0.9%, interest coverage 4.8%, fixed-charge coverage 6.8% (policy cushion 15%).',
+  },
+  verbs: VERBS('Countersign as amended', VERB_NOTES('Routes the memo to senior credit review.', false)),
 };
 
 /** Atlas rev 2 gate on the revised structure; policy on and correctly not eligible. */
@@ -1582,8 +1599,13 @@ export const FX_SIG_ATLAS_REV2: SignatureView = {
     holdLabel: null,
   },
   attestation:
-    'Countersigning concurs with the revised structure on CAM-2026-0417 ($6.0M sponsor equity: $6.0M debt paydown), subject to the sponsor commitment. There are no notes to sign over.',
-  call: { lead: COPY.agentRecommends, token: APPROVE, title: 'Approve Project Atlas on the revised structure?', why: 'With $6.0M of sponsor equity every covenant passes, so the same decision rule now approves.' },
+    'Countersigning concurs with the revised structure on CAM-2026-0417 ($19.5M sponsor equity: $19.5M debt paydown), subject to the sponsor commitment. There are no notes to sign over.',
+  call: {
+    lead: COPY.agentRecommends,
+    token: APPROVE,
+    title: 'Approve Project Atlas on the revised structure?',
+    why: `With $19.5M of sponsor equity the same decision rule now approves: ${ATLAS_REASON_REV2.charAt(0).toLowerCase()}${ATLAS_REASON_REV2.slice(1)}`,
+  },
   verbs: VERBS('Countersign revised structure', VERB_NOTES('Approves the revised structure.', false, 3)),
 };
 
@@ -1611,7 +1633,7 @@ export const FX_SIG_MERIDIAN_COUNTDOWN: SignatureView = {
   note: NOTE_EMPTY,
   amendment: null,
   attestation: "Countersigning concurs with the agent's APPROVE on CAM-2026-0418. There are no notes to sign over. The memo is committed to the record.",
-  call: { lead: COPY.agentRecommends, token: APPROVE, title: 'Approve Project Meridian as filed?', why: 'Every covenant passes on the filed figures.' },
+  call: { lead: COPY.agentRecommends, token: APPROVE, title: 'Approve Project Meridian as filed?', why: 'Every covenant clears with at least 15% headroom; risk score 28 (Ba2).' },
   verbs: VERBS('Countersign approval', VERB_NOTES('Approves the facility as filed.', false)),
   sealed: null,
 };
@@ -1653,7 +1675,13 @@ export const FX_SIG_COBALT_GATE: SignatureView = {
   amendment: null,
   attestation:
     "Countersigning concurs with the agent's DECLINE on CAM-2026-0419 and signs over 5 notes, including 4 covenant breaches. The facility is recorded as declined as structured.",
-  call: { lead: COPY.agentRecommends, token: DECLINE, title: 'Decline Project Cobalt?', why: 'All 4 covenants breach, led by Max Total Leverage 5.66x against ≤ 4.00x. The risk score of 82 is at or over the 75 decline line.' },
+  // every principal reason (the long breach list keeps its head clause; the rows are signed over above)
+  call: {
+    lead: COPY.agentRecommends,
+    token: DECLINE,
+    title: 'Decline Project Cobalt?',
+    why: `Risk score 82 is at or above the 75 decline line (Caa1). Fixed-charge coverage 0.95x is below the 1.00x floor: cash flow does not cover fixed charges. 4 covenants breach: liquidity $6.5M vs ≥ $10.0M (${M}53.8% headroom), interest coverage 1.40x vs ≥ 2.00x (${M}42.9%), total leverage 5.66x vs ≤ 4.00x (${M}41.5%), fixed-charge coverage 0.95x vs ≥ 1.10x (${M}15.8%). No cure within policy: even $39.2M of debt paydown (the 35% cap) leaves total leverage, interest coverage and fixed-charge coverage short of the 15% cushion.`,
+  },
   verbs: VERBS(
     'Countersign decline',
     VERB_NOTES('You agree with the analysis: the facility is recorded as declined.', true, 2, 'You disagree with the analysis: the memo is refused. Note required.'),
@@ -1782,7 +1810,11 @@ export const FX_SIG_REJECTED: SignatureView = {
 // Stress test and exhibits
 // =============================================================================
 
-/** Atlas stress test, open, Total debt stressed to $90.4M: flips to APPROVE. */
+/**
+ * Atlas stress test, open, Total debt stressed to $76.8M (the minimal cure's debt): flips to APPROVE.
+ * Every covenant then clears with at least the 15% policy cushion (total leverage lands on 15.1%),
+ * so the debt track's APPROVE boundary sits one step above the current value.
+ */
 export const FX_STRESS_ATLAS: StressView = {
   open: true,
   available: 'live',
@@ -1802,33 +1834,33 @@ export const FX_STRESS_ATLAS: StressView = {
       deltaText: null,
       deltaTone: 'ink-3',
       zones: [
-        { tone: 'bad', fromPct: 0, toPct: 21.77 },
-        { tone: 'warn', fromPct: 21.77, toPct: 42.59 },
+        { tone: 'bad', fromPct: 0, toPct: 28.39 },
+        { tone: 'warn', fromPct: 28.39, toPct: 42.59 },
         { tone: 'good', fromPct: 42.59, toPct: 100 },
       ],
       boundaries: [
-        { pct: 21.77, text: '$15.9M', tone: 'bad' },
+        { pct: 28.39, text: '$18.0M', tone: 'bad' },
         { pct: 42.59, text: '$22.5M', tone: 'warn' },
       ],
     },
     {
       key: 'debt',
       label: 'Total debt',
-      value: 90.4,
+      value: 76.8,
       min: 48.2,
       max: 154.1,
       step: 0.1,
-      valueText: '$90.4M',
-      deltaText: `${M}$5.9M`,
+      valueText: '$76.8M',
+      deltaText: `${M}$19.5M`,
       deltaTone: 'good',
       zones: [
-        { tone: 'good', fromPct: 0, toPct: 39.94 },
-        { tone: 'warn', fromPct: 39.94, toPct: 76.49 },
-        { tone: 'bad', fromPct: 76.49, toPct: 100 },
+        { tone: 'good', fromPct: 0, toPct: 27.1 },
+        { tone: 'warn', fromPct: 27.1, toPct: 66.1 },
+        { tone: 'bad', fromPct: 66.1, toPct: 100 },
       ],
       boundaries: [
-        { pct: 39.94, text: '$90.5M', tone: 'warn' },
-        { pct: 76.49, text: '$129.2M', tone: 'bad' },
+        { pct: 27.1, text: '$76.9M', tone: 'warn' },
+        { pct: 66.1, text: '$118.2M', tone: 'bad' },
       ],
     },
     {
@@ -1842,10 +1874,14 @@ export const FX_STRESS_ATLAS: StressView = {
       deltaText: null,
       deltaTone: 'ink-3',
       zones: [
-        { tone: 'good', fromPct: 0, toPct: 56.18 },
-        { tone: 'warn', fromPct: 56.18, toPct: 100 },
+        { tone: 'good', fromPct: 0, toPct: 52.06 },
+        { tone: 'warn', fromPct: 52.06, toPct: 89.12 },
+        { tone: 'bad', fromPct: 89.12, toPct: 100 },
       ],
-      boundaries: [{ pct: 56.18, text: '12.55%', tone: 'warn' }],
+      boundaries: [
+        { pct: 52.06, text: '11.85%', tone: 'warn' },
+        { pct: 89.12, text: '18.15%', tone: 'bad' },
+      ],
     },
     {
       key: 'liquidity',
@@ -1858,22 +1894,22 @@ export const FX_STRESS_ATLAS: StressView = {
       deltaText: null,
       deltaTone: 'ink-3',
       zones: [
-        { tone: 'warn', fromPct: 0, toPct: 31.73 },
-        { tone: 'good', fromPct: 31.73, toPct: 100 },
+        { tone: 'warn', fromPct: 0, toPct: 37.5 },
+        { tone: 'good', fromPct: 37.5, toPct: 100 },
       ],
-      boundaries: [{ pct: 31.73, text: '$9.9M', tone: 'warn' }],
+      boundaries: [{ pct: 37.5, text: '$11.7M', tone: 'warn' }],
     },
   ],
   outcome: {
     base: ESCALATE,
     live: APPROVE,
-    text: 'flips · risk 58 → 55 · breaches 1 → 0',
-    key: 'ebitda=22.60|debt=90.40|rate=11.18|liquidity=14.20',
+    text: `flips · risk 58 → 47 · headroom ${M}6.5% → 15.1% · breaches 1 → 0`,
+    key: 'ebitda=22.60|debt=76.80|rate=11.18|liquidity=14.20',
   },
   covenants: [
-    { ...COVENANTS_ATLAS[0], actual: '4.00x', actualTone: 'ink', cushion: { pct: 0, text: '+0.0%', tone: 'warn' }, status: 'pass', statusText: 'Pass' },
-    { ...COVENANTS_ATLAS[1], actual: '2.24x', cushion: { pct: 12, text: '+12.0%', tone: 'neutral' } },
-    { ...COVENANTS_ATLAS[2], actual: '1.22x', cushion: { pct: 10.9, text: '+10.9%', tone: 'neutral' } },
+    { ...COVENANTS_ATLAS[0], actual: '3.40x', actualTone: 'ink', cushion: { pct: 15, text: '+15.0%', tone: 'neutral' }, status: 'pass', statusText: 'Pass' },
+    { ...COVENANTS_ATLAS[1], actual: '2.63x', cushion: { pct: 24, text: '+24.0%', tone: 'neutral' } },
+    { ...COVENANTS_ATLAS[2], actual: '1.33x', cushion: { pct: 17.3, text: '+17.3%', tone: 'neutral' } },
     COVENANTS_ATLAS[3],
   ],
   attach: { label: COPY.attachAsExhibit, disabled: false, reason: null },
@@ -1890,7 +1926,7 @@ export const FX_EXHIBITS: ExhibitView[] = [
     letter: 'A',
     heading: COPY.stressTest,
     meta: 'attached 14:04 · Reviewer',
-    detail: 'Total debt $96.3M→$90.4M ⇒ risk 58→55, breaches 1→0',
+    detail: `Total debt $96.3M→$76.8M ⇒ risk 58→47, headroom ${M}6.5%→15.1%, breaches 1→0`,
     from: ESCALATE,
     to: APPROVE,
     result: 'flips',
@@ -2081,7 +2117,7 @@ const ATLAS_RUN_ROWS: LedgerRow[] = [
     '14:05:57',
     CA,
     'Called Structuring Engine',
-    `{"objective":"clear the covenant package","instrument":"sponsor equity contribution","policyLimit":"contribution ≤ 35% of total debt","revision":2,"reviewerNote":"${ATLAS_RETURN_NOTE}"}`,
+    `{"objective":"${REWORK_OBJECTIVE}","instrument":"sponsor equity contribution","policyLimit":"contribution ≤ 35% of total debt","revision":2,"reviewerNote":"${ATLAS_RETURN_NOTE}"}`,
     'all',
     'tool',
     'Project Atlas',
@@ -2108,13 +2144,13 @@ const mrow = (time: string, actor: Actor, event: string, chip: LedgerChip, kind:
   lrow(time, actor, event, detail, chip, kind, file, '–', kind);
 
 const MONITOR_ROWS: LedgerRow[] = [
-  mrow('14:00:59', PM, 'Raised · Project Atlas · Breach · Max Total Leverage 4.29x / ≤ 4.00x', 'monitor', 'raised', 'Project Atlas', 'Max Total Leverage 4.29x breaches the ≤ 4.00x covenant'),
-  mrow('14:00:59', PM, 'Raised · Project Atlas · Watch · Min Interest Coverage 2.12x / ≥ 2.00x', 'monitor', 'raised', 'Project Atlas', `Min Interest Coverage 2.12x is approaching its ≥ 2.00x limit ${EM} thin headroom`),
-  mrow('14:00:59', PM, 'Raised · Project Atlas · Watch · Min Fixed-Charge Coverage 1.17x / ≥ 1.10x', 'monitor', 'raised', 'Project Atlas', `Min Fixed-Charge Coverage 1.17x is approaching its ≥ 1.10x limit ${EM} thin headroom`),
-  mrow('14:01:00', PM, 'Raised · Project Cobalt · Breach · Max Total Leverage 5.70x / ≤ 4.00x', 'monitor', 'raised', 'Project Cobalt', 'Max Total Leverage 5.70x breaches the ≤ 4.00x covenant'),
-  mrow('14:01:00', PM, 'Raised · Project Cobalt · Breach · Min Interest Coverage 1.38x / ≥ 2.00x', 'monitor', 'raised', 'Project Cobalt', 'Min Interest Coverage 1.38x breaches the ≥ 2.00x covenant'),
-  mrow('14:01:00', PM, 'Raised · Project Cobalt · Breach · Min Fixed-Charge Coverage 0.94x / ≥ 1.10x', 'monitor', 'raised', 'Project Cobalt', 'Min Fixed-Charge Coverage 0.94x breaches the ≥ 1.10x covenant'),
-  mrow('14:01:00', PM, 'Raised · Project Cobalt · Breach · Min Liquidity $6.3M / ≥ $10.0M', 'monitor', 'raised', 'Project Cobalt', 'Min Liquidity $6.3M breaches the ≥ $10.0M covenant'),
+  mrow('14:00:59', PM, 'Raised · Project Atlas · Breach · Max Total Leverage 4.29x / ≤ 4.00x', 'monitor', 'raised', 'Project Atlas', `Max Total Leverage 4.29x breaches the ≤ 4.00x covenant (${M}7.3% headroom)`),
+  mrow('14:00:59', PM, 'Raised · Project Atlas · Watch · Min Interest Coverage 2.12x / ≥ 2.00x', 'monitor', 'raised', 'Project Atlas', `Min Interest Coverage 2.12x is inside the 15% policy cushion of its ≥ 2.00x limit (5.7% headroom) ${EM} thin headroom`),
+  mrow('14:00:59', PM, 'Raised · Project Atlas · Watch · Min Fixed-Charge Coverage 1.17x / ≥ 1.10x', 'monitor', 'raised', 'Project Atlas', `Min Fixed-Charge Coverage 1.17x is inside the 15% policy cushion of its ≥ 1.10x limit (6.0% headroom) ${EM} thin headroom`),
+  mrow('14:01:00', PM, 'Raised · Project Cobalt · Breach · Max Total Leverage 5.70x / ≤ 4.00x', 'monitor', 'raised', 'Project Cobalt', `Max Total Leverage 5.70x breaches the ≤ 4.00x covenant (${M}42.5% headroom)`),
+  mrow('14:01:00', PM, 'Raised · Project Cobalt · Breach · Min Interest Coverage 1.38x / ≥ 2.00x', 'monitor', 'raised', 'Project Cobalt', `Min Interest Coverage 1.38x breaches the ≥ 2.00x covenant (${M}44.9% headroom)`),
+  mrow('14:01:00', PM, 'Raised · Project Cobalt · Breach · Min Fixed-Charge Coverage 0.94x / ≥ 1.10x', 'monitor', 'raised', 'Project Cobalt', `Min Fixed-Charge Coverage 0.94x breaches the ≥ 1.10x covenant (${M}17.0% headroom)`),
+  mrow('14:01:00', PM, 'Raised · Project Cobalt · Breach · Min Liquidity $6.3M / ≥ $10.0M', 'monitor', 'raised', 'Project Cobalt', `Min Liquidity $6.3M breaches the ≥ $10.0M covenant (${M}58.7% headroom)`),
   mrow('14:04:31', RV, 'Acknowledged · Min Interest Coverage', 'reviewer', 'acknowledged', 'Project Atlas', null),
   mrow('14:04:33', RV, 'Acknowledged · Min Fixed-Charge Coverage', 'reviewer', 'acknowledged', 'Project Atlas', null),
   mrow('14:05:02', RV, 'Acknowledged · Min Interest Coverage', 'reviewer', 'acknowledged', 'Project Cobalt', null),

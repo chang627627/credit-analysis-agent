@@ -262,7 +262,7 @@ function decidedLine(ctx: FileCtx): ThreadLine | null {
     glyph = 'rejected';
     text = `You rejected the memo · ${at}`;
   } else if (seal.decision === 'countersigned-amended') {
-    text = `You countersigned ${tokenWord(amendedRecOf(ctx.deal, seal.amendments) ?? pkg.recommendation)} as amended · ${at}`;
+    text = `You countersigned ${tokenWord(amendedRecOf(ctx.deal, seal.amendments, pkg) ?? pkg.recommendation)} as amended · ${at}`;
   } else {
     text = `You countersigned ${word} · ${at}`;
   }

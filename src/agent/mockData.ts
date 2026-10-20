@@ -114,7 +114,7 @@ minimum liquidity floor.`,
     },
   ],
   memoSummary:
-    'Atlas offers an acceptable spread for the risk, but total leverage of 4.26x breaches the proposed 4.00x covenant. Recommend escalation to a credit officer for a waiver or a structure adjustment (e.g. a step-down or additional equity) before approval.',
+    'Atlas offers an acceptable spread for the risk, but total leverage of 4.26x breaches the proposed 4.00x covenant, and interest and fixed-charge coverage sit inside the policy cushion. Recommend escalation to a credit officer: approval needs additional sponsor equity, or a reset of the leverage covenant together with both coverage tests (a leverage waiver alone leaves the coverage tests thin).',
 };
 
 // --- Deal 2: Project Meridian — SaaS, all covenants pass → APPROVE -----------

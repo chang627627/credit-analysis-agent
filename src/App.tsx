@@ -19,6 +19,7 @@ import { PlanBar } from './components/PlanBar';
 import { AgentStream } from './components/AgentStream';
 import { ApprovalGate } from './components/ApprovalGate';
 import { OutcomeBanner } from './components/OutcomeBanner';
+import { overridesFromAmendments, signedOutcome } from './components/amendTerms';
 import { WhatIfPanel } from './components/WhatIfPanel';
 import { Composer } from './components/Composer';
 import { CommandPalette } from './components/CommandPalette';
@@ -121,6 +122,18 @@ export default function App() {
   // The full deal behind the current package — what the what-if panel stresses.
   const currentDeal = agent.dealsFull.find((d) => d.id === agent.selectedDealId);
   const showWhatIf = status === 'awaiting_approval' || finished;
+  // The gate's call when the data gate held it (unverified extraction): the
+  // what-if sandbox tests the figures as extracted, so it says so.
+  const verificationHold =
+    agent.approvalPackage?.decisionBasis === 'unverified-data' ? agent.approvalPackage.decisionReasons?.[0] : undefined;
+  // What the countersignature stands behind: the package's call, or the same
+  // decide rule on the amended terms (amendTerms.ts — the gate previews it too).
+  // Only a signed ESCALATE is routed onward to senior review.
+  const signedRec =
+    status === 'approved' && agent.approvalPackage
+      ? signedOutcome(agent.approvalPackage, currentDeal, overridesFromAmendments(agent.decisionAmendments)).recommendation
+      : null;
+  const routedEscalation = signedRec === 'escalate';
 
   const { toasts, notify } = useToasts();
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -340,20 +353,21 @@ export default function App() {
 
   // A countersigned ESCALATE needs a destination, not an ending: route it into
   // the portfolio escalation queue (deduped per run) so senior review picks it up.
+  // Countersigned AS AMENDED, the amended terms decide: if the same rule now
+  // approves them, the amendment resolved the escalation (it is the record) and
+  // nothing is routed; if they still escalate (e.g. a waiver that leaves thin
+  // headroom), the memo is routed like any other ESCALATE.
   useEffect(() => {
     if (status !== 'approved') return;
     const pkg = agent.approvalPackage;
-    if (!pkg || pkg.recommendation !== 'escalate') return;
-    // countersigned AS AMENDED: the amended terms resolved the escalation at
-    // the gate (the amendment itself is the record) — routing the memo onward
-    // as an escalation would contradict what the reviewer just signed
-    if (agent.decisionAmendments && agent.decisionAmendments.length > 0) return;
+    if (!pkg || !routedEscalation) return;
+    const amended = !!agent.decisionAmendments && agent.decisionAmendments.length > 0;
     monitor.raise({
       key: `${agent.selectedDealId}:countersign-escalate:run${agent.runId}`,
       dealId: agent.selectedDealId,
       dealName: agent.deals.find((d) => d.id === agent.selectedDealId)?.name ?? pkg.borrower,
       severity: 'warning',
-      reason: `Memo ${pkg.memoId} countersigned as ESCALATE — routed for senior credit review`,
+      reason: `Memo ${pkg.memoId} countersigned as ESCALATE${amended ? ' (as amended)' : ''} — routed for senior credit review`,
       origin: 'countersign',
     });
     notify('Escalation routed to the Portfolio queue', 'good');
@@ -540,6 +554,7 @@ export default function App() {
                     noteProvenance={agent.decisionNoteProvenance}
                     amendments={agent.decisionAmendments}
                     auto={agent.decisionAuto}
+                    routed={routedEscalation}
                     onReset={handleReset}
                     onExport={handleExport}
                     onOpenQueue={() => setView('portfolio')}
@@ -550,6 +565,7 @@ export default function App() {
                   <WhatIfPanel
                     key={currentDeal.id}
                     deal={currentDeal}
+                    verificationHold={verificationHold}
                     onAttach={(label, detail) => {
                       agent.logWhatIf(label, detail);
                       notify('Scenario attached to the audit trail', 'good');

@@ -4,6 +4,7 @@
 // agent token themselves: they read it from here (through the selectors).
 // ---------------------------------------------------------------------------
 
+import { CURE_CAP, DECLINE_SCORE, MIN_HEADROOM, REFER_SCORE } from '../../agent/policy';
 import type { NoteProvenance, Recommendation, ToolName } from '../../agent/types';
 import type { HoldReason } from '../state/contracts';
 import type { Actor, FileAt, SectionId, StatusKey, TokenView, Verb } from './types';
@@ -247,9 +248,23 @@ export const HOLD_CAPTION: Record<HoldReason, string> = {
   'policy-off': 'Held · auto-countersign switched off',
 };
 
-/** §10 "No cure": the cap is 35% of the deal's total debt ($39.2M for Cobalt). */
-export function noCureText(capText: string): string {
-  return `Search exhausted policy limits: sponsor equity up to 35% of total debt (${capText}), as paydown and liquidity splits. The recommendation stands.`;
+/** A policy fraction as printed: 0.15 → '15%'. */
+export function policyPct(f: number): string {
+  return `${Math.round(f * 100)}%`;
+}
+
+/**
+ * §10 "No cure": the cap is 35% of the deal's total debt ($39.2M for Cobalt); the target is the
+ * decision rule's clean approval. `why` is the engine's binding constraint (describeCureBlock:
+ * "even $39.2M of debt paydown (the 35% cap) leaves total leverage … short of the 15% cushion",
+ * or the risk score staying above the referral line), so the copy never blames the cushion when
+ * the score is what blocks the cure.
+ */
+export function noCureText(capText: string, why?: string): string {
+  if (why) {
+    return `Search exhausted policy limits: no sponsor equity up to ${policyPct(CURE_CAP)} of total debt (${capText}), as paydown and liquidity splits, makes the structure signable: ${why}. The recommendation stands.`;
+  }
+  return `Search exhausted policy limits: no sponsor equity up to ${policyPct(CURE_CAP)} of total debt (${capText}), as paydown and liquidity splits, gives every covenant ${policyPct(MIN_HEADROOM)} headroom. The recommendation stands.`;
 }
 
 // ---- fixed copy (§10 "Exact copy for key moments" plus screen labels)
@@ -335,11 +350,15 @@ export const COPY = {
   basisFiled: 'On the filed figures',
   flipOnRevised: 'On the revised structure',
   flipSeeStress: 'Nearest flip · see the stress test',
-  noRestructureNeeded: 'The filed structure already clears every covenant, so no restructure is needed and the recommendation stands.',
+  noRestructureNeeded: `The filed structure already clears every covenant with at least ${policyPct(MIN_HEADROOM)} headroom, so no restructure is needed and the recommendation stands.`,
+  /** the nearest flip on a data-gated memo is read on the figures as extracted (not yet verified) */
+  flipUnverified: (word: string): string => `Figures unverified · as extracted they give ${word}`,
+  /** the stress test's base on a data-gated memo: the figures as extracted */
+  stressUnverified: 'figures as extracted, not yet verified',
   aidLabel: 'Analysis aid · not part of the memo',
   stressLink: 'Stress test ↓',
   riskOutOf: '/100',
-  riskTickCaption: 'Decline line · 75 (with a breach)',
+  riskTickCaption: `Decline line · ${DECLINE_SCORE} · referral at ${REFER_SCORE}`,
   unchanged: 'unchanged',
   showRow: 'Show row',
   amendTerm: 'Amend term',

@@ -7,6 +7,8 @@
 // ---------------------------------------------------------------------------
 
 import type { Deal, ExtractedFinancials } from '../../agent/mockData';
+import { MIN_HEADROOM } from '../../agent/policy';
+import { headroomOf } from '../../agent/whatif';
 import { fmtM, fmtPct, fmtSigned, fmtX } from './format';
 import type { CushionView, EvidenceView, FigureId } from './types';
 
@@ -217,18 +219,22 @@ function parseActual(a: string): number {
 }
 
 /**
- * Signed cushion on one shared scale: max covenant (t − a)/t·100, min covenant
- * (a − t)/t·100. Tone bad < 0, warn 0 to < 10, neutral ≥ 10 (decided on the
- * rounded value, so the tone always matches the printed figure).
+ * Signed headroom exactly as the decision rule measures it (the engine's
+ * `headroomOf`): a max covenant 1 − a/t, a min covenant 1 − t/a (= (a − t)/a),
+ * printed as a percent. Tone bad below zero (a breach), warn under the policy
+ * cushion (MIN_HEADROOM, 15%: the rule's "thin headroom"), neutral at or above
+ * it. The tone reads the unrounded headroom, so a covenant row is thin exactly
+ * when the rule calls it thin; the text rounds half away from zero.
  */
 export function cushionOf(threshold: string, actual: string): CushionView {
   const t = parseThreshold(threshold);
   const a = parseActual(actual);
-  if (!Number.isFinite(a) || t.value === 0) return { pct: 0, text: fmtSigned(0, 'pct'), tone: 'warn' };
-  const raw = t.dir === 'max' ? ((t.value - a) / t.value) * 100 : ((a - t.value) / t.value) * 100;
-  // decimal rounding, half away from zero ((4 − 5.71)/4 is −42.75, printed −42.8%)
+  const h = t.value === 0 ? null : headroomOf(t.dir, a, t.value);
+  if (h === null) return { pct: 0, text: fmtSigned(0, 'pct'), tone: 'warn' };
+  const raw = h * 100;
+  // decimal rounding, half away from zero (1 − 5.71/4 is −42.75%, printed −42.8%)
   const pct = (Math.sign(raw) * Math.round(Math.abs(raw) * 10 + 1e-6)) / 10 || 0;
-  const tone = pct < 0 ? 'bad' : pct < 10 ? 'warn' : 'neutral';
+  const tone = h < 0 ? 'bad' : h < MIN_HEADROOM ? 'warn' : 'neutral';
   return { pct, text: fmtSigned(pct, 'pct'), tone };
 }
 

@@ -17,20 +17,42 @@
 import type { AgentContext, AgentEvent, ApprovalPackage, Flag, KeyMetric, PlanStep, Recommendation, ToolCall, ToolName, ToolResult } from './types';
 import type { Deal } from './mockData';
 import { TOOLS } from './tools';
-import { decide, findCure } from './whatif';
-import type { Cure } from './whatif';
+import { cureBlockFor, decisionForDeal, describeCureBlock, evaluate, findCure, fmtHeadroom } from './whatif';
+import type { Cure, Decision, DecisionConfidence } from './whatif';
+import { CONF_FLOOR, CURE_CAP, GATING_TOOLS, MIN_HEADROOM } from './policy';
 import { LOW_CONFIDENCE_FLOOR, sleep, uid } from './util';
 import { fmtM, fmtPct, fmtX } from './format';
 
 /**
- * The decision rule, exported so the UI can preview a deal's computed outcome.
- * Delegates to `decide` in whatif.ts — the single source of truth shared with
- * the what-if stress panel, so the two can never drift apart.
+ * The decision rule on a deal's filed figures, exported so the UI can preview
+ * a deal's computed outcome. Delegates to `decide` in whatif.ts — the single
+ * source of truth shared with the what-if stress panel, so the two can never
+ * drift apart. (No run confidences here, so the data gate does not apply.)
  */
 export function recommendationFor(deal: Deal): Recommendation {
-  const breaches = deal.covenants.filter((c) => c.status === 'breach').length;
-  return decide(breaches, deal.risk.score);
+  return decisionForDeal(deal).recommendation;
 }
+
+/**
+ * The confidence the data gate reads: the LOWEST of the load-bearing
+ * observations (financials, risk score, covenants) this run has made, with the
+ * tool that read it. Peer benchmarks never gate. Undefined before any reading.
+ */
+export function gatingConfidence(confByTool: Partial<Record<ToolName, number>>): DecisionConfidence | undefined {
+  let min: DecisionConfidence | undefined;
+  for (const t of GATING_TOOLS) {
+    const v = confByTool[t];
+    if (v !== undefined && (min === undefined || v < min.value)) min = { value: v, source: TOOLS[t].label };
+  }
+  return min;
+}
+
+/** The filed-figure decision for this run: data gate applied, the cure sized for the reason text. */
+function runDecision(deal: Deal, confByTool: Partial<Record<ToolName, number>>): Decision {
+  return decisionForDeal(deal, { confidence: gatingConfidence(confByTool), sizeCure: true });
+}
+
+const pct0 = (f: number) => `${Math.round(f * 100)}%`;
 
 const PLAN: PlanStep[] = [
   { id: 'step_extract', title: 'Extract financials from the CIM', toolName: 'extract_financials' },
@@ -44,8 +66,8 @@ export function getPlan(): PlanStep[] {
   return PLAN;
 }
 
-/** The agent's reasoning before each tool call — the assemble step adapts to the data. */
-function thinkingFor(tool: ToolName, deal: Deal): string {
+/** The agent's reasoning before each tool call — the assemble step adapts to the decision. */
+function thinkingFor(tool: ToolName, deal: Deal, confByTool: Partial<Record<ToolName, number>>): string {
   switch (tool) {
     case 'extract_financials':
       return "I'll ground everything in the source document first — pulling revenue, EBITDA, leverage, coverage and liquidity straight from the memorandum rather than relying on priors.";
@@ -54,16 +76,24 @@ function thinkingFor(tool: ToolName, deal: Deal): string {
     case 'benchmark_peers':
       return 'The reviewer kept peer benchmarking in the plan, so I\'ll place the credit in its sector context — leverage, coverage and margin against the comparable set — before testing covenants.';
     case 'check_covenants':
-      return 'Now the part that actually gates the deal: testing each proposed covenant against the extracted figures. A single breach changes the recommendation.';
+      return `Now the part that actually gates the deal: testing each proposed covenant against the extracted figures and measuring its headroom. A breach — or a pass with less than the ${pct0(MIN_HEADROOM)} policy cushion — changes the recommendation.`;
     case 'propose_restructure':
       // only reached via the rework cycle, which streams its own send-back text
-      return 'Searching for the smallest sponsor equity contribution that clears the covenant package, within policy limits.';
+      return `Searching for the smallest sponsor equity contribution that leaves every covenant with the ${pct0(MIN_HEADROOM)} policy cushion, within policy limits.`;
     case 'assemble_approval_package': {
-      const breaches = deal.covenants.filter((c) => c.status === 'breach').length;
-      if (breaches === 0) {
-        return 'I have what I need, and every covenant passes with headroom. I’ll assemble the memo with an approval recommendation — and still route it to a human officer to sign off.';
+      const d = runDecision(deal, confByTool);
+      switch (d.basis) {
+        case 'unverified-data':
+          return `I have what I need — but not on figures I can stand behind. ${d.reasons[0]} Neither an approval nor a decline should rest on unverified extraction, so I’ll assemble the memo and escalate it for verification.`;
+        case 'knock-out':
+          return `I have what I need — and the deal hits ${d.triggers.length > 1 ? 'decline knock-outs' : 'a decline knock-out'}. I’ll assemble the memo with a decline recommendation and its principal reasons, and route it to a human credit officer.`;
+        case 'exception': {
+          const n = d.reasons.length;
+          return `I have what I need — but the deal carries ${n} policy exception${n > 1 ? 's' : ''}, so I will not recommend approval as filed. I’ll assemble the memo with the exceptions sized and escalate it to a human credit officer.`;
+        }
+        case 'clean':
+          return `I have what I need: every covenant clears with at least the ${pct0(MIN_HEADROOM)} policy cushion and the risk score sits under the referral line. I’ll assemble the memo with an approval recommendation — and still route it to a human officer to sign off.`;
       }
-      return `I have what I need — but ${breaches} covenant${breaches > 1 ? 's' : ''} ${breaches > 1 ? 'fail' : 'fails'}, so I will not auto-approve. I’ll assemble the memo and route it to a human credit officer.`;
     }
   }
 }
@@ -120,7 +150,8 @@ function buildPackage(
   revision = 1,
   reviewerNotes: string[] = [],
 ): ApprovalPackage {
-  const recommendation = recommendationFor(deal);
+  // the one rule on the filed figures, with this run's confidences (data gate)
+  const decision = runDecision(deal, confByTool);
   const f = deal.financials;
   // Every gate metric came from the extraction observation, so it carries that
   // observation's REAL confidence — the badge is read from the run, not styled.
@@ -136,7 +167,9 @@ function buildPackage(
     memoId: deal.memoId,
     borrower: deal.document.borrower,
     facility: deal.document.facility,
-    recommendation,
+    recommendation: decision.recommendation,
+    decisionBasis: decision.basis,
+    decisionReasons: decision.reasons,
     riskRating: deal.risk.rating,
     revision,
     reviewerNotes,
@@ -147,15 +180,21 @@ function buildPackage(
       metric('Interest Coverage', fmtX(f.interestCoverageX)),
       metric('Liquidity', fmtM(f.liquidity)),
     ],
-    flags,
-    summary: deal.memoSummary,
+    // a snapshot: the loop keeps appending to its own list after a send-back,
+    // and a package already presented at the gate must not change under it
+    flags: [...flags],
+    summary:
+      decision.basis === 'unverified-data'
+        ? `${deal.memoSummary} Held for verification: the figures were read below the ${pct0(CONF_FLOOR)} confidence floor, and neither an approval nor a decline rests on unverified extraction.`
+        : deal.memoSummary,
   };
 }
 
 /**
  * A revision proposing a restructure: the package's figures ARE the revised
  * structure (from the cure search), its recommendation re-derived through the
- * same `decide` rule. Revised metrics trace to the Structuring Engine
+ * same `decide` rule — data gate included, since the revised figures rest on
+ * the same extraction. Revised metrics trace to the Structuring Engine
  * observation, not the extraction — provenance stays honest.
  */
 function buildRevisedPackage(
@@ -166,8 +205,9 @@ function buildRevisedPackage(
   revision: number,
   reviewerNotes: string[],
 ): ApprovalPackage {
-  const o = cure.outcome;
   const s = cure.scenario;
+  const o = evaluate(deal, s, { confidence: gatingConfidence(confByTool) });
+  const d = o.decision;
   const f = deal.financials;
   const extractConf = confByTool.extract_financials ?? 0.94;
   const structConf = confByTool.propose_restructure ?? 0.9;
@@ -178,13 +218,26 @@ function buildRevisedPackage(
     source,
   });
   const summary =
-    `$${cure.contribution}M sponsor equity — $${cure.debtPaydown}M debt paydown` +
-    (cure.liquidityTopUp > 0 ? ` and $${cure.liquidityTopUp}M to balance-sheet liquidity` : '');
+    `${fmtM(cure.contribution)} sponsor equity — ${fmtM(cure.debtPaydown)} debt paydown` +
+    (cure.liquidityTopUp > 0 ? ` and ${fmtM(cure.liquidityTopUp)} to balance-sheet liquidity` : '');
+  const tightest = o.headroom.find((c) => c.name === d.tightest);
+  const cushion =
+    tightest && tightest.headroom !== null
+      ? `every covenant clears with at least ${pct0(MIN_HEADROOM)} headroom (tightest: ${tightest.metric.toLowerCase()} at ${fmtHeadroom(tightest.headroom)})`
+      : `every covenant clears with at least ${pct0(MIN_HEADROOM)} headroom`;
+  const close =
+    d.recommendation === 'approve'
+      ? 'Recommend approval of the revised structure, subject to the sponsor commitment.'
+      : d.basis === 'unverified-data'
+        ? `The rule would approve the revised structure, but it rests on unverified extraction. ${d.reasons[0]}`
+        : d.reasons.join(' ');
   return {
     memoId: deal.memoId,
     borrower: deal.document.borrower,
     facility: deal.document.facility,
-    recommendation: o.recommendation,
+    recommendation: d.recommendation,
+    decisionBasis: d.basis,
+    decisionReasons: d.reasons,
     riskRating: o.risk.rating,
     revision,
     reviewerNotes,
@@ -196,11 +249,11 @@ function buildRevisedPackage(
       m('Interest Coverage', fmtX(o.ratios.interestCoverageX), 'propose_restructure', structConf),
       m('Liquidity', fmtM(s.liquidity), 'propose_restructure', structConf),
     ],
-    flags,
+    flags: [...flags],
     summary:
       `Revised structure: ${summary}. Total debt falls to ${fmtM(s.debt)} (leverage ${fmtX(o.ratios.leverageX)}), ` +
-      `every covenant passes, and the risk score recomputes to ${o.risk.score} (${o.risk.rating}) — through the same ` +
-      `decision rule as the original analysis. Recommend approval of the revised structure, subject to the sponsor commitment.`,
+      `${cushion}, and the risk score recomputes to ${o.risk.score} (${o.risk.rating}) — through the same ` +
+      `decision rule as the original analysis. ${close}`,
   };
 }
 
@@ -240,7 +293,7 @@ export async function* runCreditAgent(ctx: AgentContext): AsyncGenerator<AgentEv
     yield { type: 'step_started', stepId: step.id, index: i, title: step.title };
 
     // (a) stream reasoning
-    yield* streamThinking(step.id, thinkingFor(step.toolName, deal), ctx);
+    yield* streamThinking(step.id, thinkingFor(step.toolName, deal, confByTool), ctx);
 
     // (b) act: choose and invoke a tool
     const tool = TOOLS[step.toolName];
@@ -310,8 +363,9 @@ export async function* runCreditAgent(ctx: AgentContext): AsyncGenerator<AgentEv
     // --- send-back: the loop resumes with the reviewer's instruction. Rather
     // than restating the filed figures, the agent treats a send-back as
     // authorization to RESTRUCTURE within policy: the cure search looks for
-    // the smallest sponsor-equity contribution that clears every covenant
-    // (same decide rule), and the next revision is built on that structure.
+    // the smallest sponsor-equity contribution that makes the structure clean
+    // (every covenant with the 15% cushion — what the same decide rule
+    // approves), and the next revision is built and re-gated on that structure.
     revision += 1;
     const note = gate.note?.trim() || 'Reviewer requested rework (no note given).';
     reviewerNotes.push(note);
@@ -331,7 +385,7 @@ export async function* runCreditAgent(ctx: AgentContext): AsyncGenerator<AgentEv
 
     yield* streamThinking(
       stepId,
-      `The reviewer sent this back: “${note}” Restating the filed figures wouldn't change anything — so I'll treat the send-back as authorization to restructure within policy limits: search for the smallest sponsor equity contribution that clears the whole covenant package, re-derive the recommendation through the same decide rule, and reassemble revision ${revision} for a fresh countersign.`,
+      `The reviewer sent this back: “${note}” Restating the filed figures wouldn't change anything — so I'll treat the send-back as authorization to restructure within policy limits: search for the smallest sponsor equity contribution that leaves every covenant with the ${pct0(MIN_HEADROOM)} policy cushion, re-derive the recommendation through the same decide rule, and reassemble revision ${revision} for a fresh countersign.`,
       ctx,
     );
 
@@ -378,9 +432,9 @@ export async function* runCreditAgent(ctx: AgentContext): AsyncGenerator<AgentEv
         id: uid('flag'),
         severity: 'info',
         message:
-          `Restructure proposed: $${cure.contribution}M sponsor equity ($${cure.debtPaydown}M debt paydown` +
-          (cure.liquidityTopUp > 0 ? `, $${cure.liquidityTopUp}M to liquidity` : '') +
-          `) — every covenant passes on the revised structure.`,
+          `Restructure proposed: ${fmtM(cure.contribution)} sponsor equity (${fmtM(cure.debtPaydown)} debt paydown` +
+          (cure.liquidityTopUp > 0 ? `, ${fmtM(cure.liquidityTopUp)} to liquidity` : '') +
+          `) — every covenant clears with at least ${pct0(MIN_HEADROOM)} headroom on the revised structure.`,
         needsHuman: false,
       };
       yield { type: 'flag', stepId, flag: cureFlag };
@@ -391,11 +445,16 @@ export async function* runCreditAgent(ctx: AgentContext): AsyncGenerator<AgentEv
       ]);
     } else {
       if (cure === null) {
+        // word the constraint that actually binds (a covenant the cushion cannot
+        // reach, the FCC floor, the outer limit, the combined amount, the score)
+        const block = cureBlockFor(deal);
+        const why = block
+          ? describeCureBlock(block)
+          : `no revised structure clears every covenant with the ${pct0(MIN_HEADROOM)} policy cushion`;
         const noCure: Flag = {
           id: uid('flag'),
           severity: 'warning',
-          message:
-            'Structuring search exhausted policy limits (contribution ≤ 35% of debt) — no revised structure clears the covenants; the recommendation stands.',
+          message: `Structuring search exhausted policy limits (contribution ≤ ${pct0(CURE_CAP)} of debt) — ${why}; the recommendation stands.`,
           needsHuman: true,
         };
         collectedFlags.push(noCure);

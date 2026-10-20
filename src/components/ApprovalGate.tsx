@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CornerUpLeft, PenLine, ShieldCheck, Sparkles } from 'lucide-react';
 import type { Amendment, ApprovalPackage, NoteProvenance, Recommendation, ToolName } from '../agent/types';
 import type { Deal } from '../agent/mockData';
-import { amendedOutcome } from '../agent/whatif';
+import type { TermOverrides } from '../agent/whatif';
 import { draftNoteFor } from '../agent/draftNote';
 import { LOW_CONFIDENCE_FLOOR } from '../agent/util';
+import { LEVERAGE_AMENDMENT, LIQUIDITY_AMENDMENT, signedOutcome } from './amendTerms';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { FlagPill } from './FlagPill';
 
@@ -96,7 +97,8 @@ export function ApprovalGate({
 
   // --- edit-before-approve: "countersign as amended" ------------------------
   // The reviewer can amend the two decision-relevant terms (leverage ceiling,
-  // liquidity floor); the SAME decide rule re-runs live on the filed actuals.
+  // liquidity floor); the SAME decide rule re-runs live on the filed actuals,
+  // headroom included (a waiver that leaves 1% of room still escalates).
   // Not offered on a revised-structure gate (its terms are the proposal).
   const levBase = useMemo(() => thresholdOf(deal, 'leverage'), [deal]);
   const liqBase = useMemo(() => thresholdOf(deal, 'liquid'), [deal]);
@@ -107,22 +109,26 @@ export function ApprovalGate({
   const lev = levMax ?? levBase?.base ?? 0;
   const liq = liqMin ?? liqBase?.base ?? 0;
   const amendDirty = (levBase !== null && lev !== levBase.base) || (liqBase !== null && liq !== liqBase.base);
-  const amended = useMemo(
-    () =>
-      deal && amendDirty
-        ? amendedOutcome(deal, {
-            leverageMax: levBase !== null && lev !== levBase.base ? lev : undefined,
-            liquidityMin: liqBase !== null && liq !== liqBase.base ? liq : undefined,
-          })
-        : null,
-    [deal, amendDirty, lev, liq, levBase, liqBase],
-  );
+  // the preview and the after-signing routing share `signedOutcome` (amendTerms.ts)
+  const amended = useMemo(() => {
+    if (!deal || !amendDirty) return null;
+    const overrides: TermOverrides = {
+      leverageMax: levBase !== null && lev !== levBase.base ? lev : undefined,
+      liquidityMin: liqBase !== null && liq !== liqBase.base ? liq : undefined,
+    };
+    const out = signedOutcome(pkg, deal, overrides);
+    // `rule` = the decide rule on the amended terms; `recommendation` = what a
+    // signature would stand behind (a data-gated package stays ESCALATE)
+    return out.amended
+      ? { recommendation: out.recommendation, heldForVerification: out.heldForVerification, rule: out.amended }
+      : null;
+  }, [pkg, deal, amendDirty, lev, liq, levBase, liqBase]);
   const amendments: Amendment[] = useMemo(() => {
     const list: Amendment[] = [];
     if (levBase !== null && lev !== levBase.base)
-      list.push({ label: 'Max Total Leverage covenant', from: `≤ ${levBase.base.toFixed(2)}x`, to: `≤ ${lev.toFixed(2)}x` });
+      list.push({ label: LEVERAGE_AMENDMENT, from: `≤ ${levBase.base.toFixed(2)}x`, to: `≤ ${lev.toFixed(2)}x` });
     if (liqBase !== null && liq !== liqBase.base)
-      list.push({ label: 'Min Liquidity covenant', from: `≥ $${liqBase.base.toFixed(1)}M`, to: `≥ $${liq.toFixed(1)}M` });
+      list.push({ label: LIQUIDITY_AMENDMENT, from: `≥ $${liqBase.base.toFixed(1)}M`, to: `≥ $${liq.toFixed(1)}M` });
     return list;
   }, [lev, liq, levBase, liqBase]);
   const amendRef = useRef(amendments);
@@ -261,12 +267,23 @@ export function ApprovalGate({
 
       <div className="gate__rec">
         <span className="gate__receyebrow">
-          {pkg.restructure ? `On the proposed revised structure · rev ${pkg.revision}` : 'On the filed figures · final'}
+          {pkg.restructure
+            ? `On the proposed revised structure · rev ${pkg.revision}`
+            : pkg.decisionBasis === 'unverified-data'
+              ? 'On the figures as extracted · held for verification'
+              : 'On the filed figures · final'}
         </span>
         <div className="gate__recrow">
           <span className={`rec rec--${pkg.recommendation}`}>{REC_LABEL[pkg.recommendation]}</span>
           <span className="gate__rating">Risk rating · {pkg.riskRating}</span>
         </div>
+        {/* why: the decision rule's own reasons, with magnitudes — a thin-headroom
+            or referral ESCALATE carries no breach flag, so this is where it says so */}
+        {pkg.decisionReasons?.map((r) => (
+          <p className="gate__structure" key={r}>
+            {r}
+          </p>
+        ))}
         {pkg.restructure && (
           <p className="gate__structure">Structure change · {pkg.restructure.summary}</p>
         )}
@@ -302,7 +319,8 @@ export function ApprovalGate({
       </div>
       <p className="gate__confnote">
         Confidence = simulated extraction certainty per observation · ≥90% high · 75–90% medium ·
-        &lt;{Math.round(LOW_CONFIDENCE_FLOOR * 100)}% is flagged for human verification.
+        &lt;{Math.round(LOW_CONFIDENCE_FLOOR * 100)}% is flagged for human verification, and on the financials,
+        risk score or covenants it holds the decision at ESCALATE until the figures are verified.
       </p>
 
       {/* revision diff: what the record GAINED since rev 1 — the send-back
@@ -402,10 +420,21 @@ export function ApprovalGate({
               <div className="gate__amendout" aria-live="polite">
                 {amendDirty && amended ? (
                   <>
-                    Under the amended terms · {amended.breaches} breach{amended.breaches === 1 ? '' : 'es'} →{' '}
-                    <span className={`rec rec--${amended.recommendation}`}>{amended.recommendation.toUpperCase()}</span>
-                    {amended.recommendation !== pkg.recommendation ? ' · changes the recommendation' : ' · unchanged'}
-                    {amended.changed.length > 0 && <em> — re-tested: {amended.changed.join(', ')}</em>}
+                    <div>
+                      Under the amended terms →{' '}
+                      <span className={`rec rec--${amended.recommendation}`}>
+                        {amended.recommendation.toUpperCase()}
+                      </span>
+                      {amended.recommendation !== pkg.recommendation ? ' · changes the recommendation' : ' · unchanged'}
+                      {amended.rule.changed.length > 0 && (
+                        <em> — re-tested: {amended.rule.changed.join(', ')}</em>
+                      )}
+                    </div>
+                    <div>
+                      {amended.heldForVerification
+                        ? `The figures still need verification, so the call stays ESCALATE; on the figures as extracted the amended terms would read ${amended.rule.recommendation.toUpperCase()}.`
+                        : amended.rule.reasons.join(' ')}
+                    </div>
                   </>
                 ) : (
                   <>Terms as filed — edit a threshold to preview the amended decision (same decide rule).</>

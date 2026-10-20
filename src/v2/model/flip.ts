@@ -8,7 +8,7 @@
 import type { Deal } from '../../agent/mockData';
 import { recommendationFor } from '../../agent/runAgent';
 import type { Recommendation } from '../../agent/types';
-import { baselineScenario, driversFor, evaluate } from '../../agent/whatif';
+import { baselineScenario, decisionForDeal, driversFor, evaluate, fmtHeadroom } from '../../agent/whatif';
 import type { Driver, DriverKey, Scenario } from '../../agent/whatif';
 import { fmtM, fmtRate, fmtSigned } from './format';
 import type { MeaningTone, TokenView } from './types';
@@ -29,7 +29,7 @@ function roundTo(v: number, p: number): number {
   return Math.round(v * inv) / inv;
 }
 
-/** A driver value as printed: '$90.4M' or '11.25%'. */
+/** A driver value as printed: '$76.8M' or '11.25%'. */
 export function fmtDriverValue(d: Pick<Driver, 'unit'>, v: number): string {
   return d.unit === 'pct' ? fmtRate(v) : fmtM(v);
 }
@@ -138,9 +138,9 @@ export interface FlipOrigin {
  * figures (or from `origin`, e.g. a revised structure). It only ever names a
  * DIFFERENT call than the one standing: under APPROVE it says how far the call
  * is from losing APPROVE, never "→ APPROVE".
- *  'Nearest flip · Total debt ≤ $90.4M (−$5.9M) → APPROVE'
+ *  'Nearest flip · Total debt ≤ $76.8M (−$19.5M) → APPROVE'
  *  'No single driver reaches APPROVE in range · nearest change: Total debt ≤ $98.3M (−$13.7M) → ESCALATE'
- *  'Nearest flip · Total debt ≥ $90.4M (+$0.1M) → ESCALATE' (from an APPROVE)
+ *  'Nearest flip · Total debt ≥ $76.9M (+$0.1M) → ESCALATE' (from an APPROVE)
  * When the model does not reproduce the standing call there, no flip is claimed.
  */
 export function nearestFlip(deal: Deal, origin?: FlipOrigin): string {
@@ -245,7 +245,7 @@ export function changedDrivers(deal: Deal, scenario: Scenario): Driver[] {
 /**
  * The audit entry an attached stress test writes:
  *  label  'Stress test attached · ESCALATE → APPROVE (flips)' | '(holds)'
- *  detail 'Total debt $96.3M→$90.4M ⇒ risk 58→55, breaches 1→0'
+ *  detail 'Total debt $96.3M→$76.8M ⇒ risk 58→47, headroom −6.5%→15.0%, breaches 1→0'
  */
 export function stressRecord(deal: Deal, scenario: Scenario): { label: string; detail: string; key: string } {
   const base = baselineScenario(deal);
@@ -260,14 +260,21 @@ export function stressRecord(deal: Deal, scenario: Scenario): { label: string; d
   const changes = parts.length > 0 ? parts.join(', ') : 'Base case';
   return {
     label: `Stress test attached · ${tokenWord(filed.rec)} → ${tokenWord(l.recommendation)} (${result})`,
-    detail: `${changes} ⇒ risk ${filed.score}→${l.risk.score}, breaches ${filed.breaches}→${l.breaches}`,
+    detail: `${changes} ⇒ risk ${filed.score}→${l.risk.score}, headroom ${fmtH(filed.minHeadroom)}→${fmtH(l.minHeadroom)}, breaches ${filed.breaches}→${l.breaches}`,
     key: scenarioKey(deal, scenario),
   };
 }
 
-/** The filed memo's base: its call (the engine's own rule), risk score and breach count. */
-export function filedBase(deal: Deal): { rec: Recommendation; score: number; breaches: number } {
-  return { rec: recommendationFor(deal), score: deal.risk.score, breaches: deal.covenants.filter((c) => c.status === 'breach').length };
+const fmtH = (h: number | null): string => (h === null ? '–' : fmtHeadroom(h));
+
+/** The filed memo's base: its call (the engine's own rule), risk score, tightest headroom and breach count. */
+export function filedBase(deal: Deal): { rec: Recommendation; score: number; breaches: number; minHeadroom: number | null } {
+  return {
+    rec: recommendationFor(deal),
+    score: deal.risk.score,
+    breaches: deal.covenants.filter((c) => c.status === 'breach').length,
+    minHeadroom: decisionForDeal(deal).minHeadroom,
+  };
 }
 
 const WORD_REC: Record<string, Recommendation> = { APPROVE: 'approve', ESCALATE: 'escalate', DECLINE: 'decline' };

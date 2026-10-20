@@ -14,7 +14,7 @@
 import { answerQuestion } from '../../agent/responder';
 import type { V2Store } from '../state/contracts';
 import { fmtX } from './format';
-import { askRoute, amendable, fileContext, parsingReason, reworkN } from './select-file';
+import { askRoute, amendable, fileContext, packageDecision, parsingReason, reworkN } from './select-file';
 import { isRunLive, selectLiveDealId, selectPolicy } from './select-top';
 import { sectionOfStep } from './flags';
 import type { ComposerContext, ComposerIntent, ComposerOutcome, ComposerReply, ComposerToggle, SectionId, ThreadAction } from './types';
@@ -306,6 +306,7 @@ export function answerFor(s: V2Store, dealId: string, text: string): ComposerRep
     summary: pkg ? pkg.summary : null,
     filedLeverage: fmtX(ctx.deal.financials.leverageX),
     revisedLeverage,
+    reasons: pkg ? packageDecision(ctx, pkg).reasons : null,
   });
   if (route.kind === 'local') {
     const stressOk = pkg !== null && (ctx.mode === 'gate' || ctx.mode === 'sealed' || ctx.mode === 'running');

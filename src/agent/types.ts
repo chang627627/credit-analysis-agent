@@ -64,6 +64,13 @@ export interface KeyMetric {
 
 export type Recommendation = 'approve' | 'decline' | 'escalate';
 
+/**
+ * Which tier of the one decision rule (`decide` in whatif.ts) produced a
+ * recommendation: the data gate (unverified extraction → escalate), a decline
+ * knock-out, a policy exception (escalate), or a clean approval.
+ */
+export type DecisionBasis = 'unverified-data' | 'knock-out' | 'exception' | 'clean';
+
 /** The artifact the human reviews at the approval gate. */
 export interface ApprovalPackage {
   memoId: string;
@@ -84,6 +91,13 @@ export interface ApprovalPackage {
    * structure, not the filed figures, and the gate labels them as such.
    */
   restructure?: { contribution: number; summary: string };
+  /** Which tier of the decision rule produced `recommendation` (absent on legacy packages). */
+  decisionBasis?: DecisionBasis;
+  /**
+   * The rule's specific reasons, with magnitudes — at most four principal
+   * reasons, e.g. "Fixed-charge coverage 0.95x is below the 1.00x floor: …".
+   */
+  decisionReasons?: string[];
 }
 
 export type ApprovalDecision = 'approve' | 'reject';

@@ -15,10 +15,12 @@
 // ---------------------------------------------------------------------------
 
 import type { CovenantTest, Deal, ExtractedFinancials, RiskScore } from '../../agent/mockData';
+import { CURE_CAP, MIN_HEADROOM } from '../../agent/policy';
 import { DECLINE_SCORE, ratingFor, riskTone } from '../../agent/rating';
-import { getPlan } from '../../agent/runAgent';
-import type { Amendment, ApprovalPackage, Flag, NoteProvenance, PlanStep, Recommendation } from '../../agent/types';
-import { amendedOutcome, baselineScenario, decide, findCure } from '../../agent/whatif';
+import { gatingConfidence, getPlan } from '../../agent/runAgent';
+import type { Amendment, ApprovalPackage, DecisionBasis, Flag, NoteProvenance, PlanStep, Recommendation, ToolName } from '../../agent/types';
+import { amendedOutcome, baselineScenario, cureBlockFor, decisionForDeal, describeCureBlock, evaluate, findCure, fmtHeadroom } from '../../agent/whatif';
+import type { DecisionConfidence, Scenario } from '../../agent/whatif';
 import type { AuditHistoryEntry, RunDecision, RunRecord, StepView } from '../../hooks/useCreditAgent';
 import type { CaseFileSnapshot, PresentedAtSign, V2Store } from '../state/contracts';
 import {
@@ -126,6 +128,7 @@ import {
   COPY,
   driverTone,
   noCureText,
+  policyPct,
   provenanceText,
   sectionHeading,
   STATUS_WORD,
@@ -337,13 +340,38 @@ export function amendmentName(a: Amendment): string {
  */
 export function routesOnSign(pkg: ApprovalPackage, deal: Deal, amendments: Amendment[] | null, auto: boolean): boolean {
   if (pkg.recommendation !== 'escalate' || auto) return false;
-  if (amendedRecOf(deal, amendments) === 'approve') return false;
+  if (amendedRecOf(deal, amendments, pkg) === 'approve') return false;
   return true;
 }
 
+/**
+ * The package was held by the rule's data gate: a load-bearing reading came in under the 75%
+ * confidence floor, so the agent escalated for verification whatever the figures say.
+ */
+export function dataGated(pkg: Pick<ApprovalPackage, 'decisionBasis'> | null | undefined): boolean {
+  return !!pkg && pkg.decisionBasis === 'unverified-data';
+}
+
+/**
+ * The same decide rule on the amended terms (null when nothing is amended): the engine's
+ * `amendedOutcome` (headroom included, so a waiver that leaves 1% headroom escalates). On a
+ * data-gated package the gate still holds: amending a term never verifies a figure, so the
+ * amended call stays ESCALATE with the package's own verification reason.
+ */
+export function amendedDecisionOf(
+  deal: Deal,
+  amendments: Amendment[] | null,
+  pkg?: Pick<ApprovalPackage, 'decisionBasis' | 'decisionReasons'> | null,
+): { recommendation: Recommendation; reasons: string[] } | null {
+  if (!amendments || amendments.length === 0) return null;
+  if (dataGated(pkg)) return { recommendation: 'escalate', reasons: pkg?.decisionReasons ?? [] };
+  const o = amendedOutcome(deal, overridesFromAmendments(amendments));
+  return { recommendation: o.recommendation, reasons: o.reasons };
+}
+
 /** The call the same decide rule gives on the amended terms (null when nothing is amended). */
-export function amendedRecOf(deal: Deal, amendments: Amendment[] | null): Recommendation | null {
-  return amendments && amendments.length > 0 ? amendedOutcome(deal, overridesFromAmendments(amendments)).recommendation : null;
+export function amendedRecOf(deal: Deal, amendments: Amendment[] | null, pkg?: Pick<ApprovalPackage, 'decisionBasis'> | null): Recommendation | null {
+  return amendedDecisionOf(deal, amendments, pkg)?.recommendation ?? null;
 }
 
 /**
@@ -352,16 +380,22 @@ export function amendedRecOf(deal: Deal, amendments: Amendment[] | null): Recomm
  * amended outcome (never the agent's call): 'approves on <terms>', 'concurs ESCALATE on <terms>'
  * when it is the agent's call too, else 'records ESCALATE on <terms>'.
  */
-export function signedVerdict(deal: Deal, agentRec: Recommendation, amendments: Amendment[] | null, terms: string): string {
-  const am = amendedRecOf(deal, amendments);
+export function signedVerdict(
+  deal: Deal,
+  agentRec: Recommendation,
+  amendments: Amendment[] | null,
+  terms: string,
+  pkg?: Pick<ApprovalPackage, 'decisionBasis'> | null,
+): string {
+  const am = amendedRecOf(deal, amendments, pkg);
   if (am === null) return `concurs ${tokenWord(agentRec)}`;
   if (am === 'approve') return `approves on ${terms}`;
   return `${am === agentRec ? 'concurs' : 'records'} ${tokenWord(am)} on ${terms}`;
 }
 
 /** The case-file seal's reviewer clause for an amended countersignature: what was signed. */
-function amendedWho(deal: Deal, amendments: Amendment[] | null): string {
-  const am = amendedRecOf(deal, amendments);
+function amendedWho(deal: Deal, amendments: Amendment[] | null, pkg: ApprovalPackage | null): string {
+  const am = amendedRecOf(deal, amendments, pkg);
   return am === null ? 'You countersigned as amended.' : `You countersigned as amended: ${tokenWord(am)} on your amended terms.`;
 }
 
@@ -626,6 +660,85 @@ export function cureOf(ctx: FileCtx, n: number): CureData | null {
   if (c && c.viable) return c.contributionM > 0 ? c : null;
   if (c && !c.viable) return null;
   return cureFromEngine(ctx.deal);
+}
+
+// =============================================================================
+// The decision (the engine's one rule, read, never re-derived by hand)
+// =============================================================================
+
+/** The decision as the memo states it: the call, the tier of the rule and its specific reasons. */
+export interface DecisionView {
+  recommendation: Recommendation;
+  basis: DecisionBasis;
+  /** the rule's reasons with magnitudes, as the engine wrote them (at most four) */
+  reasons: string[];
+}
+
+/**
+ * The run's load-bearing confidence (the data gate's input): the lowest reading of the gating
+ * tools this run has returned, labelled with the tool, exactly as the agent loop computes it.
+ */
+export function runConfidence(ctx: FileCtx): DecisionConfidence | undefined {
+  const by: Partial<Record<ToolName, number>> = {};
+  for (const st of ctx.steps) if (st.call && st.result) by[st.call.name] = st.result.confidence;
+  return gatingConfidence(by);
+}
+
+const FILED_CACHE = new WeakMap<Deal, Map<string, DecisionView & { minHeadroom: number | null }>>();
+
+/**
+ * The rule on the FILED figures for this run (the rev 1 call): the run's confidences feed the
+ * data gate, the cure is sized for the reason text. The same call the agent loop gated on.
+ */
+export function filedDecision(ctx: FileCtx): DecisionView & { minHeadroom: number | null } {
+  const conf = runConfidence(ctx);
+  let byKey = FILED_CACHE.get(ctx.deal);
+  if (!byKey) {
+    byKey = new Map();
+    FILED_CACHE.set(ctx.deal, byKey);
+  }
+  const k = conf ? `${conf.source}@${conf.value}` : 'none';
+  const hit = byKey.get(k);
+  if (hit) return hit;
+  const d = decisionForDeal(ctx.deal, { confidence: conf, sizeCure: true });
+  const v = { recommendation: d.recommendation, basis: d.basis, reasons: d.reasons, minHeadroom: d.minHeadroom };
+  if (byKey.size > 20) byKey.clear();
+  byKey.set(k, v);
+  return v;
+}
+
+/** The scenario a viable cure proposes (the Structuring Engine's revised debt and liquidity). */
+export function revisedScenario(deal: Deal, cure: CureData): Scenario {
+  return { ...baselineScenario(deal), debt: cure.revised.totalDebtM, liquidity: cure.revised.liquidityM };
+}
+
+/**
+ * The decision the package carries: the engine's own call, basis and reasons. A package built
+ * before the engine recorded them is re-decided through the same rule (never a hand-made rule).
+ */
+export function packageDecision(ctx: FileCtx, pkg: ApprovalPackage): DecisionView {
+  if (pkg.decisionBasis && pkg.decisionReasons && pkg.decisionReasons.length > 0) {
+    return { recommendation: pkg.recommendation, basis: pkg.decisionBasis, reasons: pkg.decisionReasons };
+  }
+  const cure = pkg.restructure ? cureOf(ctx, pkg.revision) : null;
+  const d = cure ? evaluate(ctx.deal, revisedScenario(ctx.deal, cure), { confidence: runConfidence(ctx) }).decision : filedDecision(ctx);
+  return { recommendation: pkg.recommendation, basis: d.basis, reasons: d.reasons };
+}
+
+/** The revised structure re-decided (data gate included), with its headroom checks: what revision N proposes. */
+function revisedOutcome(ctx: FileCtx, cure: CureData) {
+  return evaluate(ctx.deal, revisedScenario(ctx.deal, cure), { confidence: runConfidence(ctx) });
+}
+
+/**
+ * A reason as one memo line states it: a long reason keeps its own head clause (its text up to
+ * the first colon, e.g. "4 covenants breach." or "No cure within policy."); the full reason stays
+ * on the package, in the export, on the Decision card of a DECLINE and in the composer's answer.
+ */
+export function shortReason(r: string, max = 140): string {
+  if (r.length <= max) return r;
+  const i = r.indexOf(': ');
+  return i > 0 ? `${r.slice(0, i)}.` : r;
 }
 
 // =============================================================================
@@ -971,7 +1084,7 @@ export function figureRows(ctx: FileCtx, data: unknown): FigureRow[] {
     const value = fmtFigure(id, v);
     const tested = TESTED_FIGURES.includes(id);
     const cov = tested ? covenantForFigure(ctx.deal, id) : undefined;
-    const breach = !!cov && cushionOf(cov.threshold, value).pct < 0;
+    const breach = !!cov && cushionOf(cov.threshold, value).tone === 'bad';
     return {
       id,
       anchorId: `fig:${id}`,
@@ -1081,7 +1194,7 @@ function keyFigures(ctx: FileCtx, pkg: ApprovalPackage, rows: FigureRow[]): KeyF
     if (cov) {
       const cushion = cushionOf(cov.threshold, value);
       const distance = distanceOf(cov.name, cov.threshold, value);
-      caption = cushion.pct < 0 ? `${distance} ${cov.threshold}` : `${distance} · ${cov.threshold}`;
+      caption = cushion.tone === 'bad' ? `${distance} ${cov.threshold}` : `${distance} · ${cov.threshold}`;
       tone = cushionTone(cushion);
       dot = tone === 'bad' ? 'bad' : tone === 'warn' ? 'warn' : null;
     }
@@ -1127,11 +1240,19 @@ function nearestFlipCached(deal: Deal, origin?: FlipOrigin): string {
  * lost), never from the filed figures, which would offer a flip "to APPROVE" under an APPROVE.
  */
 function flipLine(ctx: FileCtx, pkg: ApprovalPackage): string {
-  if (!pkg.restructure) return nearestFlipCached(ctx.deal);
+  // a data-gated memo escalated for verification: the flip is read on the figures as extracted,
+  // whose own call (the rule without the gate) is named first, so the line never contradicts the token
+  const gated = dataGated(pkg);
+  if (!pkg.restructure) {
+    const line = nearestFlipCached(ctx.deal);
+    return gated ? `${COPY.flipUnverified(tokenWord(decisionForDeal(ctx.deal).recommendation))} · ${line}` : line;
+  }
   const cure = cureOf(ctx, pkg.revision);
   if (!cure) return COPY.flipSeeStress;
-  const scenario = { ...baselineScenario(ctx.deal), debt: cure.revised.totalDebtM, liquidity: cure.revised.liquidityM };
-  return `${COPY.flipOnRevised} · ${nearestFlipCached(ctx.deal, { scenario, rec: pkg.recommendation })}`;
+  const scenario = revisedScenario(ctx.deal, cure);
+  const standing = gated ? evaluate(ctx.deal, scenario).recommendation : pkg.recommendation;
+  const line = `${COPY.flipOnRevised} · ${nearestFlipCached(ctx.deal, { scenario, rec: standing })}`;
+  return gated ? `${COPY.flipUnverified(tokenWord(standing))} · ${line}` : line;
 }
 
 export function filedCounts(ctx: FileCtx): { breaches: number; score: number } {
@@ -1140,21 +1261,26 @@ export function filedCounts(ctx: FileCtx): { breaches: number; score: number } {
   return { breaches: tests.filter((c) => c.status === 'breach').length, score: risk.score };
 }
 
+/** The verb phrase that opens the recommendation sentence. */
+const REC_LEAD: Record<Recommendation, string> = {
+  approve: 'Approve.',
+  escalate: 'Escalate to a credit officer.',
+  decline: 'Decline as structured.',
+};
+
+/**
+ * Step 5's sentence: the call, then the rule's first reason as the engine wrote it (with its
+ * magnitudes), so the memo's recommendation and the Decision card read the same decision.
+ */
 function recommendationSentence(ctx: FileCtx, pkg: ApprovalPackage): string {
+  const d = packageDecision(ctx, pkg);
+  const lead = d.reasons.length > 0 ? shortReason(d.reasons[0]) : '';
   if (pkg.restructure) {
-    const cure = cureOf(ctx, pkg.revision);
-    const score = cure ? cure.revised.riskScore : ctx.deal.risk.score;
-    return `Approve the revised structure. ${fmtM(pkg.restructure.contribution)} sponsor equity clears every covenant; risk ${score} (${pkg.riskRating}).`;
+    const equity = fmtM(pkg.restructure.contribution);
+    if (d.recommendation === 'approve') return `Approve the revised structure. With ${equity} sponsor equity, ${lowerFirst(lead)}`;
+    // (the basis line already says the figures are the revised structure's)
   }
-  const { breaches, score } = filedCounts(ctx);
-  switch (pkg.recommendation) {
-    case 'approve':
-      return `Approve. Every covenant passes on the filed figures; risk ${score} (${pkg.riskRating}).`;
-    case 'escalate':
-      return `Escalate to a credit officer. ${breaches === 1 ? '1 covenant breach rules' : `${breaches} covenant breaches rule`} out approval; risk ${score} sits below the ${DECLINE_SCORE} decline line.`;
-    case 'decline':
-      return `Decline as structured. ${plural(breaches, 'covenant breach', 'covenant breaches')} and risk ${score}, at or above the ${DECLINE_SCORE} decline line.`;
-  }
+  return `${REC_LEAD[d.recommendation]} ${lead}`.trim();
 }
 
 function recommendationBody(ctx: FileCtx, pkg: ApprovalPackage, rows: FigureRow[]): RecommendationBody {
@@ -1168,11 +1294,9 @@ function recommendationBody(ctx: FileCtx, pkg: ApprovalPackage, rows: FigureRow[
       }
     }
   }
-  const filed = filedCounts(ctx);
-  const filedRec = decide(filed.breaches, filed.score);
   return {
     basis: restructured ? `On the proposed revised structure · rev ${pkg.revision}` : COPY.basisFiled,
-    prior: restructured ? tokenOf(filedRec) : null,
+    prior: restructured ? tokenOf(filedDecision(ctx).recommendation) : null,
     token: tokenOf(pkg.recommendation),
     sentence: recommendationSentence(ctx, pkg),
     summary: pkg.summary,
@@ -1228,38 +1352,49 @@ function revisionBody(ctx: FileCtx, n: number, data: unknown): RevisionBody {
       }
     : null;
   const labels = { noteLabel: COPY.reviewerNoteBlock, proposalLabel: COPY.outcomeBlock };
-  const parsed = asCure(data);
-  if (parsed && !parsed.viable) {
-    return { n, returned, viable: false, summary: null, redline: [], noCure: noCureTextFor(ctx.deal), ...labels };
-  }
-  // The filed structure already clears every covenant (the search returns a zero contribution, or
-  // finds nothing to cure): no restructure was proposed and the recommendation stands. Never a
-  // "$0.0M sponsor equity" proposal, and never the no-cure line, which would be false here.
-  const needsNone = parsed && parsed.viable ? parsed.contributionM <= 0 : filedCounts(ctx).breaches === 0;
-  if (needsNone) return { n, returned, viable: true, summary: COPY.noRestructureNeeded, redline: [], noCure: null, ...labels };
-  const cure = parsed && parsed.viable ? parsed : cureFromEngine(ctx.deal);
-  if (!cure) return { n, returned, viable: false, summary: null, redline: [], noCure: noCureTextFor(ctx.deal), ...labels };
+  const r = revisionResult(ctx, data);
+  if (r.kind === 'no-cure') return { n, returned, viable: false, summary: null, redline: [], noCure: noCureTextFor(ctx.deal), ...labels };
+  // The filed structure is already clean (the search returns a zero contribution): no restructure
+  // was proposed and the recommendation stands. Never a "$0.0M sponsor equity" proposal, and never
+  // the no-cure line, which would be false here.
+  if (r.kind === 'none-needed') return { n, returned, viable: true, summary: COPY.noRestructureNeeded, redline: [], noCure: null, ...labels };
+  const cure = r.cure;
   const f = ctx.deal.financials;
-  const score = cure.revised.riskScore;
-  const { breaches: filedBreaches, score: filedScore } = filedCounts(ctx);
-  const fromRec = tokenWord(decide(filedBreaches, filedScore));
-  const toRec = tokenWord(decide(cure.breachesRemaining, score));
+  const filed = filedDecision(ctx);
+  // the revised structure through the same rule (data gate included): what revision n proposes
+  const o = revisedOutcome(ctx, cure);
+  const d = o.decision;
+  const score = o.risk.score;
   const line = (key: string, label: string, from: string, to: string) => ({ label, from, to, unchanged: from === to, anchorId: `rev${n}:${key}` });
   const split =
     `${fmtM(cure.debtPaydownM)} debt paydown` + (cure.liquidityTopUpM > 0 ? ` and ${fmtM(cure.liquidityTopUpM)} to liquidity` : '');
+  const tight = o.headroom.find((c) => c.name === d.tightest);
+  const cushion = policyPct(MIN_HEADROOM);
+  const clears =
+    tight && tight.headroom !== null
+      ? `Every covenant clears with at least ${cushion} headroom on the revised structure (tightest: ${lowerFirst(tight.metric)} ${fmtHeadroom(tight.headroom)})`
+      : `Every covenant clears with at least ${cushion} headroom on the revised structure`;
+  const verdict =
+    d.recommendation === 'approve'
+      ? ''
+      : d.basis === 'unverified-data'
+        ? ` The figures still rest on unverified extraction, so the rule holds ${tokenWord(d.recommendation)} for verification.`
+        : ` ${d.reasons.map((x) => shortReason(x)).join(' ')}`;
+  const pctOrDash = (h: number | null) => (h === null ? COPY.noCall : fmtHeadroom(h));
   return {
     n,
     returned,
     viable: true,
-    summary: `The Structuring Engine proposes ${fmtM(cure.contributionM)} sponsor equity as ${split}. Every covenant passes on the revised structure, and risk recomputes to ${score} (${ratingFor(score)}) through the same decide rule.`,
+    summary: `The Structuring Engine proposes ${fmtM(cure.contributionM)} sponsor equity as ${split}. ${clears}, and risk recomputes to ${score} (${ratingFor(score)}) through the same decide rule.${verdict}`,
     redline: [
       line('equity', 'Sponsor equity', COPY.noCall, fmtM(cure.contributionM)),
       line('debt', 'Total debt', fmtM(f.totalDebt), fmtM(cure.revised.totalDebtM)),
       line('leverage', 'Total leverage', fmtX(f.leverageX), fmtX(cure.revised.leverageX)),
       line('interest', 'Interest coverage', fmtX(f.interestCoverageX), fmtX(cure.revised.interestCoverageX)),
       line('liquidity', 'Liquidity', fmtM(f.liquidity), fmtM(cure.revised.liquidityM)),
-      line('risk', 'Risk score', String(filedScore), String(score)),
-      line('recommendation', 'Recommendation', fromRec, toRec),
+      line('headroom', 'Tightest headroom', pctOrDash(filed.minHeadroom), pctOrDash(o.minHeadroom)),
+      line('risk', 'Risk score', String(filedCounts(ctx).score), String(score)),
+      line('recommendation', 'Recommendation', tokenWord(filed.recommendation), tokenWord(d.recommendation)),
     ],
     noCure: null,
     noteLabel: COPY.reviewerNoteBlock,
@@ -1267,28 +1402,48 @@ function revisionBody(ctx: FileCtx, n: number, data: unknown): RevisionBody {
   };
 }
 
-/** Revision n's own outcome for its takeaway: a viable cure (FROM becomes TO), nothing to cure, or no cure. */
-function revisionOutcome(ctx: FileCtx, n: number, data: unknown): Parameters<typeof revisionTakeaway>[0] {
-  const filed = filedCounts(ctx);
-  const standing = decide(filed.breaches, filed.score);
+/**
+ * What the Structuring Engine returned for a revision: a viable cure, nothing to cure (the
+ * filed structure is already clean: a zero contribution), or no cure within the cap. Read from
+ * the step's result; an unreadable result falls back to the same pure search.
+ */
+function revisionResult(ctx: FileCtx, data: unknown): { kind: 'cure'; cure: CureData } | { kind: 'none-needed' } | { kind: 'no-cure' } {
   const parsed = asCure(data);
-  if (parsed && !parsed.viable) return { kind: 'no-cure', rec: standing };
-  const needsNone = parsed && parsed.viable ? parsed.contributionM <= 0 : filed.breaches === 0;
-  if (needsNone) return { kind: 'none-needed', rec: standing };
-  const cure = parsed && parsed.viable ? parsed : cureFromEngine(ctx.deal);
-  if (!cure) return { kind: 'no-cure', rec: standing };
+  if (parsed && !parsed.viable) return { kind: 'no-cure' };
+  if (parsed && parsed.viable) return parsed.contributionM <= 0 ? { kind: 'none-needed' } : { kind: 'cure', cure: parsed };
+  const found = findCure(ctx.deal);
+  if (!found) return { kind: 'no-cure' };
+  const cure = cureFromEngine(ctx.deal);
+  return found.contribution <= 0 || !cure ? { kind: 'none-needed' } : { kind: 'cure', cure };
+}
+
+/** Revision n's own outcome for its takeaway: a viable cure (FROM becomes TO), nothing to cure, or no cure. */
+function revisionOutcome(ctx: FileCtx, data: unknown): Parameters<typeof revisionTakeaway>[0] {
+  const filed = filedDecision(ctx);
+  const standing = filed.recommendation;
+  const gated = filed.basis === 'unverified-data';
+  const r = revisionResult(ctx, data);
+  if (r.kind === 'no-cure') return { kind: 'no-cure', rec: standing };
+  if (r.kind === 'none-needed') return { kind: 'none-needed', rec: standing, gated };
+  const d = revisedOutcome(ctx, r.cure).decision;
   return {
     kind: 'cure',
-    contributionM: cure.contributionM,
-    revisedLeverageX: cure.revised.leverageX,
+    contributionM: r.cure.contributionM,
+    revisedLeverageX: r.cure.revised.leverageX,
     from: standing,
-    to: decide(cure.breachesRemaining, cure.revised.riskScore),
+    to: d.recommendation,
+    gated: d.basis === 'unverified-data',
   };
 }
 
-/** §10 no-cure copy with the deal's own cap (35% of total debt, the Structuring Engine's policy limit). */
+/** §10 no-cure copy with the deal's own cap (35% of total debt, floored to $0.1M as the cure search caps it). */
 function noCureTextFor(deal: Deal): string {
-  return noCureText(fmtM(deal.financials.totalDebt * 0.35));
+  // the constraint that binds (a covenant the cushion cannot reach, the risk score, …), from the same search
+  const block = cureBlockFor(deal);
+  return noCureText(
+    fmtM(Math.floor(CURE_CAP * Math.max(0, deal.financials.totalDebt) * 10 + 1e-9) / 10),
+    block ? describeCureBlock(block) : undefined,
+  );
 }
 
 export function stubOf(step: StepView): StubView | null {
@@ -1503,7 +1658,7 @@ export function buildSections(ctx: FileCtx, rows: FigureRow[], built?: NotesBuil
       });
     } else if (n !== null) {
       const body = set ? revisionBody(ctx, n, data) : null;
-      out.push({ ...withTake(body ? revisionTakeaway(revisionOutcome(ctx, n, data)) : null), kind: 'revision', body });
+      out.push({ ...withTake(body ? revisionTakeaway(revisionOutcome(ctx, data)) : null), kind: 'revision', body });
     }
   }
   return out;
@@ -1532,7 +1687,7 @@ export function sealHeadline(ctx: FileCtx): { who: string; full: string } | null
         : sl.decision === 'countersigned-amended'
           ? 'You countersigned as amended.'
           : 'You countersigned.';
-  const fullWho = sl.decision === 'countersigned-amended' ? amendedWho(ctx.deal, sl.amendments) : who;
+  const fullWho = sl.decision === 'countersigned-amended' ? amendedWho(ctx.deal, sl.amendments, pkg) : who;
   return { who, full: `${rec} ${fullWho}` };
 }
 
@@ -1826,7 +1981,16 @@ export function selectFile(s: V2Store, dealId: string): FileView | null {
  */
 export function askRoute(
   q: string,
-  ctx: { restructured: boolean; revision: number; rec: Recommendation | null; summary: string | null; filedLeverage: string; revisedLeverage: string | null },
+  ctx: {
+    restructured: boolean;
+    revision: number;
+    rec: Recommendation | null;
+    summary: string | null;
+    filedLeverage: string;
+    revisedLeverage: string | null;
+    /** the package's decision reasons as the engine wrote them (null before a package exists) */
+    reasons?: string[] | null;
+  },
 ): { kind: 'engine' } | { kind: 'local'; text: string; stress: boolean } {
   if (/what.?if|waiver|step.?down|stress|scenario|sensitiv/i.test(q)) {
     return {
@@ -1834,6 +1998,14 @@ export function askRoute(
       stress: true,
       text: 'Use the stress test in this file, below the Decision card. It re-runs the same decide rule the agent uses, and you can attach a scenario as an exhibit.',
     };
+  }
+  // a decision question answers with the rule's own reasons (the engine responder only restates the summary)
+  if (ctx.rec && ctx.reasons && ctx.reasons.length > 0 && /why|recommend|decision|approve|decline|escalat/i.test(q)) {
+    const lead = ctx.restructured
+      ? `On revision ${ctx.revision} the agent recommends ${tokenWord(ctx.rec)} on the revised structure.`
+      : `The agent recommends ${tokenWord(ctx.rec)}.`;
+    // every principal reason, in full (a DECLINE's breach list and its no-cure reason included)
+    return { kind: 'local', stress: false, text: `${lead} ${ctx.reasons.join(' ')}` };
   }
   if (ctx.restructured && /why|recommend|decision|approve|decline|escalat/i.test(q)) {
     const word = ctx.rec ? tokenWord(ctx.rec) : '';

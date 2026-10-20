@@ -11,6 +11,7 @@
 import type { CovenantTest, Deal, RiskScore } from './mockData';
 import { ratingFor } from './rating';
 import { uid } from './util';
+import { decisionForDeal, filedChecks, fmtHeadroom } from './whatif';
 
 function hash(s: string): number {
   let h = 2166136261;
@@ -102,11 +103,9 @@ export function synthesizeDealFromFile(fileName: string): Deal {
   };
 
   const breaches = covenants.filter((c) => c.status === 'breach');
-  const recVerb = breaches.length === 0 ? 'approval, subject to standard conditions' : score >= 75 ? 'declining the deal as structured' : 'escalation to a credit officer for a waiver or structure adjustment';
-
   const facilitySize = r1(totalDebt * 0.45);
 
-  return {
+  const deal: Deal = {
     id: uid('deal'),
     name,
     uploaded: true,
@@ -141,6 +140,27 @@ minimum interest and fixed-charge coverage tests, and a minimum liquidity floor.
       fixedChargeCoverageX >= 1.1 && fixedChargeCoverageX < 1.25
         ? [{ severity: 'warning', message: `Fixed-charge coverage ${fixedChargeCoverageX.toFixed(2)}x leaves thin headroom over the 1.10x floor.`, needsHuman: false }]
         : [],
-    memoSummary: `${name} screens at ${leverageX.toFixed(2)}x leverage with a ${marginPct.toFixed(1)}% EBITDA margin and a risk score of ${score} (${ratingFor(score)}). ${breaches.length ? `${breaches.length} of ${covenants.length} covenant tests fail.` : 'All covenant tests pass with headroom.'} Recommend ${recVerb}.`,
+    memoSummary: '',
   };
+
+  // The summary states what the ONE decision rule says on the figures as
+  // extracted. (An upload's readings sit under the confidence floor, so the
+  // run's data gate will still hold the memo for verification.)
+  const d = decisionForDeal(deal);
+  const tightest = filedChecks(deal).find((c) => c.name === d.tightest);
+  const testsLine = breaches.length
+    ? `${breaches.length} of ${covenants.length} covenant tests fail.`
+    : tightest && tightest.headroom !== null
+      ? `All covenant tests pass; the tightest, ${tightest.metric.toLowerCase()}, has ${fmtHeadroom(tightest.headroom)} headroom.`
+      : 'All covenant tests pass.';
+  const ruleLine =
+    d.recommendation === 'approve'
+      ? 'approval, subject to standard conditions'
+      : d.recommendation === 'decline'
+        ? 'declining the deal as structured'
+        : d.triggers.includes('breach-curable')
+          ? 'escalation to a credit officer: the breach is curable with sponsor equity within policy'
+          : 'escalation to a credit officer for the policy exceptions';
+  deal.memoSummary = `${name} screens at ${leverageX.toFixed(2)}x leverage with a ${marginPct.toFixed(1)}% EBITDA margin and a risk score of ${score} (${ratingFor(score)}). ${testsLine} On the figures as extracted, the decision rule points to ${ruleLine}.`;
+  return deal;
 }

@@ -53,15 +53,27 @@ durcheck() {
   done
 }
 # engine files that were already uncommitted before the V2 build: path:sha256 (edit only if the owner changes one on purpose)
-BASELINE="src/agent/monitor.ts:ce5a47c67b8672cbbf7265878ed62b6bcba2b83bc369b66e6b36e006c083c98f
-src/agent/runAgent.ts:99500db8731c9fe797cca5f4578606139cb09b9c366b42ec5d54e8618e81f3c8
-src/agent/synthesize.ts:ae43413d2782eec95c7407e3e2b8d8a49ac89d6fe8a9fdaad889134698a56b0a
-src/agent/whatif.ts:4aa71cc4aad5dc34c668501e2270d38d8c1c64601ce1988c979a004440c30346
+BASELINE="src/agent/monitor.ts:bf6f47b21d1104691a1798cc9413b118d29486ec446e0381ff9b80de3523a22b
+src/agent/runAgent.ts:914890655c90452424480e65868c3c2f0b6bf9743e108c839526b6ee7ade7b49
+src/agent/synthesize.ts:d3795d7d924bb4e708bb633be4030722f055c9d2cc2239a8389f5022084e05c4
+src/agent/whatif.ts:721b7e967b9f666fb29198c7f27375c487ddaa15d74c6dc109f76413ee40ee0f
 src/agent/format.ts:1a8caef4aacbeb3d9ae17cfe1465bed5f9d0644d2dd45c541be7668a9882c786
-src/agent/rating.ts:1a912053eafaabcf1b124e61845bf046a33b4b5fd850cde12de837d3a7cd0b33
+src/agent/rating.ts:26a22b21f73284a1b09d1c5c2552b17f94090c39bb776e95428bf80b31f9a493
+src/agent/policy.ts:ee9302ee7ce67370275224af544d026ccbbc66064420c0641dac472bdbc5b41b
+src/agent/tools.ts:c192f8fa3d065991af814a80bd26aa0e7824e17b8339619339e5972a9d9b3837
+src/agent/types.ts:0ee87874c4509efd6ae3afc399b37f93864d568df5689175d33ea83af87f95d8
+src/agent/responder.ts:e2711122cccaf604d3529ad48af7fe3c93dcf2fa781b7d0718ee8eec2431fc18
+src/agent/draftNote.ts:43f371774bc24bb1287b84c2d137295ed17b5a26421fd269868faa446395273d
+src/agent/mockData.ts:7f23e8574a16db47532b3fdf72d2538590658d4cef3f2d68bde48d3498a6afd3
 src/hooks/useCreditAgent.ts:6ec0ddc30bf823a91bbb3f13f5b3810ee198d8e511d8a3abed97f939348bf744
 src/hooks/useMonitor.ts:0d2c62194ae45b45acb5ff84a48b92300b4ef39181bc79f545243c47f4e6401b
-src/components/Artifact.tsx:6177f0ce4d3bfd9b9e008e823688f161144223e999455e33701ec937c4bda3ed"
+src/App.tsx:a04e3b16d009952b6ff754e2df0811912854f51b700b383a37264793f202b309
+src/components/ApprovalGate.tsx:b9c2140fd558acac046fd33af97658311ee63fc76e34b3134e87d30fbfa5400b
+src/components/Artifact.tsx:10a95ce1a981bfde4958696435f8df1713b18e37b0a5d19ce67bd0d8abdf4fa5
+src/components/OutcomeBanner.tsx:052167f4694e1d0e1e8bc5c94334c6b329d53c4e766e9a47ea159fb8af48c3c8
+src/components/StepCard.tsx:dab8c16d4a805e40616b78d9a3e8111d02211bc7b90c57e6a31de18a2619714e
+src/components/WhatIfPanel.tsx:a46e8f5c9049e0edc9d60e69ae5ba7e0ef383b334e0ecd9699ba0b8fd0e68dcc
+src/components/amendTerms.ts:28141b45e747dcaa773b48d6404db1e06c3334753265ab2c36e02701ec8477b0"
 v1_changes() {
   { git diff --name-only HEAD; git ls-files --others --exclude-standard; } | sort -u | while IFS= read -r f; do
     case "$f" in

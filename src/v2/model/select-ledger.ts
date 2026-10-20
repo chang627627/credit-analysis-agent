@@ -192,9 +192,12 @@ function runHeader(s: V2Store, run: RunRecord, entries: AuditHistoryEntry[]): St
   if (run.decision) {
     const state: StatusKey = run.decision === 'auto-countersigned' ? 'signed-auto' : 'signed';
     // name what was signed: on amended terms that is the amended outcome, not the agent's call
-    const deal = s.snapshotList.find((x) => x.runId === run.runId)?.deal ?? a.dealsFull.find((d) => d.id === run.dealId);
+    const snap = s.snapshotList.find((x) => x.runId === run.runId);
+    const deal = snap?.deal ?? a.dealsFull.find((d) => d.id === run.dealId);
+    // the package says whether the data gate held it (an amendment never verifies a figure)
+    const pkg = snap?.pkg ?? (current ? a.approvalPackage : null);
     const verdict =
-      run.recommendation && deal ? signedVerdict(deal, run.recommendation, run.amendments ?? null, 'amended terms') : word ? `concurs ${word}` : null;
+      run.recommendation && deal ? signedVerdict(deal, run.recommendation, run.amendments ?? null, 'amended terms', pkg) : word ? `concurs ${word}` : null;
     return { state, text: `Run ${run.runId} · ${VERB_WORD[run.decision]}${verdict ? ` · ${verdict}` : ''}${rev}`, meta };
   }
   if (current && a.status === 'awaiting_approval') {

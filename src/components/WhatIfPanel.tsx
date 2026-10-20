@@ -10,7 +10,7 @@ import { useMemo, useState } from 'react';
 import { Check, Paperclip, RotateCcw } from 'lucide-react';
 import type { Deal } from '../agent/mockData';
 import type { Recommendation } from '../agent/types';
-import { baselineScenario, driversFor, evaluate, flipZonesFor } from '../agent/whatif';
+import { baselineScenario, driversFor, evaluate, flipZonesFor, fmtHeadroom } from '../agent/whatif';
 import type { Driver, FlipZone, Scenario } from '../agent/whatif';
 import { HeadroomBar } from './HeadroomBar';
 
@@ -23,6 +23,8 @@ const REC_LABEL: Record<Recommendation, string> = {
 const fmtValue = (d: Driver, v: number): string =>
   d.unit === 'pct' ? `${v.toFixed(2)}%` : `$${v.toFixed(1)}M`;
 
+const fmtMinHeadroom = (h: number | null): string => (h === null ? 'n/a' : fmtHeadroom(h));
+
 const fmtDelta = (d: Driver, v: number): string => {
   const delta = v - d.base;
   const sign = delta > 0 ? '+' : '';
@@ -31,9 +33,16 @@ const fmtDelta = (d: Driver, v: number): string => {
 
 export function WhatIfPanel({
   deal,
+  verificationHold,
   onAttach,
 }: {
   deal: Deal;
+  /**
+   * The data gate's reason when the agent's call is a hold for verification
+   * (unverified extraction). The sandbox has no run confidences, so it tests
+   * the figures as extracted and its base call can differ from the gate's.
+   */
+  verificationHold?: string;
   /** Put the current scenario on the record — it becomes an audit-trail entry. */
   onAttach?: (label: string, detail: string) => void;
 }) {
@@ -68,7 +77,9 @@ export function WhatIfPanel({
       .map((d) => `${d.label} ${fmtValue(d, base[d.key])}→${fmtValue(d, scenario[d.key])}`)
       .join(', ');
     const label = `What-if scenario attached · ${REC_LABEL[baseOutcome.recommendation]} → ${REC_LABEL[live.recommendation]}${flipped ? ' (flips)' : ' (holds)'}`;
-    const detail = `${changes} ⇒ risk ${baseOutcome.risk.score}→${live.risk.score}, breaches ${baseOutcome.breaches}→${live.breaches}`;
+    const detail =
+      `${changes} ⇒ risk ${baseOutcome.risk.score}→${live.risk.score}, breaches ${baseOutcome.breaches}→${live.breaches}, ` +
+      `min headroom ${fmtMinHeadroom(baseOutcome.minHeadroom)}→${fmtMinHeadroom(live.minHeadroom)} · ${live.reasons.join(' ')}`;
     onAttach(label, detail);
     setAttachedKey(scenarioKey);
   };
@@ -99,7 +110,14 @@ export function WhatIfPanel({
       <p className="whatif__sub">
         The decision above is the agent's <em>fixed</em> call on the real figures — it doesn't change.
         Drag a driver to pressure-test it: how much headroom is there, and what would flip the verdict?
-        Covenants, risk and the recommendation recompute through the same rule the agent uses.{' '}
+        Covenants, headroom, risk and the recommendation recompute through the same rule the agent uses.{' '}
+        {verificationHold && (
+          <>
+            Here the agent's ESCALATE is a hold for verification, not a verdict on the figures. {verificationHold}{' '}
+            This sandbox tests the figures as extracted, as if verified, so its base case can differ from the call
+            above.{' '}
+          </>
+        )}
         <span className="whatif__sim">Simulated sensitivity model.</span>
       </p>
 
@@ -184,6 +202,10 @@ export function WhatIfPanel({
             {!dirty ? 'matches base' : flipped ? 'flips the recommendation' : 'recomputed · holds'}
           </span>
         </div>
+        {/* why the stressed call is what it is — the rule's reasons, with sizes
+            (headroom can flip it with no breach in the table). At base the call
+            above already carries them. */}
+        {dirty && <span className="whatif__verdicttag">{live.reasons.join(' ')}</span>}
         {onAttach && (
           <button
             className="whatif__attach"

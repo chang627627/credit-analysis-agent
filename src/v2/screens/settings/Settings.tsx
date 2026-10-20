@@ -1,7 +1,8 @@
 // ---------------------------------------------------------------------------
 // Countersign V2 · Settings (reached from the sidebar's bottom). Session-level
 // controls only: demo pace, the clean-approval policy, and restoring files
-// removed from the Desk. A pure reduction of selectSettings(s).
+// removed from the Desk. A pure reduction of selectSettings(s). The policy row's
+// help line is the rule itself, built in the model (R4.2, P-31).
 // ---------------------------------------------------------------------------
 import { Button, FilterChips, Switch } from '../../kit';
 import { selectSettings } from '../../model';
@@ -29,7 +30,9 @@ export function Settings() {
           <div className="settings__row">
             <div className="settings__text">
               <h2 className="t-strong">{v.policy.label}</h2>
-              <p className="settings__help t-small">{v.policy.help}</p>
+              <p className="settings__help t-small" data-pattern="P-31">
+                {v.policy.help}
+              </p>
             </div>
             <Switch checked={v.policy.on} onChange={(on) => a.setPolicy(on ? 'auto' : 'gate')} ariaLabel={v.policy.label} />
           </div>

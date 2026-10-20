@@ -90,6 +90,8 @@ export interface TopBarView {
   /** attention: set only while something waits on the reviewer (a dot in the sidebar, appended to the accessible name); no totals, no ambient counts */
   tabs: { id: 'desk' | 'book' | 'ledger'; label: string; attention: string | null }[];
   active: 'desk' | 'book' | 'ledger' | 'settings'; policyOn: boolean; policyLabel: string; policyShort: string;
+  /** the clean-approval rule in one line (policyRule().short), the policy switch's Tip: says what "clean" means (R4.2) */
+  policyRule: string;
   speedLabel: string; speeds: { value: number; label: string; checked: boolean }[]; searchKbd: string;
   /** the top bar's left side now that navigation lives in the sidebar */
   sectionTitle: string;
@@ -97,6 +99,7 @@ export interface TopBarView {
 export interface SettingsView {
   title: string;
   intro: string;
+  /** help: the clean-approval rule in words (policyRule().full), never hand-restated numbers (R4.2) */
   policy: { label: string; help: string; on: boolean };
   pace: { label: string; help: string; options: { id: string; label: string; count: string }[]; active: string };
   removed: { text: string; restoreLabel: string } | null;

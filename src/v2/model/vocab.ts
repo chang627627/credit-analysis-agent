@@ -21,11 +21,13 @@ export const CUE_HOLD_MS = 1200;
 export function PLAN_COUNTDOWN_S(speed: number): number {
   return Math.max(3, Math.round(7 / (speed > 0 ? speed : 1)));
 }
-/** The note a policy signature writes onto the record. */
-export const AUTO_NOTE =
-  'Auto-countersigned · clean-approval policy (recommendation APPROVE, zero flags, every key figure at 90% confidence or above)';
-/** Key-figure confidence the clean-approval policy requires. */
+/**
+ * Key-figure confidence the clean-approval policy requires. policyChecks tests it (state/gate's
+ * eligibility check is policyChecks) and policyRule states it, so the two never disagree.
+ */
 export const POLICY_MIN_CONFIDENCE = 0.9;
+/** The note a policy signature writes onto the record (the threshold read from the constant). */
+export const AUTO_NOTE = `Auto-countersigned · clean-approval policy (recommendation APPROVE, zero flags, every key figure at ${policyPct(POLICY_MIN_CONFIDENCE)} confidence or above)`;
 /** Confidence at and above which a figure stays neutral (never green). */
 export const CONF_NEUTRAL = 0.9;
 
@@ -296,7 +298,6 @@ export const COPY = {
   settingsIntro: 'Session settings. They last until you refresh, like everything in this demo.',
   paceTitle: 'Demo pace',
   paceHelp: 'How fast the simulated agent and the Portfolio Monitor run. 1× is a 10 to 13 second memo.',
-  policyHelp: 'When on, a clean first-pass APPROVE (no flags, every figure at 90% confidence or above) is countersigned by the policy after a visible 5 second countdown. Everything else waits for you.',
   removedText: (n: number): string => (n === 1 ? '1 file removed from the Desk this session.' : `${n} files removed from the Desk this session.`),
   restoreRemoved: 'Restore removed files',
   deskEmptySummary: 'No files on the Desk. Drop a CIM below to add one; a refresh brings the samples back.',

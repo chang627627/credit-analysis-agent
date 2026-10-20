@@ -547,10 +547,13 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   supersede all of them.
 - **Guardrails:** `npm run v2-check` (28 greps: tokens only, 400/500/600, 4px grid, one
   infinite animation, no hand-rolled controls outside the kit, V1 + engine hashes untouched, …).
-  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-30, rendered on `/?kit`) for
+  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-31, rendered on `/?kit`) for
   owner approval; every `data-pattern` id needs an entry there, every kit export a kit-page specimen.
-- **Storage** (only in `src/v2/state/`): `v2.navCollapsed`, `v2.chatOpen` (only `state/panes.ts`),
-  `v2.autonomy`. (`v2.showReasoning` was retired with R2: reasoning lives in each card's Record.)
+- **Storage** (only in `src/v2/state/`): `v2.navCollapsed`, `v2.chatOpen` (only `state/panes.ts`).
+  (`v2.showReasoning` was retired with R2: reasoning lives in each card's Record.) **Auto-countersign
+  is session only** (THREE-PANE R4.2, Mobbin audit fix 2): it starts off on every load and is never
+  stored, as the Settings intro says of every setting; `initialPolicy()` (`state/gate.ts`) removes a
+  stale `v2.autonomy` value once on load so an earlier On cannot linger.
 - **Light mode only** (owner decision): no dark theme, no toggle.
 - **Accent = signature-ink blue** `#1f4fbf` (owner decision, 2026-10-20; was teal `#0f7d8c`, which sat
   11.5 dE from the approve green so the primary verb read as "approve"). Green means pass/approve only.
@@ -658,6 +661,14 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
 - **Shell:** collapsible left sidebar (Desk · Book · Ledger, 64px icon rail, persisted; **no counts**: only
   a small accent dot on the Desk while a file waits on you at plan review or the countersignature);
   top bar = section name + auto-countersign switch + search.
+- **The auto-countersign rule is stated in words** (P-31, THREE-PANE R4.2, Mobbin audit fix 2), built in
+  the model by `policyRule()` from the same terms the eligibility check tests (`policyChecks`, which
+  `isEligible` in `state/gate.ts` now reads; `POLICY_MIN_CONFIDENCE`, `AUTO_COUNTDOWN_MS`; never
+  hand-restated numbers). Settings' policy help line: "If the agent recommends APPROVE · no flags ·
+  first pass · every key figure at 90% or above → countersign after a visible 5 s countdown you can
+  hold. Everything else waits for you." The top-bar switch wears the kit Tip with the one-line version
+  ("Clean means APPROVE · no flags · first pass · every key figure at 90% or above → countersign after
+  a 5 s countdown you can hold."); the kit Switch forwards `aria-describedby` for it.
 - **Rejected by the owner during the V2 build (do not resurrect):** vertical "Source ¶" spine
   (source opens from a doc-bar button instead) · the ¶ citation mark (reads "CIM para 2") ·
   recommendation at the top of the memo · side margin column of notes (left empty gaps) ·

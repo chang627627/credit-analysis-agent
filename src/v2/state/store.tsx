@@ -15,7 +15,7 @@ import type { Route } from './route';
 import { useHashRoute } from './route';
 import type { AnnounceKind, V2Actions, V2Internals, V2Store } from './contracts';
 import { createUiActions, initialUi, placeKeyOf, routeHygiene, useNow, useReducedMotion, useRefState, useTabVisible } from './ui';
-import { createGateActions, initialGate, readPolicy, useGateEffects } from './gate';
+import { createGateActions, initialGate, initialPolicy, useGateEffects } from './gate';
 import { createPlanActions, initialPlan, usePlanEffects } from './plan';
 import { createFileActions, useSnapshots } from './files';
 import { createPaneActions, initialPanes, useChatLayout, usePaneEffects } from './panes';
@@ -46,7 +46,7 @@ export function V2Provider(props: { children: ReactNode }) {
   const reducedMotion = useReducedMotion();
   const [tabVisible, tabVisibleRef] = useTabVisible();
   const modKey = useMemo(detectModKey, []);
-  const [policy, policyRef, setPolicy] = useRefState(readPolicy);
+  const [policy, policyRef, setPolicy] = useRefState(initialPolicy);
   const [plan, planRef, setPlan] = useRefState(initialPlan);
   const [gate, gateRef, setGate] = useRefState(initialGate);
   const [ui, uiRef, setUi] = useRefState(initialUi);

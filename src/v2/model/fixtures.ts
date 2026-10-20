@@ -13,6 +13,7 @@
 
 import { AUTO_NOTE, COPY, IMPERATIVE, sectionLinkLabel, STATUS_WORD, tokenOf } from './vocab';
 import { EM, MINUS } from './format';
+import { policyRule } from './select-top';
 import type {
   Actor,
   AgentPanelView,
@@ -80,6 +81,7 @@ export const FX_TOPBAR: TopBarView = {
   policyOn: false,
   policyLabel: COPY.policyLabel,
   policyShort: COPY.policyShort,
+  policyRule: policyRule().short,
   speedLabel: '1×',
   speeds: SPEEDS_1X,
   searchKbd: '⌘K',

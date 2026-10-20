@@ -29,7 +29,12 @@
 //     note with its text selected and asks the verb's question; a second press
 //     of the same verb commits, and only with a note. So a stray R after an
 //     optional countersign note can never reject the memo with that note as
-//     its reason.
+//     its reason;
+//   - the policy is session only (R4.2, Mobbin audit fix 2): the one setting
+//     that lets the machine sign starts off on every load and is never stored,
+//     as Settings says of every setting, so an On saved by an earlier build or
+//     an earlier visit can never sign a memo after a refresh. Eligibility is
+//     policyChecks, the same terms Settings and the top-bar Tip state in words.
 // ---------------------------------------------------------------------------
 
 import { useEffect } from 'react';
@@ -37,30 +42,28 @@ import { draftNoteFor } from '../../agent/draftNote';
 import type { Deal } from '../../agent/mockData';
 import type { NoteProvenance } from '../../agent/types';
 import type { CreditAgentApi } from '../../hooks/useCreditAgent';
-import { AUTO_COUNTDOWN_MS, AUTO_NOTE, amendmentsFor, selectFile, selectLiveDealId, selectSignature } from '../model';
+import { AUTO_COUNTDOWN_MS, AUTO_NOTE, amendmentsFor, policyChecks, selectFile, selectLiveDealId, selectSignature } from '../model';
 import type { GateState, HoldReason, Policy, PresentedAtSign, V2Actions, V2Internals, V2Store } from './store';
 import { cssMs, sourceIsOverlay } from './ui';
 import { closeDrawerIn } from './panes';
 import { focusLost, onFrames, onScreen, rendered, revealInBand } from './reveal';
 
-// ---- persistence (v2.autonomy) ----------------------------------------------
+// ---- session only (R4.2): never stored, starts off ------------------------------
 
-const POLICY_KEY = 'v2.autonomy';
+/** Builds before R4.2 stored the policy under this key; it is only ever removed now. */
+const STALE_POLICY_KEY = 'v2.autonomy';
 
-export function readPolicy(): Policy {
+/**
+ * The policy at load: always 'gate' (off). Clears a value an earlier build stored, once, on load
+ * (the store's lazy initial state), so a previously saved On cannot linger in the browser.
+ */
+export function initialPolicy(): Policy {
   try {
-    return localStorage.getItem(POLICY_KEY) === 'auto' ? 'auto' : 'gate';
+    localStorage.removeItem(STALE_POLICY_KEY);
   } catch {
-    return 'gate';
+    /* storage unavailable: nothing stored to clear */
   }
-}
-
-function writePolicy(p: Policy): void {
-  try {
-    localStorage.setItem(POLICY_KEY, p);
-  } catch {
-    /* storage unavailable: the policy still applies for this session */
-  }
+  return 'gate';
 }
 
 // ---- state ------------------------------------------------------------------
@@ -127,18 +130,15 @@ export function canDecide(s: V2Store): boolean {
   return atGate(s) && !verbsDead(s);
 }
 
-/** V1's clean-approval rule, unchanged. */
+/**
+ * V1's clean-approval rule, unchanged: APPROVE, zero flags, first pass, every key figure at
+ * POLICY_MIN_CONFIDENCE or above. It reads policyChecks, the checks the Decision card prints and
+ * the terms policyRule states in Settings and the top-bar Tip, so what the reviewer is told and
+ * what the policy signs are one rule.
+ */
 export function isEligible(s: V2Store): boolean {
   const pkg = s.agent.approvalPackage;
-  return (
-    s.policy === 'auto' &&
-    s.agent.status === 'awaiting_approval' &&
-    !!pkg &&
-    pkg.recommendation === 'approve' &&
-    pkg.flags.length === 0 &&
-    pkg.revision === 1 &&
-    pkg.keyMetrics.every((m) => m.confidence >= 0.9)
-  );
+  return s.policy === 'auto' && s.agent.status === 'awaiting_approval' && !!pkg && policyChecks(pkg).every((c) => c.ok);
 }
 
 /** Eligible AND visible: not held, the live file on screen, the tab visible, not receding, not signed. */
@@ -481,8 +481,7 @@ export function createGateActions(x: V2Internals): GateActions {
       if (x.policyRef.current === p) return;
       // switching off while a countdown runs is a hold with its own reason
       if (p === 'gate' && x.gateRef.current.autoDeadline !== null) holdAuto(x, 'policy-off');
-      x.setPolicy(p);
-      writePolicy(p);
+      x.setPolicy(p); // session only (R4.2): never written to storage
     },
 
     setNote: (text) => {

@@ -98,6 +98,7 @@ import {
   REJECTED_WORD,
   STATUS_WORD,
   contrastRatio,
+  policyRule,
   fmtDriverValue,
   fmtM,
   fmtPct,
@@ -1327,6 +1328,18 @@ function FieldsBoard() {
           <Cell caption="disabled · off and on">
             <Switch checked={false} onChange={noop} ariaLabel={COPY.policyLabel} disabled />
             <Switch checked onChange={noop} ariaLabel={COPY.policyLabel} disabled />
+          </Cell>
+        </Grid>
+      </Group>
+      <Group label="The clean-approval rule in words (P-31): session only, starts off on every load">
+        <Grid size="wide">
+          <Cell caption="top bar · the switch wears the kit Tip (P-15, placement bottom, specimen open) with policyRule().short: what clean means" block>
+            <Tip label={FX_TOPBAR.policyRule} placement="bottom" specimen>
+              <Switch checked={FX_TOPBAR.policyOn} onChange={noop} ariaLabel={FX_TOPBAR.policyLabel} />
+            </Tip>
+          </Cell>
+          <Cell caption="Settings · the policy row's help line is policyRule().full, built from policyChecks' constants (t-small, ink-2)" block>
+            <p className="t-small">{policyRule().full}</p>
           </Cell>
         </Grid>
       </Group>

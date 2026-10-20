@@ -122,7 +122,7 @@ export {
 } from './flip';
 
 // ---- selectors
-export { selectLiveDealId, isRunLive, onLiveFile, chatShown, SPEED_STEPS, selectTopBar, selectTabTitle, policyChecks, selectPolicy } from './select-top';
+export { selectLiveDealId, isRunLive, onLiveFile, chatShown, SPEED_STEPS, selectTopBar, selectTabTitle, policyChecks, policyRule, selectPolicy } from './select-top';
 export { selectDesk } from './select-desk';
 export { selectFile, askRoute, routesOnSign } from './select-file';
 export { selectAgentPanel, memoTargetOfAnchor, newActivityLabel } from './select-thread';

@@ -9,7 +9,7 @@ import type { Deal } from '../../agent/mockData';
 import type { ApprovalPackage } from '../../agent/types';
 import type { AuditHistoryEntry, RunRecord } from '../../hooks/useCreditAgent';
 import type { V2Store } from '../state/contracts';
-import { fmtConf, fmtCountdown, fmtSpeed, plural } from './format';
+import { fmtConf, fmtCountdown, fmtSeconds, fmtSpeed, plural } from './format';
 import type { PolicyView, TopBarView } from './types';
 import { AUTO_COUNTDOWN_MS, COPY, HOLD_CAPTION, POLICY_MIN_CONFIDENCE, tokenWord } from './vocab';
 
@@ -120,6 +120,7 @@ export function selectTopBar(s: V2Store): TopBarView {
     policyOn: s.policy === 'auto',
     policyLabel: COPY.policyLabel,
     policyShort: COPY.policyShort,
+    policyRule: policyRule().short,
     speedLabel: fmtSpeed(s.agent.speed),
     speeds: SPEED_STEPS.map((value) => ({ value, label: fmtSpeed(value), checked: value === s.agent.speed })),
     searchKbd: `${s.modKey}K`,
@@ -142,7 +143,11 @@ export function selectTabTitle(s: V2Store): string {
   return COPY.brand;
 }
 
-/** The four clean-approval checks against a package (V1's rule, unchanged). */
+/**
+ * The four clean-approval checks against a package (V1's rule, unchanged). This IS the eligibility
+ * check: state/gate's isEligible passes only when every check is ok, and policyRule states the same
+ * terms in words, so the sentence the reviewer reads can never drift from what the policy signs.
+ */
 export function policyChecks(pkg: Pick<ApprovalPackage, 'recommendation' | 'flags' | 'revision' | 'keyMetrics'>): { ok: boolean; text: string }[] {
   const lowest = pkg.keyMetrics.reduce((m, k) => Math.min(m, k.confidence), 1);
   const confOk = pkg.keyMetrics.every((k) => k.confidence >= POLICY_MIN_CONFIDENCE);
@@ -153,9 +158,29 @@ export function policyChecks(pkg: Pick<ApprovalPackage, 'recommendation' | 'flag
     pkg.flags.length === 0 ? { ok: true, text: 'No flags on record' } : { ok: false, text: `${plural(pkg.flags.length, 'flag')} on record` },
     pkg.revision === 1 ? { ok: true, text: 'First pass' } : { ok: false, text: `Revision ${pkg.revision}` },
     confOk
-      ? { ok: true, text: 'Every key figure at 90% confidence or above' }
+      ? { ok: true, text: `Every key figure at ${fmtConf(POLICY_MIN_CONFIDENCE)} confidence or above` }
       : { ok: false, text: `Lowest key-figure confidence ${fmtConf(lowest)}` },
   ];
+}
+
+/**
+ * The clean-approval rule in words (THREE-PANE R4.2, Mobbin audit fix 2). The terms run in
+ * policyChecks' order and read the same constants (the APPROVE token, zero flags, the first pass,
+ * POLICY_MIN_CONFIDENCE) plus AUTO_COUNTDOWN_MS, so no number is restated by hand.
+ *   full (Settings): 'If the agent recommends APPROVE · no flags · first pass · every key figure at
+ *     90% or above → countersign after a visible 5 s countdown you can hold. Everything else waits
+ *     for you.'
+ *   short (the top-bar switch's Tip, says what "clean" means): 'Clean means APPROVE · no flags ·
+ *     first pass · every key figure at 90% or above → countersign after a 5 s countdown you can hold.'
+ */
+export function policyRule(): { full: string; short: string } {
+  const terms = [tokenWord('approve'), 'no flags', 'first pass', `every key figure at ${fmtConf(POLICY_MIN_CONFIDENCE)} or above`];
+  const wait = fmtSeconds(AUTO_COUNTDOWN_MS);
+  const [call, ...rest] = terms;
+  return {
+    full: `If the agent recommends ${call} · ${rest.join(' · ')} → countersign after a visible ${wait} countdown you can hold. Everything else waits for you.`,
+    short: `Clean means ${terms.join(' · ')} → countersign after a ${wait} countdown you can hold.`,
+  };
 }
 
 /**

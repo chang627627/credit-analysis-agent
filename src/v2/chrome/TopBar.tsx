@@ -1,8 +1,10 @@
 // The top bar (spec §3): the current section's name, then the policy switch and search.
 // Navigation lives in the sidebar (P-21). Demo pace and Compare V1 were removed on owner
 // request (V1 stays reachable at /?v=1). No theme toggle, no primary.
+// The switch wears the kit Tip with the clean-approval rule in one line (R4.2, P-31), so
+// "clean" is never left undefined at the one control that lets the machine sign.
 import { Search } from 'lucide-react';
-import { Button, IconButton, Menu, Switch } from '../kit';
+import { Button, IconButton, Menu, Switch, Tip } from '../kit';
 import { COPY, selectTopBar } from '../model';
 import { useV2 } from '../state/store';
 
@@ -25,7 +27,9 @@ export function TopBar() {
             <span className="t-label app-policy__short" aria-hidden="true">
               {v.policyShort}
             </span>
-            <Switch checked={v.policyOn} onChange={togglePolicy} ariaLabel={v.policyLabel} />
+            <Tip label={v.policyRule} placement="bottom">
+              <Switch checked={v.policyOn} onChange={togglePolicy} ariaLabel={v.policyLabel} />
+            </Tip>
           </label>
           <span className="app-divider" aria-hidden="true" />
         </div>

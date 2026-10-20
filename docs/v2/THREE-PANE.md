@@ -189,6 +189,45 @@ as today", R2.3's "S / R run return / reject through the note-required flow", §
   commit label, Cancel) and Reject armed after an empty second press (the calm hint). The TextArea
   "invalid" specimen stays as the kit recipe only: no V2 field uses it now.
 
+### R4.2 Honest auto-countersign rule (Mobbin audit fix 2, P-31)
+
+**The problem (verified in the build).** `state/gate.ts` persisted the policy in localStorage
+`v2.autonomy`, so an On survived a refresh, while the Settings intro says "Session settings. They
+last until you refresh, like everything in this demo." The one setting that lets the machine sign
+was the one described wrongly. The top-bar switch ("Auto-countersign clean approvals") never said
+what "clean" means, and Settings restated the policy's numbers by hand.
+
+**The rule.** Auto-countersign is session only, and wherever it can be switched the rule is stated
+in words built from the same terms the eligibility check tests. This supersedes SPEC.md §9.2
+"Persistence" (`v2.autonomy`) and the `V2Store.policy` comment "persisted 'v2.autonomy'".
+
+- **Session only** (`state/gate.ts`, the only place it is touched): `readPolicy` / `writePolicy`
+  are gone. `initialPolicy()`, the store's lazy initial state, always returns `'gate'` (off) and
+  calls `localStorage.removeItem('v2.autonomy')` once on load (in try/catch), so an On saved by an
+  earlier build or visit cannot linger. `setPolicy` never writes storage. The Settings intro is
+  unchanged (now true). The remaining V2 storage keys are `v2.navCollapsed` and `v2.chatOpen`
+  (layout only; neither can act).
+- **One rule, three readers.** `policyChecks(pkg)` (`model/select-top.ts`) is the eligibility check:
+  `isEligible` in `state/gate.ts` now passes only when every check is ok (same terms as before:
+  APPROVE, zero flags, revision 1, every key figure at `POLICY_MIN_CONFIDENCE` or above; the
+  hard-coded `0.9` there is gone). The Decision card prints those checks; `policyRule()` (model)
+  states them in words from the same constants (`tokenWord('approve')`,
+  `fmtConf(POLICY_MIN_CONFIDENCE)`, `fmtSeconds(AUTO_COUNTDOWN_MS)`). No screen restates a number;
+  the check text and `AUTO_NOTE` read the threshold from the constant too (output unchanged).
+- **Settings** (`SettingsView.policy.help` = `policyRule().full`, the policy row's help line,
+  `t-small` ink-2, `data-pattern="P-31"`): "If the agent recommends APPROVE · no flags · first pass
+  · every key figure at 90% or above → countersign after a visible 5 s countdown you can hold.
+  Everything else waits for you." (`COPY.policyHelp` is removed.)
+- **Top bar** (`TopBarView.policyRule` = `policyRule().short`): the switch stays where it is and
+  wears the kit `Tip` (P-15, placement bottom; no native title): "Clean means APPROVE · no flags ·
+  first pass · every key figure at 90% or above → countersign after a 5 s countdown you can hold."
+  The kit `Switch` now forwards `aria-describedby`, so the Tip's text reaches the switch's
+  accessible description while the bubble shows. The narrow-width "More" menu item and the palette
+  command keep their one-line label.
+- **Kit page:** the Switch board adds "The clean-approval rule in words (P-31)": the switch inside
+  an open Tip specimen with the short rule, and the Settings help line with the full rule.
+  `FX_TOPBAR.policyRule` is `policyRule().short`.
+
 ## 0. Owner decisions that survive (each is checked in §9)
 
 | Decision | Where it holds |

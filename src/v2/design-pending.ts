@@ -389,6 +389,19 @@ export const PENDING: PendingPattern[] = [
     kitAnchor: '#board-decisioncard',
     ownerNote: 'Owner asked for it (Mobbin audit fix 1)',
   },
+  {
+    id: 'P-31',
+    type: 'copy',
+    name: 'Honest auto-countersign: session only, and the rule stated in words',
+    description:
+      'Auto-countersign is the one setting that lets the machine sign, and Settings says every setting lasts until a refresh. It now does: the policy starts off on every load and is never stored, and a value an earlier build saved is removed once on load, so a forgotten On can never sign a memo after a refresh. Settings shows the policy as a readable rule instead of a loose description: "If the agent recommends APPROVE · no flags · first pass · every key figure at 90% or above → countersign after a visible 5 s countdown you can hold. Everything else waits for you." The top-bar switch wears the kit Tip (P-15) with the same rule in one line, so "clean" is never left undefined. Both sentences are built in the model from the constants the eligibility check reads (policyChecks, the 90% threshold, the 5 s countdown), never hand-restated numbers. Before, the policy persisted in browser storage while Settings said it did not, and the switch never said what clean meant.',
+    evidence: 'Mobbin audit of the case file, fix 2 (verified: state/gate.ts persisted v2.autonomy while the Settings intro said settings last until a refresh); THREE-PANE.md R4.2',
+    proposedBy: OWNER,
+    proposedDate: ON_3P,
+    status: 'approved',
+    kitAnchor: '#board-switch',
+    ownerNote: 'Owner asked for it (Mobbin audit fix 2)',
+  },
 ];
 
 export const REJECTED_BEFORE: { name: string; note: string }[] = [

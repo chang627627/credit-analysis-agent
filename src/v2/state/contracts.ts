@@ -220,7 +220,7 @@ export interface V2Store {
   reducedMotion: boolean;          // matchMedia('(prefers-reduced-motion: reduce)'), live
   tabVisible: boolean;             // document.visibilityState === 'visible', live
   modKey: string;                  // '⌘' or 'Ctrl'
-  policy: Policy;                  // persisted 'v2.autonomy' (V1 used 'autonomy')
+  policy: Policy;                  // session only (R4.2): 'gate' on every load, never stored; the stale 'v2.autonomy' key is removed on load
   plan: PlanState;
   gate: GateState;
   snapshots: Record<string, CaseFileSnapshot>;   // latest sealed run per dealId

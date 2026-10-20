@@ -269,6 +269,7 @@ export const COPY = {
 
   // desk
   deskTitle: 'Select a project to analyze',
+  selectRow: 'Select',
   deskInitialSummary: '3 sample files, chosen to end differently · none decided this session · extraction is simulated',
   extractionSimulated: 'extraction is simulated',
   dropLabel: 'Drop a CIM (PDF) to open a new file, or',

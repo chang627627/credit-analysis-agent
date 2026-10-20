@@ -2,10 +2,11 @@
 // Countersign V2 · Desk (spec §7.1). One calm list of every case file, grouped
 // by the stage the engine reports, plus the CIM drop zone. A pure reduction of
 // `selectDesk(s)`: every word, number and tone arrives composed by the model.
-// Display only (owner rule: commands live in the agent panel): no row actions;
-// a row or its name opens the case file, where the panel starts and steers work.
+// Step one of the flow: each row has one Select button (and the row itself is
+// clickable) that opens the case file. No other row actions: starting, steering
+// and deciding live in the case file (agent panel + the memo's Decision card).
 // ---------------------------------------------------------------------------
-import { Chip, DropZone, LinkButton, StatusLabel, Table, Token } from '../../kit';
+import { Button, Chip, DropZone, LinkButton, StatusLabel, Table, Token } from '../../kit';
 import type { TableColumn, TableRow } from '../../kit';
 import { COPY, selectDesk } from '../../model';
 import type { DeskRow, DeskView } from '../../model';
@@ -13,7 +14,7 @@ import { useV2 } from '../../state/store';
 import type { V2Actions } from '../../state/store';
 
 /**
- * Column template from §7.1, without the Action column (the Desk is display only). Facility
+ * Column template from §7.1 with a trailing Select column (step one: pick the project). Facility
  * reappears under the borrower whenever its column hides: below a 1120 viewport (kit) and whenever
  * the TABLE is narrower than the full template (desk.css container query), since the sidebar and
  * the agent panel take their share of the viewport.
@@ -24,6 +25,7 @@ const COLUMNS: TableColumn[] = [
   { key: 'leverage', label: 'Leverage', width: '88px', align: 'end' },
   { key: 'call', label: "Agent's call", width: '120px' },
   { key: 'stage', label: 'Stage', width: '200px' },
+  { key: 'select', label: '', width: '112px', align: 'end' },
 ];
 
 function FileCell({ row, onOpen }: { row: DeskRow; onOpen: () => void }) {
@@ -73,6 +75,14 @@ function fileRow(row: DeskRow, actions: V2Actions): TableRow {
         <span className="desk-nocall t-body">{COPY.noCall}</span>
       ),
       stage: <StageCell row={row} />,
+      // step one of the flow: selecting the project opens its case file (it never starts anything)
+      select: (
+        <span className="desk-select">
+          <Button variant="secondary" size="sm" onClick={open} ariaLabel={`${COPY.selectRow} ${row.name}`}>
+            {COPY.selectRow}
+          </Button>
+        </span>
+      ),
     },
   };
 }

@@ -24,8 +24,9 @@
 // step returns (takeaway, blocks, rows, flags, record line, one stagger apart).
 // While drafting, the pane follows the card being written until the reviewer
 // takes over (scrolls, presses into another card, follows a link or cue);
-// "Go to drafting" in the doc bar (shown only then) resumes following. The cards
-// already on the page when a file opens never animate.
+// "Go to drafting" in the doc bar (shown only then) resumes following. When the
+// analysis finishes while following, the memo lands on the Decision card. The
+// cards already on the page when a file opens never animate.
 //
 // No notes blocks, no margin column, no header margin, no Contents row. The
 // screen is a pure reduction of selectFile(): it renders the view verbatim and
@@ -228,8 +229,6 @@ export function FileScreen({ dealId, at, navSeq, slots }: FileScreenProps) {
   runningRef.current = running;
   const frontierRef = useRef(frontier);
   frontierRef.current = frontier;
-  const lastFrontier = useRef<string | null>(frontier);
-  if (frontier) lastFrontier.current = frontier;
   // following: the pane keeps the card being written in view until the reviewer takes over. A run
   // that starts here turns it back on, and so does "Go to drafting"; opening the file at a target
   // (a link) starts with it off.
@@ -386,19 +385,17 @@ export function FileScreen({ dealId, at, navSeq, slots }: FileScreenProps) {
       follow();
       return;
     }
-    // the run reached the gate while you were following: settle on the last card written from its
-    // head (the recommendation on the first pass, with the Decision card right under it; the
-    // revision after a send-back, which reads before the recommendation it changed)
+    // the analysis finished (the run reached the gate, first pass or a revision) while you were
+    // following: land on the Decision card, its head at the top. Scroll only: focus stays where it
+    // is, so a stray Enter can never sign. A reviewer who took over is left where they are reading
+    // ("Go to decision" in the doc bar).
     if (!running && was && followingRef.current && viewRef.current?.mode === 'gate') {
       const sc = canvasRef.current;
-      const id = lastFrontier.current;
-      const el = sc && id ? sc.querySelector<HTMLElement>(`[data-section="${esc(id)}"]`) : null;
+      const el = sc ? sc.querySelector<HTMLElement>('[data-section="signature"]') : null;
       if (sc && el) {
         const v = sc.getBoundingClientRect();
-        const r = el.getBoundingClientRect();
-        if (r.bottom > v.bottom - FOLLOW_FOOT) {
-          sc.scrollTo({ top: sc.scrollTop + r.top - (v.top + CARD_SCROLL_MARGIN), behavior: scrollBehavior(false, reducedRef.current) });
-        }
+        const dy = el.getBoundingClientRect().top - (v.top + CARD_SCROLL_MARGIN);
+        if (Math.abs(dy) >= 1) sc.scrollTo({ top: sc.scrollTop + dy, behavior: scrollBehavior(false, reducedRef.current) });
       }
     }
   }, [running, follow]);

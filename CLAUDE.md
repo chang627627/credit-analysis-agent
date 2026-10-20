@@ -609,8 +609,9 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   pane follows the card being written until the reviewer takes over (a wheel / touch scroll that can
   move the memo, a scroll the follow didn't make going up, a press in another card, or a memo cue /
   link to another card; see THREE-PANE R3); scrolling back down to it or the doc bar's "Go to
-  drafting" (shown only while not following) resumes; at the gate it settles on the last card
-  written. The write-in plays once; cards already on the page when a file opens never animate. J / K step through the flagged rows in the memo (a row-less flag lands
+  drafting" (shown only while not following) resumes. When the analysis finishes (the gate, first
+  pass or a revision) while following, the memo lands on the Decision card, its head at the top
+  (scroll only, never focus, so a stray Enter can't sign). The write-in plays once; cards already on the page when a file opens never animate. J / K step through the flagged rows in the memo (a row-less flag lands
   on its marked line, `flag:<id>`).
 - **Decision card** (P-23, `screens/decision/DecisionCard.tsx`, the memo's `signature` slot, renders
   `selectSignature` → `SignatureView` in full): the ONE place to decide, its own card right after

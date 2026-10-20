@@ -127,9 +127,11 @@ composer.
   (keys, scrollbar, focus), a press inside any other card (its Record, a link, a selection), or a
   memo cue / link into the file (panel links, J / K, traces) that targets another card. Scrolling
   back down until the card being written sits whole in view (after the take-over gesture settles),
-  or the doc bar's "Go to drafting" (shown only while not following), resumes. When the run reaches
-  the gate while following, the last card written settles at the top: the recommendation on the
-  first pass (Decision card right under it), the revision after a send-back. Reasoning is never
+  or the doc bar's "Go to drafting" (shown only while not following), resumes. When the analysis
+  finishes (the run reaches the gate, first pass or a revision) while following, the memo **lands on
+  the Decision card**, its head at the top (owner: "after finish the analyze ... it should locate at
+  the Decision section"). Scroll only, never focus, so a stray Enter cannot sign; a reviewer who took
+  over stays where they are reading, with "Go to decision" in the doc bar. Reasoning is never
   streamed onto the page: it stays in each card's Record.
 
 ## 0. Owner decisions that survive (each is checked in §9)

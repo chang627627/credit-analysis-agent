@@ -151,7 +151,7 @@ export const FX_DESK_ATLAS_GATE: DeskView = {
         {
           ...DESK_ATLAS,
           call: ESCALATE,
-          stage: { state: 'awaiting', text: 'Awaiting you · rev 1 · waiting 1:12' },
+          stage: { state: 'awaiting', text: 'Awaiting you · rev 1' },
           action: { kind: 'review', label: COPY.reviewAndCountersign, variant: 'primary', disabled: false },
         },
       ],
@@ -969,8 +969,8 @@ export const FX_FILE_ATLAS_GATE: FileView = {
   restructured: false,
   docBar: {
     ...DOCBAR_BASE,
-    files: filesWithAtlas('Awaiting you · rev 1 · waiting 1:12'),
-    status: { state: 'awaiting', text: 'Awaiting your countersignature · rev 1 · 2 notes to review · waiting 1:12' },
+    files: filesWithAtlas('Awaiting you · rev 1'),
+    status: { state: 'awaiting', text: 'Awaiting your countersignature · rev 1 · 2 notes to review' },
     goToDecision: true,
     actions: [ACTION_STOP],
   },
@@ -1033,8 +1033,8 @@ export const FX_FILE_ATLAS_REV2: FileView = {
   restructured: true,
   docBar: {
     ...DOCBAR_BASE,
-    files: filesWithAtlas('Awaiting you · rev 2 · waiting 0:08'),
-    status: { state: 'awaiting', text: 'Awaiting your countersignature · rev 2 · waiting 0:08' },
+    files: filesWithAtlas('Awaiting you · rev 2'),
+    status: { state: 'awaiting', text: 'Awaiting your countersignature · rev 2' },
     goToDecision: true,
     actions: [ACTION_STOP],
   },
@@ -1236,8 +1236,8 @@ export const FX_FILE_UPLOAD_GATE: FileView = {
   docBar: {
     ...DOCBAR_BASE,
     fileName: 'Q3 Cim',
-    files: [...FILES_INITIAL, { dealId: UP_ID, label: 'Q3 Cim', meta: 'Awaiting you · rev 1 · waiting 0:21' }],
-    status: { state: 'awaiting', text: 'Awaiting your countersignature · rev 1 · 4 notes to review · waiting 0:21' },
+    files: [...FILES_INITIAL, { dealId: UP_ID, label: 'Q3 Cim', meta: 'Awaiting you · rev 1' }],
+    status: { state: 'awaiting', text: 'Awaiting your countersignature · rev 1 · 4 notes to review' },
     extraction: { text: 'Extraction 76%', tone: 'warn' },
     policySuffix: 'Policy · not eligible',
     goToDecision: true,

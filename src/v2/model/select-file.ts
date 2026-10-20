@@ -716,9 +716,8 @@ export function stageOf(ctx: FileCtx): StageView {
       return { stage: 'drafting', status: { state: 'drafting', text }, subMeta: null, action: { kind: 'open', label: COPY.open, variant: 'ghost', disabled: false } };
     }
     case 'gate': {
-      const at = awaitingAtOf(ctx);
       const rev = ctx.pkg?.revision ?? 1;
-      const text = `Awaiting you · rev ${rev}${at !== null ? ` · waiting ${fmtElapsed(s.now - at)}` : ''}`;
+      const text = `Awaiting you · rev ${rev}`;
       return { stage: 'awaiting', status: { state: 'awaiting', text }, subMeta: null, action: { kind: 'review', label: COPY.reviewAndCountersign, variant: 'primary', disabled: false } };
     }
     case 'error':
@@ -1696,7 +1695,6 @@ function docBarView(ctx: FileCtx, notes: NotesBuild, confirm: ConfirmView | null
     case 'gate': {
       const policy = selectPolicy(s);
       const rev = ctx.pkg?.revision ?? 1;
-      const at = awaitingAtOf(ctx);
       const n = notes.toReview.length;
       if (s.gate.leaving) {
         status = { state: 'awaiting', text: 'Returning for revision' };
@@ -1708,7 +1706,8 @@ function docBarView(ctx: FileCtx, notes: NotesBuild, confirm: ConfirmView | null
       } else {
         const parts = [STATUS_WORD.awaiting, `rev ${rev}`];
         if (n > 0) parts.push(`${plural(n, 'note')} to review`);
-        if (at !== null) parts.push(`waiting ${fmtElapsed(s.now - at)}`);
+        // no live waiting clock at the gate (owner: it only pressures the reviewer); the Ledger
+        // records how long the memo was suspended, after the fact
         status = { state: 'awaiting', text: parts.join(' · ') };
       }
       if (policy.on && !policy.eligible) policySuffix = 'Policy · not eligible';

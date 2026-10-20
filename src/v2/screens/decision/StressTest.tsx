@@ -8,6 +8,7 @@
 // 640px, like the memo's covenant table), whatever the viewport or the agent panel beside it.
 // Renders selectStress verbatim and calls only store actions.
 import { useId } from 'react';
+import { ChevronUp } from 'lucide-react';
 import { Button, Meter, Redline, Slider, StatusLabel, Table, Token } from '../../kit';
 import type { TableColumn, TableRow } from '../../kit';
 import { selectStress } from '../../model';
@@ -106,6 +107,9 @@ export function StressTest({ dealId }: DecisionBlockProps) {
             ) : v.readonlyNote ? (
               <span className="decision-ink3 t-meta">{v.readonlyNote}</span>
             ) : null}
+            <Button variant="ghost" size="sm" icon={ChevronUp} onClick={() => a.closeStress(dealId)}>
+              {v.closeLabel}
+            </Button>
           </div>
         </div>
 

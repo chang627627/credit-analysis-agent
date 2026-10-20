@@ -531,6 +531,7 @@ export function selectStress(s: V2Store, dealId: string): StressView | null {
     attach,
     readonlyNote: available === 'readonly' ? COPY.attachLiveOnly : null,
     resetLabel: COPY.resetToBase,
+    closeLabel: COPY.stressClose,
     resetDisabled: atBase,
   };
 }

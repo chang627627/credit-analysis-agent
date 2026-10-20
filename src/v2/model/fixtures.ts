@@ -1871,6 +1871,7 @@ export const FX_STRESS_ATLAS: StressView = {
   attach: { label: COPY.attachAsExhibit, disabled: false, reason: null },
   readonlyNote: null,
   resetLabel: COPY.resetToBase,
+  closeLabel: COPY.stressClose,
   resetDisabled: false,
 };
 

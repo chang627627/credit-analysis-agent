@@ -472,6 +472,7 @@ export const COPY = {
   stressCollapsed: 'Stress test · scratch. Nothing here is on the record until you attach it.',
   stressEyebrow: 'Stress test · scratch',
   stressOpen: 'Open',
+  stressClose: 'Close',
   attachAsExhibit: 'Attach as exhibit',
   attachChangeFirst: 'Change a driver first',
   attachAlready: 'This scenario is already attached',

@@ -240,6 +240,8 @@ export interface StressView {
   covenants: CovenantRow[];
   attach: { label: string; disabled: boolean; reason: string | null } | null;   // null when readonly
   readonlyNote: string | null; resetLabel: string; resetDisabled: boolean;
+  /** folds the sandbox back to its one-line row (the scenario is kept) */
+  closeLabel: string;
 }
 export interface ExhibitView { id: string; letter: string; heading: string; meta: string; detail: string; from: TokenView; to: TokenView; result: 'flips' | 'holds' }
 export interface BookItem { id: string; origin: 'monitor' | 'countersign'; status: StatusText; covenant: string; reading: string; distance: string; raised: string; muted: boolean; action: { kind: 'acknowledge' | 'mark-handed-off'; label: string } | null; link: { label: string; route: Route } | null; doneText: string | null }

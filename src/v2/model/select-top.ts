@@ -96,10 +96,8 @@ export function onLiveFile(s: V2Store): boolean {
  * drawer is open. Desk, Book, Ledger and unknown files never show the panel.
  */
 export function chatShown(s: V2Store): boolean {
-  if (s.route.name !== 'file' || !dealOf(s, s.route.dealId)) return false;
-  const p = s.panes;
-  if (!p) return false;
-  return s.chatLayout === 'drawer' ? p.drawerOpen : p.chatOpen || p.revealed;
+  // owner rule: after the Desk, a case file is always three panes; the agent panel cannot be hidden
+  return s.route.name === 'file' && !!dealOf(s, s.route.dealId);
 }
 
 export const SPEED_STEPS = [0.5, 1, 2, 4];

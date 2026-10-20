@@ -58,7 +58,6 @@ export function DocBar(props: { docBar: DocBarView; source: SourceView; dealId: 
   // phase one only: brings the memo's Decision card into view and focuses its primary (never signs)
   const goToDecision = () => a.requestSign('button');
   const toggleSource = () => a.toggleSource();
-  const toggleChat = () => a.toggleChat();
 
   // the folded forms, as menu rows: <= 939 the actions; <= 659 the reader controls and the crumb too
   const actionItems: MenuItem[] = d.actions
@@ -81,18 +80,6 @@ export function DocBar(props: { docBar: DocBarView; source: SourceView; dealId: 
               as a tip. CSS shows exactly one; data-chat-toggle lets the shell hand focus back here
               when the panel or the drawer closes with focus inside it (the panel is then hidden,
               so this toggle is always present to receive it). */}
-          {d.chatToggle ? (
-            <>
-              <span className="file-docbar__agent" data-chat-toggle="">
-                <Button variant="ghost" size="sm" icon={MessageSquare} onClick={toggleChat}>
-                  {d.chatToggle.label}
-                </Button>
-              </span>
-              <span className="file-docbar__agent-icon" data-chat-toggle="">
-                <IconButton icon={MessageSquare} label={d.chatToggle.label} onClick={toggleChat} />
-              </span>
-            </>
-          ) : null}
           <span className="file-docbar__crumb">
             <LinkButton role="label" onClick={() => a.navigate({ name: 'desk' })}>
               {COPY.tabDesk}

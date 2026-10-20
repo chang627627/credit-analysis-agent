@@ -3,7 +3,7 @@
 // One provider, a sidebar nav, one top bar, one screen per hash route, the
 // palette and the polite live region. A known case file is three panes: nav ·
 // the agent panel (command and control only: status lines, the plan prompt,
-// Q&A, the composer; a column at 1024px and up, a drawer below) · the memo
+// Q&A, the composer; always shown, never collapsible, owner rule) · the memo
 // pane (data-viz, the source pane's container), which holds everything shown,
 // the whole decision included: the Decision card renders in the memo's
 // signature slot, right after step 5. Desk, Book, Ledger and an unknown file
@@ -35,10 +35,10 @@ function Shell() {
   const le1099 = useViewportAtMost(1099);
   const le1399 = useViewportAtMost(1399);
   const shown = chatShown(s);
-  const forced = le1099 || (r.name === 'file' && s.chatLayout === 'column' && shown && le1399);
+  const forced = le1099 || (r.name === 'file' && shown && le1399);
   const navRail = navCollapsed || forced;
   const knownFile = r.name === 'file' && s.agent.dealsFull.some((d) => d.id === r.dealId);
-  const split = s.chatLayout === 'drawer' ? 'drawer' : shown ? 'column' : 'none';
+  const split = shown ? 'column' : 'none';
 
   return (
     <div className="app-shell" data-nav={navRail ? 'collapsed' : 'expanded'} data-nav-forced={forced ? '' : undefined}>
@@ -48,7 +48,7 @@ function Shell() {
         {r.name === 'desk' && <DeskScreen />}
         {r.name === 'file' && (
           <div className="app-split" data-chat={knownFile ? split : 'none'}>
-            {knownFile && shown ? <ChatPane key={r.dealId} dealId={r.dealId} layout={s.chatLayout} /> : null}
+            {knownFile && shown ? <ChatPane key={r.dealId} dealId={r.dealId} layout="column" /> : null}
             <div className="app-viz" data-viz="">
               <FileScreen
                 key={r.dealId}

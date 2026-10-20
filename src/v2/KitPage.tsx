@@ -14,7 +14,7 @@
 import './kitpage.css';
 import { Fragment, useEffect, useLayoutEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Activity, ArrowDown, ArrowUp, ArrowUpRight, ChevronsLeft, Copy, Download, FileStack, FileText, RotateCcw, ScrollText, Search, X } from 'lucide-react';
+import { Activity, ArrowDown, ArrowUp, ArrowUpRight, Copy, Download, FileStack, FileText, RotateCcw, ScrollText, Search, X } from 'lucide-react';
 import {
   AmendField,
   Button,
@@ -868,9 +868,6 @@ function IconLinkKbdBoard() {
           </Cell>
           <Cell caption={`sm · pressed (aria-pressed=${String(pressed)}, click to toggle)`}>
             <IconButton icon={FileText} label={COPY.sourceToggle} pressed={pressed} onClick={() => setPressed((p) => !p)} />
-          </Cell>
-          <Cell caption="sm · the agent panel head's collapse chevron (column mode; the head holds nothing else)">
-            <IconButton icon={ChevronsLeft} label={COPY.hideAgentPanel} onClick={noop} />
           </Cell>
           <Cell caption="sm · disabled">
             <IconButton icon={X} label="Close source" disabled onClick={noop} />
@@ -2018,7 +2015,6 @@ function PanelSpecimen({ v }: { v: AgentPanelView }) {
     <div className="kp-panel">
       <div className="kp-panel__head">
         <p className="kp-panel__title t-label">{v.title}</p>
-        <IconButton icon={ChevronsLeft} label={COPY.hideAgentPanel} onClick={noop} />
       </div>
       <ol className="kp-panel__lines" aria-label={`${v.title} (specimen)`}>
         {v.lines.map((l) => (

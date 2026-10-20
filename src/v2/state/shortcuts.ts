@@ -132,21 +132,11 @@ export function useShortcuts(x: V2Internals): void {
           e.preventDefault();
           a.toggleSource();
           return;
-        case ']':
-          if (!onKnownFile || e.repeat) return;
-          e.preventDefault();
-          a.toggleChat();
-          return;
         case 'Escape': {
           if (e.defaultPrevented) return;
           if (s.ui.confirm) {
             e.preventDefault();
             a.cancelConfirm();
-            return;
-          }
-          if (onFile && s.chatLayout === 'drawer' && s.panes.drawerOpen) {
-            e.preventDefault();
-            a.setChatOpen(false);
             return;
           }
           if (onFile && s.ui.sourceOpen && sourceIsOverlay()) {

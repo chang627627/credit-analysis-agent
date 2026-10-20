@@ -1755,7 +1755,7 @@ function docBarView(ctx: FileCtx, notes: NotesBuild, confirm: ConfirmView | null
     goToDecision: atGate,
     goToDrafting: ctx.mode === 'running',
     // the decision is in the memo now ("Go to decision" scrolls to its card): a hidden panel always gets its toggle
-    chatToggle: !chatShown(s) ? { label: COPY.agentPanel } : null,
+    chatToggle: null,
     actions,
     confirm,
   };

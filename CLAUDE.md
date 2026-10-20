@@ -612,7 +612,7 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   build's step lines with confidences and durations, Record / Reasoning disclosures, flag sentences
   as MarginNote messages, the plan step checklist, the file context block, the head's note stepper
   and Show all reasoning: "do I look at the middle or the right?") · **the decision card in the agent
-  panel** (it was docked between the thread and the composer; the countersign moved to the right). · a project picker or project switch in the agent panel (step one, selecting the project, happens on the Desk; the agent panel exists only inside a case file)
+  panel** (it was docked between the thread and the composer; the countersign moved to the right). · any show/hide toggle or collapse control for the agent panel (after the Desk, a case file is always three panes) · a project picker or project switch in the agent panel (step one, selecting the project, happens on the Desk; the agent panel exists only inside a case file)
 
 ## Backlog (to-do)
 

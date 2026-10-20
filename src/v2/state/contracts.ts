@@ -101,6 +101,10 @@ export interface UiState {
   stress: Record<string, { open: boolean; scenario: Scenario }>;   // keyed by dealId
   /** optional plan steps unticked on a not-started file's plan, before it starts (keyed by dealId) */
   planPreview: Record<string, string[]>;
+  /** files removed from the Desk this session (hidden everywhere but the Ledger, which keeps every record) */
+  removedFiles: string[];
+  /** the Desk row whose remove confirm is open */
+  removeConfirm: string | null;
   attached: Record<number, string[]>;                              // stressRecord keys attached, per runId
   thread: ThreadEntry[];                    // capped 300; not cleared by clearReading
   threadEpoch: Record<string, number>;      // per dealId: entries older than the epoch are hidden
@@ -124,7 +128,10 @@ export interface V2Actions {
   upload(file: File): void;                    // agent.uploadDeal + parsingSince + pendingUploadOpen
   togglePlanStep(stepId: string): void;        // also holds the plan countdown ('manual')
   togglePreviewStep(dealId: string, stepId: string): void; // a not-started file's plan, before it starts
-  draftFile(dealId: string): void;             // start AND approve the plan as shown (one click; the confirm guard still applies)
+  draftFile(dealId: string): void;
+  requestRemove(dealId: string): void;         // opens the row's confirm (never for the live run's file)
+  confirmRemove(): void;
+  cancelRemove(): void;             // start AND approve the plan as shown (one click; the confirm guard still applies)
   holdPlan(): void;
   approvePlan(): void;                         // agent.approvePlan(plan.enabledIds)
   cancelPlan(): void;                          // agent.cancelPlan()

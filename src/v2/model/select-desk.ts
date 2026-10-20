@@ -56,6 +56,14 @@ export function selectDesk(s: V2Store): DeskView {
       subMeta: st.subMeta,
       action: st.action,
       confirm,
+      remove: (() => {
+        const blocked = isRunLive(s) && selectLiveDealId(s) === deal.id;
+        return { label: blocked ? COPY.removeBlocked(deal.name) : COPY.removeFile(deal.name), disabled: blocked };
+      })(),
+      removeConfirm:
+        s.ui.removeConfirm === deal.id
+          ? { text: COPY.removeConfirmText(deal.name), confirmLabel: COPY.removeConfirmLabel, cancelLabel: COPY.cancel }
+          : null,
     };
     const list = byStage.get(st.stage);
     if (list) list.push(row);
@@ -84,7 +92,9 @@ export function selectDesk(s: V2Store): DeskView {
   const awaiting = (byStage.get('awaiting') ?? []).length;
   const decided = (byStage.get('decided') ?? []).length;
   let summary: string;
-  if (awaiting === 0 && decided === 0 && !anyUploaded) {
+  if (fileCount === 0) {
+    summary = COPY.deskEmptySummary;
+  } else if (awaiting === 0 && decided === 0 && !anyUploaded && (s.ui.removedFiles ?? []).length === 0) {
     summary = COPY.deskInitialSummary;
   } else {
     const parts = [plural(fileCount, 'file')];

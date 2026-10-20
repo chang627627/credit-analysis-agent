@@ -67,7 +67,13 @@ function countersignItem(s: V2Store, e: EscalationItem): BookItem {
 }
 
 export function selectBook(s: V2Store): BookView {
-  const m = s.monitor;
+  // files removed from the Desk drop out of the Book too (the monitor keeps their last reading)
+  const visible = new Set(s.agent.dealsFull.map((d) => d.id));
+  const m = {
+    ...s.monitor,
+    portfolio: s.monitor.portfolio.filter((p) => visible.has(p.dealId)),
+    escalations: s.monitor.escalations.filter((e) => visible.has(e.dealId)),
+  };
   const interval = fmtSeconds(SWEEP_MS / (s.agent.speed > 0 ? s.agent.speed : 1));
   let cadence: string;
   if (m.sweeping) cadence = `Portfolio Monitor · re-testing · sweep #${m.sweepCount + 1}`;

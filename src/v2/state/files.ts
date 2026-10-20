@@ -148,7 +148,7 @@ export function useSnapshots(): {
 
 export type FileActions = Pick<
   V2Actions,
-  'startFile' | 'draftFile' | 'togglePreviewStep' | 'confirmStart' | 'requestStop' | 'confirmStop' | 'upload' | 'exportFile' | 'exportSession'
+  'startFile' | 'draftFile' | 'togglePreviewStep' | 'requestRemove' | 'confirmRemove' | 'cancelRemove' | 'confirmStart' | 'requestStop' | 'confirmStop' | 'upload' | 'exportFile' | 'exportSession'
 >;
 
 export function createFileActions(x: V2Internals): FileActions {
@@ -254,6 +254,29 @@ export function createFileActions(x: V2Internals): FileActions {
       x.setPlan({ enabledIds: ids, held: false, holdReason: null, deadline: null });
       x.current().agent.approvePlan(ids);
     },
+    // removing a file from the Desk: confirm first; never the file a run is live on
+    requestRemove: (dealId) => {
+      const s = x.current();
+      if (isLiveStatus(s.agent.status) && selectLiveDealId(s) === dealId) return;
+      if (!s.agent.dealsFull.some((d) => d.id === dealId)) return;
+      x.setUi((u) => ({ ...u, removeConfirm: dealId }));
+    },
+    confirmRemove: () => {
+      const dealId = x.uiRef.current.removeConfirm;
+      if (!dealId) return;
+      const s = x.current();
+      if (isLiveStatus(s.agent.status) && selectLiveDealId(s) === dealId) {
+        x.setUi((u) => ({ ...u, removeConfirm: null }));
+        return;
+      }
+      x.setUi((u) => ({
+        ...u,
+        removeConfirm: null,
+        removedFiles: u.removedFiles.includes(dealId) ? u.removedFiles : [...u.removedFiles, dealId],
+      }));
+      if (s.route.name === 'file' && s.route.dealId === dealId) x.navigate({ name: 'desk' });
+    },
+    cancelRemove: () => x.setUi((u) => (u.removeConfirm === null ? u : { ...u, removeConfirm: null })),
     confirmStart: () => {
       const conf = x.uiRef.current.confirm;
       if (!conf || conf.kind !== 'start') return;

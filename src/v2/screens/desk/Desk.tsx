@@ -6,7 +6,8 @@
 // clickable) that opens the case file. No other row actions: starting, steering
 // and deciding live in the case file (agent panel + the memo's Decision card).
 // ---------------------------------------------------------------------------
-import { Button, Chip, DropZone, LinkButton, StatusLabel, Table, Token } from '../../kit';
+import { Trash2 } from 'lucide-react';
+import { Button, Chip, ConfirmStrip, DropZone, IconButton, LinkButton, StatusLabel, Table, Token } from '../../kit';
 import type { TableColumn, TableRow } from '../../kit';
 import { COPY, selectDesk } from '../../model';
 import type { DeskRow, DeskView } from '../../model';
@@ -25,7 +26,7 @@ const COLUMNS: TableColumn[] = [
   { key: 'leverage', label: 'Leverage', width: '88px', align: 'end' },
   { key: 'call', label: "Agent's call", width: '120px' },
   { key: 'stage', label: 'Stage', width: '200px' },
-  { key: 'select', label: '', width: '112px', align: 'end' },
+  { key: 'select', label: '', width: '144px', align: 'end' },
 ];
 
 function FileCell({ row, onOpen }: { row: DeskRow; onOpen: () => void }) {
@@ -81,9 +82,22 @@ function fileRow(row: DeskRow, actions: V2Actions): TableRow {
           <Button variant="secondary" size="sm" onClick={open} ariaLabel={`${COPY.selectRow} ${row.name}`}>
             {COPY.selectRow}
           </Button>
+          {row.remove ? (
+            <IconButton icon={Trash2} label={row.remove.label} disabled={row.remove.disabled} onClick={() => actions.requestRemove(row.dealId)} />
+          ) : null}
         </span>
       ),
     },
+    detail: row.removeConfirm ? (
+      <ConfirmStrip
+        text={row.removeConfirm.text}
+        confirmLabel={row.removeConfirm.confirmLabel}
+        cancelLabel={row.removeConfirm.cancelLabel}
+        tone="bad"
+        onConfirm={() => actions.confirmRemove()}
+        onCancel={() => actions.cancelRemove()}
+      />
+    ) : undefined,
   };
 }
 

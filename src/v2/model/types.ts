@@ -107,6 +107,9 @@ export interface DeskRow {
   stage: StatusText; subMeta: string | null;
   action: { kind: 'review' | 'open-plan' | 'open' | 'draft' | 'open-record' | 're-run'; label: string; variant: 'primary' | 'secondary' | 'ghost'; disabled: boolean } | null;
   confirm: ConfirmView | null;
+  /** remove from the Desk (session only; the Ledger keeps the record) */
+  remove?: { label: string; disabled: boolean };
+  removeConfirm?: { text: string; confirmLabel: string; cancelLabel: string } | null;
 }
 export interface DeskView {
   title: string; summary: string;

@@ -270,6 +270,11 @@ export const COPY = {
   // desk
   deskTitle: 'Select a project to analyze',
   selectRow: 'Select',
+  removeFile: (name: string): string => `Remove ${name}`,
+  removeBlocked: (name: string): string => `Stop the run on ${name} before removing it`,
+  removeConfirmText: (name: string): string => `Remove ${name} from the Desk? Its Ledger record stays.`,
+  removeConfirmLabel: 'Remove',
+  deskEmptySummary: 'No files on the Desk. Drop a CIM below to add one; a refresh brings the samples back.',
   deskInitialSummary: '3 sample files, chosen to end differently · none decided this session · extraction is simulated',
   extractionSimulated: 'extraction is simulated',
   dropLabel: 'Drop a CIM (PDF) to open a new file, or',

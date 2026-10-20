@@ -39,8 +39,7 @@ function detectModKey(): string {
 
 export function V2Provider(props: { children: ReactNode }) {
   // the engine, exactly once
-  const agent = useCreditAgent();
-  const monitor = useMonitor(agent.dealsFull, agent.speed);
+  const engine = useCreditAgent();
 
   const router = useHashRoute();
   const now = useNow();
@@ -51,6 +50,17 @@ export function V2Provider(props: { children: ReactNode }) {
   const [plan, planRef, setPlan] = useRefState(initialPlan);
   const [gate, gateRef, setGate] = useRefState(initialGate);
   const [ui, uiRef, setUi] = useRefState(initialUi);
+  // files removed from the Desk this session are hidden from every screen, the palette and the
+  // monitor; the engine and the Ledger (auditHistory, runs) keep the full record
+  const removed = ui.removedFiles;
+  const agent = useMemo(
+    () =>
+      removed.length === 0
+        ? engine
+        : { ...engine, dealsFull: engine.dealsFull.filter((d) => !removed.includes(d.id)), deals: engine.deals.filter((d) => !removed.includes(d.id)) },
+    [engine, removed],
+  );
+  const monitor = useMonitor(agent.dealsFull, agent.speed);
   const [panes, panesRef, setPanes] = useRefState(initialPanes);
   const [chatLayout, chatLayoutRef] = useChatLayout();
   const snaps = useSnapshots();

@@ -120,6 +120,8 @@ export function initialUi(): UiState {
     ledgerChip: 'all',
     stress: {},
     planPreview: {},
+    removedFiles: [],
+    removeConfirm: null,
     attached: {},
     thread: [],
     threadEpoch: {},

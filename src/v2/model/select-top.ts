@@ -107,7 +107,7 @@ export function selectTopBar(s: V2Store): TopBarView {
   const active: TopBarView['active'] = r === 'book' ? 'book' : r === 'ledger' ? 'ledger' : 'desk';
   const st = s.agent.status;
   const deskCount = selectLiveDealId(s) !== null && (st === 'plan_review' || st === 'awaiting_approval') ? '1' : null;
-  const open = s.monitor.escalations.filter((e) => e.status === 'open').length;
+  const open = s.monitor.escalations.filter((e) => e.status === 'open' && s.agent.dealsFull.some((d) => d.id === e.dealId)).length;
   return {
     tabs: [
       { id: 'desk', label: COPY.tabDesk, count: deskCount, countTone: 'accent' },

@@ -66,9 +66,9 @@
 /* The kit hides Facility below a 1120 VIEWPORT, but the table's width is the viewport minus the
    sidebar, the agent panel and the column's padding. So Facility also hides on the table's OWN
    width (the kit's k-table container, inside its 1px border) once the full template
-   (File 220 floor + 200 + 88 + 120 + 200 + 112 = 940) no longer fits, switching to the kit's
+   (File 220 floor + 200 + 88 + 120 + 200 + 144 = 972) no longer fits, switching to the kit's
    Facility-less template; the facility then shows under the borrower. */
-@container k-table (max-width: 939.98px) {
+@container k-table (max-width: 971.98px) {
   .v2 .desk [role="table"] {
     --k-cols-active: var(--k-cols-1120);
   }
@@ -125,5 +125,7 @@
 /* ---- Select: the row's one affordance, right-aligned ---- */
 .desk-select {
   display: inline-flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 4px;
 }

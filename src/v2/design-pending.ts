@@ -21,15 +21,18 @@ export interface PendingPattern {
 
 const BY = 'V2 spec · case-file';
 const ON = '2026-10-17';
+const ADDENDUM = 'V2 three-pane addendum';
+const OWNER = 'Owner request';
+const ON_3P = '2026-10-20';
 
 export const PENDING: PendingPattern[] = [
   {
     id: 'P-01',
     type: 'interaction',
-    name: 'Countersignature line with ink, inside the gate',
+    name: 'Countersignature line with ink: the foot of the memo\'s Decision card',
     description:
-      "The decision is a signature line at the foot of the memo it governs: the agent's pre-signed /s/ line beside an empty 2px reviewer line, and the agent loop is suspended on that line's Promise. Signing draws a fixed-size ink stroke once; a policy signature writes /auto/ and never ink. V1 decided in a separate gate card with buttons and drew its signature block after the decision.",
-    evidence: 'V2 spec §8 and §7.3; V1 Signature Block and countersign stamp (CLAUDE.md, UI elevation pass)',
+      'The memo\'s Decision card ends in the signature lines: the agent\'s pre-signed /s/ line beside the reviewer line, which stays an empty 2px accent line while the agent loop is suspended at the gate. The line is the record, not a control: the verbs directly above it sign, and signing draws a fixed-size ink stroke on this line once, in view. After the decision the same card shows the sealed record (ink, /auto/ or REJECTED, the quote with its provenance, the routed line). A policy signature writes /auto/ and never ink. V1 decided in a separate gate card with buttons and drew its signature block after the decision.',
+    evidence: 'V2 spec §8 and §7.3; THREE-PANE.md R2.2; V1 Signature Block and countersign stamp (CLAUDE.md, UI elevation pass)',
     proposedBy: BY,
     proposedDate: ON,
     status: 'awaiting',
@@ -38,10 +41,10 @@ export const PENDING: PendingPattern[] = [
   {
     id: 'P-02',
     type: 'interaction',
-    name: 'Two-press sign: the first A brings the line into view',
+    name: 'Two-press A: the first A brings the Decision card into view; the next A signs',
     description:
-      'The first press of A (or the palette\'s Countersign) only scrolls the reviewer line into view and focuses it; the next press signs. Nobody signs a line they cannot see. In V1, A countersigned at once whenever the gate card was mounted, wherever it was scrolled.',
-    evidence: 'V2 spec §8 and §7.6 keyboard map; V1 A/R shortcut guards (CLAUDE.md, gotchas)',
+      'A signs at once only while the reviewer line of the memo\'s Decision card is on screen on the live file. Otherwise the first A scrolls the memo to the card (from another route it opens the live file first), focuses the primary verb and announces "Countersign is focused. Press A again to sign."; the next A signs. Clicking the primary itself signs at once. The agent panel\'s "Decision →" link, "Go to decision" and the composer\'s refusal link only bring the card into view and never sign, and the palette has no sign command. In V1, A countersigned at once whenever the gate card was mounted, wherever it was scrolled.',
+    evidence: 'V2 spec §8; THREE-PANE.md R2.3 and §6.4 keyboard map; V1 A/R shortcut guards (CLAUDE.md, gotchas)',
     proposedBy: BY,
     proposedDate: ON,
     status: 'awaiting',
@@ -50,14 +53,14 @@ export const PENDING: PendingPattern[] = [
   {
     id: 'P-03',
     type: 'layout',
-    name: 'Margin notes aligned to their section by grid rows',
+    name: 'Flags marked where they sit in the memo',
     description:
-      'Each engine flag becomes a note in the margin cell of the grid row of the section it concerns, beside the figure it questions. Counted notes are washed in their meaning colour and stepped with J and K. V1 listed flags as pills inside the gate card, away from the figures they were about.',
-    evidence: 'V2 spec §1 pillar 2 and §7.2 DOM contract; review-margin convention of document editors',
+      'A flag is marked on the figure or covenant row it concerns: a status glyph before the label and the value in bad-ink, or the Breach label on the covenant row. A flag with no row (for example "Earnings are highly sensitive to commodity prices", or a low-confidence reading) is one marked line at the foot of its card. There are no notes blocks and no margin column, and the agent panel only says that something needs a look ("1 covenant breached · Covenants →"), never the flag\'s sentence. J and K step through the flagged rows in the memo. Revised twice on owner feedback: notes in a side margin column left empty gaps, and notes as messages in the agent panel put data in the middle pane. V1 listed flags as pills inside the gate card, away from the figures they were about.',
+    evidence: 'V2 spec §1 pillar 2; THREE-PANE.md R2.1, R2.2 and §5.6; owner feedback during the V2 build (CLAUDE.md, V2 rejected patterns)',
     proposedBy: BY,
     proposedDate: ON,
     status: 'awaiting',
-    kitAnchor: '#board-marginnote',
+    kitAnchor: '#board-memocard',
   },
   {
     id: 'P-04',
@@ -158,10 +161,10 @@ export const PENDING: PendingPattern[] = [
   {
     id: 'P-12',
     type: 'layout',
-    name: 'Source on demand from the doc bar (push ≥ 1432px, overlay below)',
+    name: 'Source on the memo pane\'s right edge: push when the pane is 1064px or wider, overlay below',
     description:
-      'The CIM opens from a horizontal "Source CIM · n quoted" toggle in the doc bar, or from any paragraph cite: as a pushed 360px column at 1432px and wider, or as an overlay below that. Revised on owner feedback: the first version used a 40px vertical spine whose rotated label was unreadable.',
-    evidence: 'V2 spec §3 Source pane; V1 document panel and width guard (CLAUDE.md, backlog #3)',
+      'The CIM opens from a horizontal "Source CIM · n quoted" toggle at the right end of the doc bar, or from any paragraph cite, on the right edge of the memo pane, so the chain reads agent panel, memo, evidence. Push or overlay is decided by the memo pane\'s own width, not the viewport: a pushed 360px column when the pane is 1064px or wider, an overlay under the doc bar below that. In drawer mode the source and the agent drawer close each other. Revised on owner feedback: the first version used a 40px vertical spine whose rotated label was unreadable.',
+    evidence: 'V2 spec §3 Source pane; THREE-PANE.md §1.7; V1 document panel and width guard (CLAUDE.md, backlog #3)',
     proposedBy: BY,
     proposedDate: ON,
     status: 'awaiting',
@@ -172,12 +175,12 @@ export const PENDING: PendingPattern[] = [
     type: 'copy',
     name: '"You opened n of N" tally (explicit actions only, never blocks)',
     description:
-      'The Signed over list states how many counted notes you opened by an explicit action (Show row, Trace, a cite). It is a fact on the record, never a gate: signing is never blocked on it, and nothing is inferred from scrolling.',
+      'The Signed over list on the memo\'s Decision card states how many counted notes you opened by an explicit action (Show row, Show in memo, Amend term, a cite, J and K). It is a fact on the record, never a gate: signing is never blocked on it, and nothing is inferred from scrolling.',
     evidence: 'V2 spec §8 and §9.1 GateState.opened; human-oversight hook in the spirit of EU AI Act Art. 14 (CLAUDE.md)',
     proposedBy: BY,
     proposedDate: ON,
     status: 'awaiting',
-    kitAnchor: null,
+    kitAnchor: '#board-decisioncard',
   },
   {
     id: 'P-14',
@@ -256,8 +259,8 @@ export const PENDING: PendingPattern[] = [
     type: 'interaction',
     name: 'Countdowns only run where you can see them',
     description:
-      'The plan auto-start countdown and the clean-approval countdown arm only while the live file is on screen and the tab is visible. Leaving the file or hiding the tab holds them, and the hold prints its reason. This closes the review finding that an auto-countersign could fire off screen.',
-    evidence: 'V2 spec §8, §9.2 #3 and critique resolution log; WCAG 2.2 SC 2.2.1 Timing Adjustable',
+      'The plan auto-start countdown and the clean-approval countdown arm only while the live file is on screen and the tab is visible. The plan countdown also requires the plan prompt on screen: it arms only while the agent panel is shown, hiding the panel holds it, and a plan that never armed waits, unheld, until the panel is shown. Leaving the file or hiding the tab holds them, and the hold prints its reason. This closes the review finding that an auto-countersign could fire off screen.',
+    evidence: 'V2 spec §8, §9.2 #3 and critique resolution log; THREE-PANE.md §1.5 and R2.1; WCAG 2.2 SC 2.2.1 Timing Adjustable',
     proposedBy: BY,
     proposedDate: ON,
     status: 'awaiting',
@@ -268,12 +271,84 @@ export const PENDING: PendingPattern[] = [
     type: 'layout',
     name: 'Sidebar navigation (owner request)',
     description:
-      'Desk, Book and Ledger move from top-bar tabs into a 216px sidebar of NavItems with their live counts (Desk awaiting you in accent, Book open escalations in warn). The active row is ink on --sunken with a 2px ink left rule, never teal. Below 1100px it folds to a 64px icon rail. The top bar keeps the section name and the global controls.',
+      'Desk, Book and Ledger move from top-bar tabs into a 216px sidebar of NavItems with their live counts (Desk awaiting you in accent, Book open escalations in warn). The active row is ink on --sunken with a 2px ink left rule, never teal. Below 1100px it folds to a 64px icon rail, and beside an open agent panel it rails itself below 1400px without overwriting the stored choice (P-22). The top bar keeps the section name and the global controls.',
     evidence: 'Owner request during the V2 build (2026-10-17); V1 shipped a sidebar rail',
     proposedBy: 'Owner request',
     proposedDate: ON,
     status: 'awaiting',
     kitAnchor: '#board-tabs',
+  },
+  {
+    id: 'P-22',
+    type: 'layout',
+    name: 'Three-pane case file: navigation, a command-and-control agent panel, the memo',
+    description:
+      'A case file opens in three panes: the sidebar; the agent panel, which only commands and reports (P-27); and the memo, which holds everything shown: the header, the section cards, the Decision card after step 5, the stress test, the exhibits, the appendix and the source CIM on its right edge. The sidebar rails itself beside an open panel below 1400px without overwriting the stored choice; the panel is collapsible (persisted) in column mode and a drawer below 1024px, and it reveals itself only at plan review. Pane changes are instant, never animated. The Desk, Book and Ledger stay full width with no panel. Revised on owner feedback: the first three-pane build put step records, flags and the decision in the middle pane, so the reviewer could not tell whether to read the middle or the right.',
+    evidence: 'Dropbox Dash https://mobbin.com/screens/f7b146fb-ea9a-4596-a37a-3f72b340ea1e; Mistral Le Chat https://mobbin.com/screens/76e16697-0e20-4bfc-8162-e93d6f1fc8ff; Langdock https://mobbin.com/screens/579fb137-50fa-42d0-9222-4970f35648d5 (THREE-PANE.md §11); owner revision R2 (THREE-PANE.md)',
+    proposedBy: OWNER,
+    proposedDate: ON_3P,
+    status: 'awaiting',
+    kitAnchor: '#board-agentpanel',
+  },
+  {
+    id: 'P-23',
+    type: 'interaction',
+    name: 'One Decision card, in the memo after step 5',
+    description:
+      'The decision lives in one place: the Decision card, its own memo card right after step 5 Recommendation and before the stress test. In order: Signed over (Show row), the reviewer note (Draft from notes and the provenance chip; optional to countersign, required to return or reject), the amendment summary, the call directly above the verbs ("The agent recommends" with the agent\'s own token, the question and a one-sentence reason), the verbs in one horizontal row that may wrap (never a vertical list) with a one-line consequence under each, the attestation and the policy line, then the signature lines. After the decision the same card shows the sealed record, with no verbs and no note field. The agent panel holds one line pointing here ("Your countersignature is needed · Decision →"); the composer and the palette never decide. Moved on owner request: the first three-pane build docked the card in the agent panel.',
+    evidence: 'Owner revision R2, 2026-10-20 (THREE-PANE.md R2.2: the countersign moves to the right too); the owner-approved decision panel above one row of verbs (CLAUDE.md, V2 section)',
+    proposedBy: OWNER,
+    proposedDate: ON_3P,
+    status: 'awaiting',
+    kitAnchor: '#board-decisioncard',
+  },
+  {
+    id: 'P-24',
+    type: 'interaction',
+    name: 'Links from the agent panel into the memo',
+    description:
+      'A panel line\'s trailing link ("Covenants →", "Decision →", "Record →") scrolls the memo to that card and plays one v2-flash on its head or the exact row; under reduced motion a static sunken highlight holds for 1200 ms instead. The memo never links back into the panel: each card keeps its own Record (tool args in, data out, reasoning) in its footer. No connector lines are drawn across panes, and nothing else moves.',
+    evidence: 'THREE-PANE.md R2.1, §2.6 and §5.9; concept-agent-workspace research (claims tethered to evidence, without its leader lines)',
+    proposedBy: ADDENDUM,
+    proposedDate: ON_3P,
+    status: 'awaiting',
+    kitAnchor: '#board-memocard',
+  },
+  {
+    id: 'P-25',
+    type: 'interaction',
+    name: 'Composer that takes instructions',
+    description:
+      'The agent panel\'s one-line composer ("Ask or instruct") starts and steers the run, not only answers questions (backlog #7): draft (also "draft without peer benchmarks"), start drafting, skip or include peer benchmarks, hold, stop, stress, questions. Parsing is deterministic and conservative, Enter sends and Shift+Enter adds a line. Any composer use holds a running countdown. Typed sign, return, reject, amend and note are refused with a pointer into the memo ("Decide in the memo: Decision →", or the covenant row). Answers are short, clip to two lines and link to the card they concern. Flat, with no glass and no kbd hint chips (both rejected earlier).',
+    evidence: 'THREE-PANE.md §4 and R2.1; backlog #7 (CLAUDE.md); input model "upload to ingest, chat to steer" (CLAUDE.md, key product decisions)',
+    proposedBy: OWNER,
+    proposedDate: ON_3P,
+    status: 'awaiting',
+    kitAnchor: '#board-composer',
+  },
+  {
+    id: 'P-26',
+    type: 'layout',
+    name: 'Memo sections as cards: step eyebrow, title, one-line takeaway, labelled blocks, a quiet record footer',
+    description:
+      'Every memo section is its own paper card on the canvas, 16px apart: a step eyebrow ("Step 1 of 5 · Document Intelligence"), a real title, a one-line takeaway written by the model (facts only in steps 1 to 4, never the call), labelled blocks with the flagged figure marked where it sits, any row-less flag as one marked line at the foot, and ONE quiet footer line ("Document Intelligence · 94% · 1.1 s") with a collapsed Record disclosure holding the tool\'s args in, data out and reasoning. Titles use the 18px t-figure-lg role, which no in-card figure uses any more; a dedicated 18/600 title role would be a one-line token addition if preferred. Each card is its own container, so tables stack by the section\'s real width. Asked for by the owner: sections 1 to 4 read as one blob.',
+    evidence: 'LangChain usage https://mobbin.com/screens/86925057-b5b9-4c85-9787-9dcbee1d7b76; Exa usage https://mobbin.com/screens/279d5948-258a-4519-b3e3-c15a746d8b9c (THREE-PANE.md §5, §11 and R2.2)',
+    proposedBy: OWNER,
+    proposedDate: ON_3P,
+    status: 'awaiting',
+    kitAnchor: '#board-memocard',
+  },
+  {
+    id: 'P-27',
+    type: 'ia',
+    name: 'Command-and-control agent panel: one-line status, links into the memo, no data',
+    description:
+      'The agent panel never displays data and holds no decision. It holds only one-line status from the agent ("Drafting the memo for Project Cobalt.", "Testing covenants", "Covenants tested", "4 covenants breached", "Your countersignature is needed"), each with an optional status glyph and an optional link that scrolls the memo to the card it concerns; the plan prompt above the composer ("I\'ll draft 5 steps. Peer benchmarks is optional." with Start drafting, Skip peers, Cancel and the countdown); the reviewer\'s questions and instructions with short answers; and the composer. Every number, list, table, record, reason, attestation and consequence lives in the memo. The head reads only the agent and the file, with the collapse chevron. The reference model is the owner\'s: Claude Code, whose conversation carries short status lines while the work product sits in the artifact. The first three-pane build showed step records, confidences, flag sentences and the decision card in this pane.',
+    evidence: 'Owner revision R2, 2026-10-20 (THREE-PANE.md R2, R2.1 and R2.4 AgentPanelView); Claude Code conversation and artifact split',
+    proposedBy: OWNER,
+    proposedDate: ON_3P,
+    status: 'awaiting',
+    kitAnchor: '#board-agentpanel',
   },
 ];
 
@@ -290,5 +365,19 @@ export const REJECTED_BEFORE: { name: string; note: string }[] = [
   {
     name: 'filter bars, sortable columns, date pickers, donuts, pipeline totals, bulk acknowledge',
     note: 'Rejected in the Mobbin audits as scale-driven clutter for a book of 3 to 5 files.',
+  },
+  { name: 'the ¶ citation mark', note: 'Rejected by the owner in the V2 build: citations read "CIM para 2" in words (P-04).' },
+  { name: 'recommendation at the top of the memo', note: 'Rejected by the owner in the V2 build: the recommendation is step 5, at the foot of the memo, and the header seal states only who signed.' },
+  { name: 'side margin column of notes', note: 'Rejected by the owner in the V2 build: it left empty gaps beside short sections (P-03).' },
+  { name: 'top-bar tabs, the demo pace menu and a Compare V1 link in the top bar', note: 'Rejected by the owner in the V2 build: navigation lives in the sidebar (P-21); the top bar is the section name, the auto-countersign switch and search.' },
+  { name: 'dark mode', note: 'Rejected by the owner for V2: light only, no theme toggle.' },
+  { name: 'cross-pane connector lines (the concept-panel tether)', note: 'Judged too fancy in the concept panel; trace links scroll and flash instead (P-24).' },
+  {
+    name: 'data in the agent panel',
+    note: 'Rejected by the owner (2026-10-20): step records, confidences, durations, flag sentences, the plan step list and file details in the middle pane left the reviewer unsure whether to read the middle or the right. The panel is command and control only (P-27); everything shown lives in the memo.',
+  },
+  {
+    name: 'decision card in the agent panel',
+    note: 'Rejected by the owner (2026-10-20): the countersign moves to the right too. The whole decision is the memo\'s Decision card after step 5 (P-23); the panel holds one line that links to it.',
   },
 ];

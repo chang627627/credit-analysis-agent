@@ -1,12 +1,17 @@
-// Countersign V2 · exhibits (spec §7.3): attached stress tests, solid and part of the memo.
-// Derived by the model from this run's auditHistory entries of kind whatif (selectExhibits), so the
-// memo and the Ledger cannot disagree. Rendered only when at least one exists; rows enter on mount.
+// Countersign V2 · exhibits (spec §7.3; THREE-PANE.md §5.4): attached stress tests, solid and part
+// of the memo. FileScreen's exhibits slot, rendered inside its MemoCard section="exhibits": the
+// card head (eyebrow "Attached by the reviewer", title "Exhibits") and the table, which the card
+// body spaces 24px apart. Derived by the model from this run's auditHistory entries of kind whatif
+// (selectExhibits), so the memo, the thread and the Ledger cannot disagree. Rendered only when at
+// least one exists; rows enter on mount. The head answers the memo cue itself (useHeadCue), since
+// FileScreen cannot pass a flash key into a slot.
 import { SectionHead, Table, Token } from '../../kit';
 import type { TableColumn, TableRow } from '../../kit';
-import { COPY, STATUS_WORD, selectExhibits } from '../../model';
+import { COPY, selectExhibits } from '../../model';
 import type { ExhibitView } from '../../model';
 import { useV2 } from '../../state/store';
 import type { DecisionBlockProps } from '../../state/screens';
+import { useHeadCue } from './useHeadCue';
 
 // No header: the labels name the cells for assistive tech only. Two columns fit every width, so
 // the table never needs to stack.
@@ -49,12 +54,19 @@ function exhibitRow(e: ExhibitView): TableRow {
 export function Exhibits({ dealId }: DecisionBlockProps) {
   const s = useV2();
   const list = selectExhibits(s, dealId);
+  const head = useHeadCue('exhibits');
   if (list.length === 0) return null;
 
   return (
-    <div className="decision-exhibits">
-      <SectionHead ordinal="" heading={COPY.exhibits} status="done" statusLabel={STATUS_WORD.done} anchorId="sec:exhibits" />
+    <>
+      <SectionHead
+        eyebrow={COPY.exhibitsEyebrow}
+        heading={COPY.exhibits}
+        anchorId="sec:exhibits"
+        flashKey={head.flashKey}
+        highlighted={head.highlighted}
+      />
       <Table columns={EXHIBIT_COLUMNS} rows={list.map(exhibitRow)} caption={COPY.exhibits} header={false} />
-    </div>
+    </>
   );
 }

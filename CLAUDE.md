@@ -514,25 +514,105 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
 - **Code:** `src/v2/` = `kit/` (closed primitive set, `.k-` classes, only place kit CSS lives) ·
   `model/` (single source of every derived number/label/sentence) · `state/` (store, gate,
   orchestration ported from V1 with every integrity guard; browser storage only here) ·
-  `screens/{desk,file,decision,book,ledger}` · `chrome/{SideNav,TopBar,AppPalette}`.
-- **Spec:** `docs/v2/SPEC.md` (the build spec; owner decisions below supersede it).
+  `screens/{desk,file,chat,decision,book,ledger}` · `chrome/{SideNav,TopBar,AppPalette}`.
+  Store and view types live in `state/contracts.ts` (re-exported by `state/store.tsx`),
+  `model/types.ts` and `state/screens.ts`.
+- **Spec:** `docs/v2/SPEC.md` (the build spec) + `docs/v2/THREE-PANE.md` (the three-pane case file
+  and section hierarchy addendum). Its section **"R2 · Owner revision"** wins over the rest of that
+  file and over SPEC.md; the owner decisions below supersede all of them.
 - **Guardrails:** `npm run v2-check` (28 greps: tokens only, 400/500/600, 4px grid, one
   infinite animation, no hand-rolled controls outside the kit, V1 + engine hashes untouched, …).
-  New visual patterns go to `src/v2/design-pending.ts` (rendered on `/?kit`) for owner approval.
+  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-27, rendered on `/?kit`) for
+  owner approval; every `data-pattern` id needs an entry there, every kit export a kit-page specimen.
+- **Storage** (only in `src/v2/state/`): `v2.navCollapsed`, `v2.chatOpen` (only `state/panes.ts`),
+  `v2.autonomy`. (`v2.showReasoning` was retired with R2: reasoning lives in each card's Record.)
 - **Light mode only** (owner decision): no dark theme, no toggle.
-- **Thesis:** the credit memo is the product. One column (like V1's single pane): steps
-  1 Financials → 2 Risk → 3 Peers → 4 Covenants → (revisions) → 5 Recommendation at the foot,
-  then the countersignature. Each section's notes render directly under that section.
-- **Decision panel** (right above the verbs): "The agent recommends [TOKEN]" (always the
-  agent's own call) + the question + one-sentence reason; verbs in ONE horizontal row (may wrap)
-  with a one-line consequence under each. Clicking the primary signs; two-press is keyboard-only.
+- **Thesis:** the credit memo is the product; the agent panel beside it is command and control.
+  Owner, verbatim: 中间只搞high level。命令与指挥。显示的都看右边。("The middle is high level only:
+  command and control. Everything displayed goes on the right.") Then: countersign也要移到右边去。
+  ("The countersign moves to the right too.") Reference model: Claude Code (short status lines in
+  the conversation, the work product in the artifact).
+- **Layout — `#/file/<id>` = nav | command-and-control agent panel | memo with the Decision card**
+  (P-22). Column mode at 1024px and up (panel 400px, 360px at 1024 to 1279); drawer below 1024
+  (overlays the memo's left edge, no scrim, Esc closes, mutually exclusive with the source overlay).
+  Explicit hide/show (`]`, the doc-bar "Agent panel" toggle, the head chevron) persists
+  `v2.chatOpen`; the only automatic reveal is once at plan review (never at the gate: the decision is
+  in the memo), and it never writes storage. The sidebar forces its 64px rail beside an open panel
+  below 1400px without touching `v2.navCollapsed`. Pane changes are instant (no grid-width
+  transition). Desk, Book and Ledger stay full width with no panel ("upload to ingest, chat to
+  steer": the Desk ingests, the case file steers). The plan auto-start countdown arms only while the
+  plan prompt is on screen (P-20).
+- **Agent panel** (P-27, `screens/chat/`, rendered verbatim from `selectAgentPanel` →
+  `AgentPanelView`): it **never displays data and holds no decision**. Head = "Credit Analyst ·
+  Project Cobalt" + the collapse chevron, nothing else (no note stepper, no reasoning toggle, no run
+  number). Then ONE-line status lines (t-body, ellipsis; an optional status glyph; an optional
+  trailing link that scrolls the memo to its card): "Drafting the memo for Project Cobalt." · one
+  line per step, updated in place ("Testing covenants" with the static drafting glyph → "Covenants
+  tested · Covenants →"; "Peer benchmarks skipped") · action-worthy flags only, at most one per step
+  ("4 covenants breached · Covenants →", never the flag sentence, confidences or durations) ·
+  revision lines ("Returned for revision · rev 2", "Proposed a $6.0M sponsor equity cure") · the gate
+  as ONE line "Your countersignature is needed · Decision →" (countdown / held variants) · Q&A ("You ·
+  …" and answers clipped to 2 lines) · "You countersigned DECLINE · 00:52 · Record →". The plan prompt
+  sits above the composer: "I'll draft 5 steps. Peer benchmarks is optional." + [Start drafting ⌘↵]
+  [Skip peers / Include peers] [Cancel] + "Starts in 7 s · Hold"; the step list itself is the memo's
+  skeleton cards. No boxes, cards, records or buttons other than the plan prompt's.
+- **Memo pane** (right; holds everything displayed): the header on the canvas (borrower, facility,
+  amount, CAM id, prepared-by, CIM paragraphs; no recommendation, and a sealed header seal is the
+  who-clause only, "You countersigned.") → one paper `MemoCard` per section, 16px apart (P-26):
+  1 Financials → 2 Risk → 3 Peers → 4 Covenants → (revisions) → 5 Recommendation → **the Decision
+  card** → the stress test (dashed scratch frame, no card) → exhibits → the appendix. The source CIM
+  opens on the memo pane's right edge (push at a pane width of 1064px and up, overlay below).
+- **Section cards** (P-26, owner: sections 1 to 4 "read as one blob"): a step eyebrow ("Step 1 of 5 ·
+  Document Intelligence"; drafting / excluded / stopped show a status aside) → the title in
+  `t-figure-lg` (the only 18px role in a card: KeyFigure values moved to `t-heading`, the risk score
+  to `t-figure`) → a one-line model-written takeaway (`model/takeaways.ts`; facts only in steps 1 to
+  4, never the call) → labelled blocks (24px apart, label 8px to its content). Flags are marked where
+  they sit (breach glyph + bad-ink value, the covenant row's Breach label); a flag with no row is ONE
+  marked line at the foot of its card (`SectionView.flagLines`; no notes blocks, no margin column).
+  Then ONE quiet footer line, "Document Intelligence · 94% · 1.1 s", with a collapsed "Record"
+  disclosure holding the tool's args in, data out and the reasoning (`SectionView.footer`; kit
+  `Disclosure` `lead` puts the line and the trigger on one row). Tables stack by their own width
+  (`stackBelow` 640 for covenants, 480 for financials). Skeleton cards in not-started and plan review
+  (an optional step toggled off reads "Optional · will be skipped"); one drafting card carries the
+  app's only caret. J / K step through the flagged rows in the memo (a row-less flag lands on its
+  marked line, `flag:<id>`).
+- **Decision card** (P-23, `screens/decision/DecisionCard.tsx`, the memo's `signature` slot, renders
+  `selectSignature` → `SignatureView` in full): the ONE place to decide, its own card right after
+  step 5. In order: Signed over ("you opened n of N", each with Show row or Show in memo) · reviewer note (Draft from
+  notes + provenance chip; optional to countersign, required to return or reject) · amendment
+  summary with Revert (amending itself stays on the covenant row) · the call **directly above the
+  verbs**: "The agent recommends [TOKEN]" (always the agent's own call) + the question + a
+  one-sentence reason · the verbs in **one horizontal row that may wrap, never a vertical list**,
+  each with its one-line consequence under it · the attestation + the policy line / checks · the
+  signature lines (agent pre-signed, reviewer line). After the decision the same card is the sealed
+  record (ink / AUTO / REJECTED + quote + provenance + routed line; no verbs, no note field).
+  Clicking the primary signs at once. A (no modifier, not typing) signs only while the card's
+  reviewer line is on screen; otherwise the first A brings the card into view, focuses the primary
+  and announces "Countersign is focused. Press A again to sign." (P-02). S / R run return / reject
+  through the note-required flow (an empty note focuses the card's note field); after a return,
+  focus that fell to the body lands on the card's pending line (the panel never takes focus). The panel's
+  "Decision →", the doc bar's "Go to decision" and the composer's refusal link only scroll to the
+  card; the palette has no sign command.
+- **Composer** (P-25, backlog #7 on V2): one line, "Ask or instruct". Enter sends, Shift+Enter adds a
+  line, never on ⌘↵ or during IME. Deterministic parser (`model/composer.ts`): "draft the memo" /
+  "draft without peer benchmarks" / "start drafting" / "skip" or "include peer benchmarks" / "hold" /
+  "stop" (opens the confirm strip, never stops directly) / stress / questions (askRoute or the
+  engine's pure responder, open once a package exists). Typing can never sign, return, reject, amend
+  or write the note: such text gets "Decide in the memo: Decision →" (or a pointer to the covenant
+  row). Any composer use, typing included, holds a running countdown. Q&A persists per file, scoped
+  by a per-file epoch (a re-run starts fresh).
 - **Shell:** collapsible left sidebar (Desk · Book · Ledger, counts, 64px icon rail, persisted);
   top bar = section name + auto-countersign switch + search.
 - **Rejected by the owner during the V2 build (do not resurrect):** vertical "Source ¶" spine
   (source opens from a doc-bar button instead) · the ¶ citation mark (reads "CIM para 2") ·
   recommendation at the top of the memo · side margin column of notes (left empty gaps) ·
   stacked/vertical verb list · top-bar tabs (→ sidebar) · demo pace menu and "Compare V1" link
-  in the top bar · dark mode.
+  in the top bar · dark mode · cross-pane connector lines (the concept panel's "tether", judged
+  too fancy; links scroll and flash instead) · **data in the agent panel** (the first three-pane
+  build's step lines with confidences and durations, Record / Reasoning disclosures, flag sentences
+  as MarginNote messages, the plan step checklist, the file context block, the head's note stepper
+  and Show all reasoning: "do I look at the middle or the right?") · **the decision card in the agent
+  panel** (it was docked between the thread and the composer; the countersign moved to the right).
 
 ## Backlog (to-do)
 

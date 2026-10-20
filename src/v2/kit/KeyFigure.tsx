@@ -1,6 +1,7 @@
-// KeyFigure / KeyFigures: the key-figure strip at the top of the memo. Each figure is a single
+// KeyFigure / KeyFigures: the key-figure strip of the Recommendation card. Each figure is a single
 // <button> with no interactive descendants (evidence is plain text). The strip is a grid of equal
 // cells in a 1px frame with 1px rules, wrapping 3+2 below a 600px container (container query).
+// The value is t-heading (15/20/600): the 18px t-figure-lg role belongs to memo section titles alone.
 import type { ReactNode } from 'react';
 import type { ForceState, MeaningTone } from './types';
 
@@ -26,7 +27,7 @@ export function KeyFigure({ label, value, sub, caption, tone, dot, evidence, onC
         {dot ? <span className="k-keyfig__dot" data-tone={dot} aria-hidden="true" /> : null}
         <span>{label}</span>
       </span>
-      <span className={`k-keyfig__value t-figure-lg ${TONE[tone]}`}>{value}</span>
+      <span className={`k-keyfig__value t-heading ${TONE[tone]}`}>{value}</span>
       {sub ? <span className="k-keyfig__sub t-small">{sub}</span> : null}
       {caption ? <span className={`k-keyfig__caption t-small ${TONE[tone]}`}>{caption}</span> : null}
       <span className="k-keyfig__evidence t-small">{evidence}</span>

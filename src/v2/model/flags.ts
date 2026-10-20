@@ -5,11 +5,11 @@
 // Also: the amend-term helpers (gate state → engine Amendment[] → overrides).
 // ---------------------------------------------------------------------------
 
-import type { Deal } from '../../agent/mockData';
+import type { CovenantTest, Deal } from '../../agent/mockData';
 import type { Amendment, Flag } from '../../agent/types';
 import type { TermOverrides } from '../../agent/whatif';
 import { EM, fmtM, fmtX } from './format';
-import type { FlagKind, SectionId } from './types';
+import type { FigureId, FlagKind, MemoSection, MemoTarget, SectionId } from './types';
 
 /**
  * Engine flag → page meaning. Order matters: the reviewer/structuring flags are
@@ -46,6 +46,44 @@ export function covenantKind(name: string): CovKind {
   if (n.includes('fixed')) return 'fixed';
   if (n.includes('liquid')) return 'liquidity';
   return 'other';
+}
+
+/** The filed covenant a figure is tested against (leverage, interest, fixed, liquidity), if any. */
+export function covenantForFigure(deal: Deal, fig: FigureId): CovenantTest | undefined {
+  const kind = fig === 'leverage' ? 'leverage' : fig === 'interest' ? 'interest' : fig === 'fixed' ? 'fixed' : fig === 'liquidity' ? 'liquidity' : null;
+  if (!kind) return undefined;
+  return deal.covenants.find((c) => covenantKind(c.name) === kind);
+}
+
+const MEMO_SECTIONS: readonly string[] = ['recommendation', 'financials', 'risk', 'peers', 'covenants', 'exhibits', 'stress', 'signature', 'monitoring'];
+
+/** A section id as a memo card, or null when it names none ('revision-2' and the fixed cards). */
+function memoSectionOf(id: string): MemoSection | null {
+  if (MEMO_SECTIONS.includes(id)) return id as MemoSection;
+  const rev = /^revision-(\d+)$/.exec(id);
+  return rev ? `revision-${Number(rev[1])}` : null;
+}
+
+/**
+ * Where a memo anchor lives (THREE-PANE §2.6): fig:* → financials · cov:* → covenants ·
+ * rev<n>:* → revision-n · sec:<id> → that card · anything else → the page header.
+ * The anchor rides along so the memo can nearest-scroll and cue the exact row.
+ */
+export function memoTargetOfAnchor(anchorId: string): MemoTarget {
+  if (anchorId.startsWith('fig:')) return { section: 'financials', anchorId };
+  if (anchorId.startsWith('cov:')) return { section: 'covenants', anchorId };
+  const rev = /^rev(\d+):/.exec(anchorId);
+  if (rev) return { section: `revision-${Number(rev[1])}`, anchorId };
+  if (anchorId.startsWith('sec:')) {
+    const section = memoSectionOf(anchorId.slice(4));
+    if (section) return { section, anchorId };
+  }
+  return { section: 'header', anchorId: null };
+}
+
+/** A row anchor ("Show row") as opposed to a section anchor ("Show in memo"). */
+export function isRowAnchor(anchorId: string): boolean {
+  return !anchorId.startsWith('sec:');
 }
 
 /** step_extract→financials … step_package→recommendation, step_rework_N→`revision-N`. */

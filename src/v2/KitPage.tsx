@@ -1,15 +1,20 @@
 // ---------------------------------------------------------------------------
-// Countersign V2 · the live kit page (/?kit, spec §12).
+// Countersign V2 · the live kit page (/?kit, spec §12, THREE-PANE.md §8).
 // Built only from the real kit (./kit) and the model's formatters, words and
 // FX_* fixtures, so the page cannot drift from the app. Popovers render open
 // through `specimen`; hover, focus and active states through `force`. Token
 // values and contrast ratios are read live from the tokens on <html>.
-// The kit page is exempt from the one-primary and one-loop rules of app routes.
+// The kit page is exempt from the one-primary rule of app routes; it still runs
+// exactly one caret, inside the drafting-card specimen on the Caret board.
+// THREE-PANE R2: the agent panel is command and control only (one-line status
+// lines that link to memo cards, the plan prompt, the composer); every figure,
+// record and the whole decision live in the memo, the decision in the Decision
+// card after step 5. The specimens below follow that split.
 // ---------------------------------------------------------------------------
 import './kitpage.css';
 import { Fragment, useEffect, useLayoutEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Activity, ArrowUpRight, Copy, Download, FileStack, FileText, RotateCcw, ScrollText, Search, X } from 'lucide-react';
+import { Activity, ArrowDown, ArrowUp, ArrowUpRight, ChevronsLeft, Copy, Download, FileStack, FileText, RotateCcw, ScrollText, Search, X } from 'lucide-react';
 import {
   AmendField,
   Button,
@@ -32,6 +37,7 @@ import {
   LinkButton,
   LiveRegion,
   MarginNote,
+  MemoCard,
   Menu,
   Meter,
   Palette,
@@ -59,12 +65,24 @@ import {
   FX_DESK_INITIAL,
   FX_FILE_ATLAS_GATE,
   FX_FILE_ATLAS_REV2,
+  FX_FILE_PLAN_REVIEW,
   FX_FILE_RUNNING,
-  FX_FILE_SEALED,
   FX_FILE_UPLOAD_GATE,
   FX_LEDGER_AFTER_ATLAS,
+  FX_NOTES,
+  FX_PANEL_ATLAS_GATE,
+  FX_PANEL_ATLAS_REV2,
+  FX_PANEL_COBALT_REJECTED,
+  FX_PANEL_MERIDIAN_COUNTDOWN,
+  FX_PANEL_NOT_STARTED,
+  FX_PANEL_PLAN_REVIEW,
+  FX_PANEL_RUNNING,
+  FX_PANEL_SEALED,
+  FX_STUB_EXTRACT,
+  FX_SIG_ATLAS_AMENDED,
   FX_SIG_ATLAS_GATE,
   FX_SIG_ATLAS_REV2,
+  FX_SIG_COBALT_GATE,
   FX_SIG_AUTO_SEALED,
   FX_SIG_MERIDIAN_COUNTDOWN,
   FX_SIG_REJECTED,
@@ -87,7 +105,22 @@ import {
   paletteFooter,
   plural,
 } from './model';
-import type { CovenantRow, CushionView, EvidenceView, FileView, KeyFigureView, NoteView, SectionView } from './model';
+import type {
+  AgentPanelView,
+  CovenantRow,
+  CushionView,
+  EvidenceView,
+  FigureRow,
+  FileView,
+  KeyFigureView,
+  NoteView,
+  SectionAside,
+  SectionFlagLine,
+  SectionFooter,
+  SectionView,
+  SignatureView,
+  ThreadLine,
+} from './model';
 import { PENDING, REJECTED_BEFORE } from './design-pending';
 import type { PendingPattern } from './design-pending';
 
@@ -102,28 +135,36 @@ function sectionOf<K extends SectionView['kind']>(file: FileView, kind: K): SecO
   for (const s of file.sections) if (s.kind === kind) return s as SecOf<K>;
   return null;
 }
-const findNote = (notes: NoteView[], kind: NoteView['kind']): NoteView | null => notes.find((n) => n.kind === kind) ?? null;
 
 const GATE = FX_FILE_ATLAS_GATE;
-const REC = sectionOf(GATE, 'recommendation')?.body ?? null;
+const REC_SECTION = sectionOf(GATE, 'recommendation');
+const REC = REC_SECTION?.body ?? null;
 const KEYFIGS: KeyFigureView[] = REC?.keyFigures ?? [];
 const FIN = sectionOf(GATE, 'financials');
-const FIGURES = FIN?.body ?? [];
-const STUB = FIN?.stub ?? null;
-const RISK = sectionOf(GATE, 'risk')?.body ?? null;
+const FIGURES: FigureRow[] = FIN?.body ?? [];
+const STUB = FX_STUB_EXTRACT;
+const RISK_SECTION = sectionOf(GATE, 'risk');
+const RISK = RISK_SECTION?.body ?? null;
+const PEERS_SECTION = sectionOf(GATE, 'peers');
 const COV_SECTION = sectionOf(GATE, 'covenants');
 const COVENANTS: CovenantRow[] = COV_SECTION?.body ?? [];
 const REVISION = sectionOf(FX_FILE_ATLAS_REV2, 'revision');
+const REC_REV2 = sectionOf(FX_FILE_ATLAS_REV2, 'recommendation');
 const REDLINE = REVISION?.body?.redline ?? [];
-const DRAFTING = FX_FILE_RUNNING.sections.find((s) => s.drafting !== null)?.drafting ?? null;
+const RISK_UPLOAD = sectionOf(FX_FILE_UPLOAD_GATE, 'risk');
+const DRAFTING_SECTION = FX_FILE_RUNNING.sections.find((s) => s.drafting !== null) ?? null;
+const SKELETON_PEERS = sectionOf(FX_FILE_PLAN_REVIEW, 'peers');
+const SKELETON_REC = sectionOf(FX_FILE_PLAN_REVIEW, 'recommendation');
 
-const NOTE_BREACH = findNote(GATE.toReview, 'breach');
-const NOTE_WATCH = findNote(GATE.toReview, 'watch');
-const NOTE_LOW = findNote(FX_FILE_UPLOAD_GATE.toReview, 'low-confidence');
-const NOTE_EVIDENCE = GATE.headerMargin.evidenceCheck;
-const NOTE_RETURNED = findNote(REVISION?.notes ?? [], 'send-back');
-const NOTE_RESTRUCTURE = findNote(REVISION?.notes ?? [], 'restructure');
-const NOTE_SIGNED_OVER = FX_FILE_SEALED.toReview.find((n) => n.tone === 'signed-over') ?? null;
+// MarginNote specimens (FX_NOTES). Under R2 no app screen renders a note box: a flag is marked on
+// its memo row, or as one line at the foot of its card (SectionView.flagLines), and the agent panel
+// only points at it ("1 covenant breached · Covenants →").
+const NOTE_BREACH: NoteView = FX_NOTES.breach;
+const NOTE_WATCH: NoteView = FX_NOTES.watch;
+const NOTE_LOW: NoteView = FX_NOTES.low;
+const NOTE_EVIDENCE: NoteView = FX_NOTES.evidence;
+const NOTE_RESTRUCTURE: NoteView = FX_NOTES.restructure;
+const NOTE_SIGNED_OVER: NoteView = FX_NOTES.signedOver;
 
 const LEV_ROW = COVENANTS.find((c) => c.amend?.kind === 'leverage') ?? null;
 const STATUS_KEYS = Object.keys(STATUS_WORD) as StatusKey[];
@@ -151,8 +192,11 @@ const B = {
   table: { id: 'board-table', name: 'Table' },
   notes: { id: 'board-redline', name: 'Redline · MarginNote' },
   sechead: { id: 'board-sectionhead', name: 'SectionHead · Disclosure · JsonBlock' },
+  memocard: { id: 'board-memocard', name: 'MemoCard · section cards' },
+  panel: { id: 'board-agentpanel', name: 'Agent panel · command and control' },
   keyfig: { id: 'board-keyfigure', name: 'KeyFigure · KeyFigures' },
   slider: { id: 'board-slider', name: 'Slider' },
+  decision: { id: 'board-decisioncard', name: 'Decision card (memo)' },
   sig: { id: 'board-signatureline', name: 'SignatureLine' },
   caret: { id: 'board-caret', name: 'Caret' },
   empty: { id: 'board-emptynote', name: 'EmptyNote · DropZone · LiveRegion' },
@@ -216,30 +260,30 @@ const TYPE_ROLES = ['display', 'heading', 'body', 'strong', 'control', 'small', 
 type TypeRole = (typeof TYPE_ROLES)[number];
 const TYPE_SAMPLE: Record<TypeRole, string> = {
   display: GATE.header.borrower,
-  heading: COPY.countersignature,
+  heading: FX_SIG_ATLAS_GATE.call?.title ?? COPY.countersignature,
   body: REC?.sentence ?? COPY.pendingRecommendation,
-  strong: COVENANTS[0]?.name ?? COPY.countersignature,
+  strong: FIN?.takeaway?.text ?? COVENANTS[0]?.name ?? COPY.countersignature,
   control: FX_SIG_ATLAS_GATE.verbs?.primary ?? COPY.draftMemo,
-  small: NOTE_BREACH?.meta ?? COPY.evidenceCheckMeta,
+  small: FIN?.flagLines[0]?.text ?? NOTE_BREACH.text,
   label: COPY.noteLabel,
-  meta: FX_SIG_SEALED.reviewer.caption,
-  eyebrow: COPY.eyebrow,
+  meta: FIN?.footer?.text ?? FX_SIG_SEALED.reviewer.caption,
+  eyebrow: FIN?.eyebrow ?? COPY.eyebrow,
   figure: `${fmtX(4.26)} · ${fmtM(96.3)} · ${fmtPct(17.6)}`,
-  'figure-lg': KEYFIGS[0]?.value ?? fmtM(128.4),
+  'figure-lg': FIN?.heading ?? COPY.countersignature,
   token: FX_TOKENS.escalate.word,
 };
 const TYPE_USE: Record<TypeRole, string> = {
   display: 'One per screen',
-  heading: 'Memo sections, Countersignature, Ledger groups, brand',
-  body: 'Memo prose, UI copy, table cells',
-  strong: 'Row subjects, signed-over items, /s/ lines',
+  heading: 'The Decision card question, key-figure values, Ledger groups, brand',
+  body: 'Memo prose, agent panel lines, UI copy, table cells',
+  strong: 'Section takeaways, row subjects, signed-over items, /s/ lines',
   control: 'md buttons, tabs, menu rows',
-  small: 'Margin notes, attestation, sub-lines, evidence tags',
-  label: 'Column headers, field labels, sm buttons',
-  meta: 'Timestamps, captions, simulated disclosures, Kbd, chips',
-  eyebrow: 'At most one per region',
+  small: 'Memo flag lines, verb consequences, attestation, sub-lines, evidence tags',
+  label: 'Block labels, column headers, field labels, sm buttons',
+  meta: 'Card footer lines, timestamps, captions, simulated disclosures, Kbd, chips',
+  eyebrow: 'Memo card step lines; at most one per region',
   figure: 'Every numeral in tables and prose',
-  'figure-lg': 'Key-figure values, risk score',
+  'figure-lg': 'Memo section titles only (no figure inside a memo card uses it)',
   token: 'APPROVE / ESCALATE / DECLINE / REJECTED only',
 };
 
@@ -397,6 +441,127 @@ function CushionCell({ c }: { c: CushionView }) {
     </span>
   );
 }
+
+const CONF_TONE: Record<'ink-3' | 'warn' | 'bad', string> = { 'ink-3': 'kp-ink3', warn: 'kp-warn', bad: 'kp-bad' };
+/** An excluded optional step's aside, in the model's words (no excluded fixture carries one yet). */
+const EXCLUDED_ASIDE: SectionAside = { kind: 'status', state: 'excluded', text: STATUS_WORD.excluded };
+
+/**
+ * The aside right of a section eyebrow (THREE-PANE R2.2): a status label while the card is
+ * drafting, excluded or stopped. A set card has no aside: its tool, confidence and duration are
+ * the card's footer line.
+ */
+function AsideSpecimen({ aside }: { aside: SectionAside }) {
+  if (aside.kind !== 'status') return null;
+  return (
+    <StatusLabel state={aside.state} role="label">
+      {aside.text}
+    </StatusLabel>
+  );
+}
+
+/**
+ * A set card's footer (THREE-PANE R2.2): ONE quiet t-meta line, the tool · confidence (in its
+ * tone) · duration, then the collapsed "Record" disclosure (Disclosure lead), which unfolds the
+ * tool's args in, data out and the reasoning under the whole line.
+ */
+function FooterSpecimen({ f, initiallyOpen = false }: { f: SectionFooter; initiallyOpen?: boolean }) {
+  const [open, setOpen] = useState(initiallyOpen);
+  return (
+    <Disclosure
+      label={f.recordLabel}
+      open={open}
+      onToggle={() => setOpen((o) => !o)}
+      lead={
+        <span className="t-meta">
+          {`${f.tool} · `}
+          <span className={CONF_TONE[f.confTone]}>{f.conf}</span>
+          {` · ${f.duration}`}
+        </span>
+      }
+    >
+      <div className="kp-record">
+        <JsonBlock label={f.record.argsLabel} count={f.record.argsCount} value={f.record.args} />
+        <JsonBlock label={f.record.resultLabel} count={f.record.resultCount} value={f.record.result} />
+        <p className="kp-prewrap t-small kp-ink2">{f.record.reasoning}</p>
+      </div>
+    </Disclosure>
+  );
+}
+
+/** A card's row-less flags, one marked line each at its foot (no notes block, no box). */
+function FlagLinesSpecimen({ lines }: { lines: SectionFlagLine[] }) {
+  if (lines.length === 0) return null;
+  return (
+    <ul className="kp-flaglines">
+      {lines.map((l) => (
+        <li key={l.id} className="kp-flagline" data-anchor={`kit-${l.anchorId}`}>
+          <StatusLabel state={l.state} role="small">
+            {l.text}
+          </StatusLabel>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** A set card's foot, in order: its row-less flag lines, then the footer line. */
+function CardFoot({ s }: { s: SectionView }) {
+  return (
+    <>
+      <FlagLinesSpecimen lines={s.flagLines} />
+      {s.footer ? <FooterSpecimen f={s.footer} /> : null}
+    </>
+  );
+}
+
+/** A section head rendered verbatim from a SectionView (eyebrow, title, takeaway, aside). */
+function HeadSpecimen({ s, anchorId, aside, flashKey, highlighted }: { s: SectionView; anchorId: string; aside?: SectionAside | null; flashKey?: number; highlighted?: boolean }) {
+  const a = aside === undefined ? s.aside : aside;
+  return (
+    <SectionHead
+      eyebrow={s.eyebrow}
+      heading={s.heading}
+      takeaway={s.takeaway}
+      aside={a ? <AsideSpecimen aside={a} /> : null}
+      anchorId={anchorId}
+      flashKey={flashKey}
+      highlighted={highlighted}
+    />
+  );
+}
+
+/** A labelled block inside a memo card: t-label ink-2 label, 8px above its content. */
+function Block({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="kp-block">
+      <p className="kp-block__label t-label">{label}</p>
+      {children}
+    </div>
+  );
+}
+
+const FIG_COLUMNS: TableColumn[] = [
+  { key: 'figure', label: 'Figure', width: '1fr' },
+  { key: 'value', label: 'Value', width: '120px', align: 'end' },
+  { key: 'source', label: 'Source', width: '200px' },
+];
+/** Financials rows: the model marks a breaching figure (glyph before the label, value in bad-ink). */
+const figRows = (rows: FigureRow[], prefix: string): TableRow[] =>
+  rows.map((f) => ({
+    key: f.id,
+    anchorId: `${prefix}-${f.anchorId}`,
+    cells: {
+      figure: (
+        <span className="kp-figlabel">
+          {f.mark ? <StatusGlyph state={f.mark} srLabel={STATUS_WORD[f.mark]} /> : null}
+          <span>{f.label}</span>
+        </span>
+      ),
+      value: <span className={f.valueTone === 'bad' ? 'kp-bad' : undefined}>{f.value}</span>,
+      source: <EvidenceSpecimen ev={f.evidence} />,
+    },
+  }));
 
 // =============================================================================
 // Board 1 · Type roles
@@ -658,6 +823,11 @@ function ButtonBoard() {
               {COPY.exportFile}
             </Button>
           </Cell>
+          <Cell caption="secondary sm + icon">
+            <Button variant="secondary" size="sm" icon={ArrowDown} onClick={noop}>
+              {COPY.goToDrafting}
+            </Button>
+          </Cell>
           <Cell caption="secondary sm + icon, disabled">
             <Button variant="secondary" size="sm" icon={FileText} disabled onClick={noop}>
               {COPY.openRecord}
@@ -697,7 +867,10 @@ function IconLinkKbdBoard() {
             <IconButton icon={X} label="Close source" force="active" onClick={noop} />
           </Cell>
           <Cell caption={`sm · pressed (aria-pressed=${String(pressed)}, click to toggle)`}>
-            <IconButton icon={FileText} label={COPY.record} pressed={pressed} onClick={() => setPressed((p) => !p)} />
+            <IconButton icon={FileText} label={COPY.sourceToggle} pressed={pressed} onClick={() => setPressed((p) => !p)} />
+          </Cell>
+          <Cell caption="sm · the agent panel head's collapse chevron (column mode; the head holds nothing else)">
+            <IconButton icon={ChevronsLeft} label={COPY.hideAgentPanel} onClick={noop} />
           </Cell>
           <Cell caption="sm · disabled">
             <IconButton icon={X} label="Close source" disabled onClick={noop} />
@@ -727,7 +900,7 @@ function IconLinkKbdBoard() {
               {COPY.showRow}
             </LinkButton>
             <LinkButton role="label" onClick={noop}>
-              {COPY.trace}
+              {COPY.showInMemo}
             </LinkButton>
             <LinkButton role="meta" onClick={noop}>
               {COPY.openInBook}
@@ -951,6 +1124,26 @@ function TipCiteEvidenceBoard() {
 // Board 11 · TextArea · AmendField · TextInput · Checkbox · Switch
 // =============================================================================
 
+/** The agent panel's composer (P-25): one line, "Ask or instruct"; TextArea size composer + Send, Enter sends, Shift+Enter adds a line. */
+function ComposerSpecimen() {
+  const [draft, setDraft] = useState('');
+  const [sent, setSent] = useState<string | null>(null);
+  const blank = draft.trim() === '';
+  const send = () => {
+    if (blank) return;
+    setSent(draft.trim());
+    setDraft('');
+  };
+  return (
+    <Cell caption={sent === null ? 'live · Enter sends, Shift+Enter adds a line, IME and ⌘↵ never send · nothing sent yet' : `live · sent “${sent}”`} block>
+      <div className="kp-composer" data-pattern="P-25">
+        <TextArea size="composer" value={draft} onChange={setDraft} onSubmit={send} placeholder={COPY.composerPlaceholder} ariaLabel={COPY.composerLabel} />
+        <IconButton icon={ArrowUp} label={COPY.send} disabled={blank} onClick={send} />
+      </div>
+    </Cell>
+  );
+}
+
 function FieldsBoard() {
   const [note, setNote] = useState('');
   const [ask, setAsk] = useState('');
@@ -962,8 +1155,8 @@ function FieldsBoard() {
   const amend = LEV_ROW?.amend ?? null;
   const amendTo = (v: number) => (amend ? `${amend.prefix}${fmtX(v)}` : fmtX(v));
   return (
-    <Board id={B.fields.id} name={B.fields.name} spec="Fields: paper, 1px --ink-3 control edge, --r-sm; focus = --accent edge + --halo-focus; invalid = --bad-ink + --halo-error · AmendField: --line-provisional-edge (P-05) · Switch: ink track when on (P-10)">
-      <Group label="TextArea">
+    <Board id={B.fields.id} name={B.fields.name} spec="Fields: paper, 1px --ink-3 control edge, --r-sm; focus = --accent edge + --halo-focus; invalid = --bad-ink + --halo-error · TextArea size note 64 to 160 / composer 36 to 160, optional onSubmit on Enter · AmendField: --line-provisional-edge (P-05) · Switch: ink track when on (P-10)">
+      <Group label="TextArea · size note (the reviewer note on the memo's Decision card)">
         <Grid size="wide">
           <Cell caption="rest · type to auto-grow (64 to 160)">
             <TextArea value={note} onChange={setNote} placeholder={COPY.notePlaceholder} ariaLabel={COPY.noteLabel} />
@@ -979,6 +1172,17 @@ function FieldsBoard() {
           </Cell>
           <Cell caption="disabled">
             <TextArea value="" onChange={noop} placeholder={COPY.notePlaceholder} ariaLabel={COPY.noteLabel} disabled />
+          </Cell>
+        </Grid>
+      </Group>
+      <Group id="board-composer" label="TextArea · size composer (the agent panel's composer, P-25; it never signs, returns or rejects)">
+        <Grid size="wide">
+          <ComposerSpecimen />
+          <Cell caption="focus · the composer is never disabled on a case file" block>
+            <div className="kp-composer">
+              <TextArea size="composer" value="" onChange={noop} placeholder={COPY.composerPlaceholder} ariaLabel={COPY.composerLabel} force="focus" />
+              <IconButton icon={ArrowUp} label={COPY.send} disabled onClick={noop} />
+            </div>
           </Cell>
         </Grid>
       </Group>
@@ -1126,8 +1330,8 @@ function FieldsBoard() {
 
 const PALETTE_COMMANDS: PaletteCommand[] = [
   // Section names mirror the model's selectCommands; labels and hints come from the fixtures.
-  { id: 'sign', label: 'Countersign', section: 'Live file', hint: `${GATE.docBar.fileName} · rev ${GATE.revision}`, kbd: FX_SIG_ATLAS_GATE.verbs?.kbd.sign ?? 'A', run: noop },
-  { id: 'go-signature', label: COPY.goToSignature, section: 'Live file', hint: GATE.docBar.fileName, run: noop },
+  // No sign command (THREE-PANE §6.5): signing happens only on the memo's Decision card.
+  { id: 'go-signature', label: COPY.goToDecision, section: 'Live file', hint: `${GATE.docBar.fileName} · rev ${GATE.revision}`, kbd: FX_SIG_ATLAS_GATE.verbs?.kbd.sign ?? 'A', run: noop },
   { id: 'stop', label: 'Stop the live run', section: 'Live file', hint: GATE.docBar.fileName, run: noop },
   ...GATE.docBar.files.map((f) => ({ id: `open:${f.dealId}`, label: `Open ${f.label}`, section: 'Files', hint: f.meta, run: noop })),
   { id: 'route:book', label: 'Go to Book', section: 'Go to', run: noop },
@@ -1286,11 +1490,12 @@ function MeterBoard() {
 // Board 14 · Table
 // =============================================================================
 
+// The memo's covenant columns (THREE-PANE §5.4): Threshold, Actual and Cushion read end-aligned figures.
 const COV_COLUMNS: TableColumn[] = [
   { key: 'name', label: 'Covenant', width: '1fr' },
-  { key: 'threshold', label: 'Threshold', width: '104px', align: 'end' },
+  { key: 'threshold', label: 'Threshold', width: '128px', align: 'end' },
   { key: 'actual', label: 'Actual', width: '88px', align: 'end' },
-  { key: 'cushion', label: 'Cushion', width: '144px', hideBelow: 760 },
+  { key: 'cushion', label: 'Cushion', width: '152px' },
   { key: 'status', label: 'Status', width: '104px' },
 ];
 const covRow = (c: CovenantRow, extra: Partial<TableRow> = {}): TableRow => ({
@@ -1300,7 +1505,7 @@ const covRow = (c: CovenantRow, extra: Partial<TableRow> = {}): TableRow => ({
   cells: {
     name: <span className="t-strong">{c.name}</span>,
     threshold: c.threshold,
-    actual: c.actual,
+    actual: <span className={c.actualTone === 'bad' ? 'kp-bad' : undefined}>{c.actual}</span>,
     cushion: <CushionCell c={c.cushion} />,
     status: (
       <StatusLabel state={c.status} role="small">
@@ -1334,7 +1539,7 @@ function TableBoard() {
       group: {
         label: COV_SECTION?.heading ?? COPY.countersignature,
         status: 'breach',
-        meta: COV_SECTION?.suffix ?? undefined,
+        meta: COV_SECTION?.testsLabel ?? undefined,
         count: String(COVENANTS.length),
         height: 32,
       },
@@ -1432,7 +1637,7 @@ function TableBoard() {
     <Board
       id={B.table.id}
       name={B.table.name}
-      spec="Header 36 --sunken t-label --ink-3 · rows 36/48/56 with a 1px --line rule · cells 8 12 · group rows 32/40 · indent 24 · highlighted = --sunken · flash = v2-flash · stackBelow 760 is a container query"
+      spec="Header 36 --sunken t-label --ink-3 · rows 36/48/56 with a 1px --line rule · cells 8 12 · group rows 32/40 · indent 24 · highlighted = --sunken · flash = v2-flash · stackBelow 760 / 640 / 480 is a container query on the table's own width"
       action={
         <Button variant="secondary" size="sm" onClick={() => setFlash((n) => n + 1)}>
           Flash row
@@ -1449,9 +1654,15 @@ function TableBoard() {
         <Cell caption="toggling group 40 with trailing (press the group to fold) · rows · detail row · span row" block>
           <Table columns={LEDGER_COLUMNS} rows={ledgerRows} caption="Ledger run (specimen)" />
         </Cell>
-        <Cell caption="stacked · stackBelow 760 in a fixed 360px frame (header hides, cells stack with their labels)" block>
+        <Cell caption="stacked · stackBelow 760 in a fixed 360px frame (header hides, cells stack with their labels) · Desk, Book, Ledger" block>
           <div className="kp-frame360">
             <Table columns={COV_COLUMNS} rows={COVENANTS.map((c) => covRow(c))} caption="Covenant compliance, stacked (specimen)" stackBelow={760} />
+          </div>
+        </Cell>
+        <Cell caption="stackBelow 640 and 480 in one 600px frame · the covenant table (640: Covenants, Appendix, stress) stacks; the Financials table (480: Financials, Peers, Revision) does not, as at a 676px memo pane" block>
+          <div className="kp-frame600 kp-stack">
+            <Table columns={COV_COLUMNS} rows={COVENANTS.map((c) => covRow(c))} caption="Covenant compliance, stackBelow 640 (specimen)" stackBelow={640} />
+            <Table columns={FIG_COLUMNS} rows={figRows(FIGURES.filter((f) => f.group === 'tested'), 'kit-600')} caption="Financials, stackBelow 480 (specimen)" stackBelow={480} />
           </div>
         </Cell>
       </Grid>
@@ -1467,7 +1678,7 @@ function NotesBoard() {
   const debt = REDLINE.find((r) => !r.unchanged && r.from.startsWith('$')) ?? REDLINE[0] ?? null;
   const rec = REDLINE[REDLINE.length - 1] ?? null;
   return (
-    <Board id={B.notes.id} name={B.notes.name} spec="Redline: old --ink-3 struck, arrow --ink-3, new --ink · MarginNote: --r-md, padding 12, 1px --line; breach on --bad-wash, watch and returned on --warn-wash, info and signed-over on paper; active = 2px --ink outline; enters with v2-enter (P-03)">
+    <Board id={B.notes.id} name={B.notes.name} spec="Redline: old --ink-3 struck, arrow --ink-3, new --ink · MarginNote: --r-md, padding 12, 1px --line; breach on --bad-wash, watch and returned on --warn-wash, info and signed-over on paper; active = 2px --ink outline; enters with v2-enter · under R2 no app screen renders a note box: a flag is marked on its memo row or as one line at the foot of its card (P-03, MemoCard board)">
       <Group label="Redline (Atlas rev 1 → rev 2)">
         <Grid size="wide">
           {debt ? (
@@ -1487,9 +1698,9 @@ function NotesBoard() {
           ) : null}
         </Grid>
       </Group>
-      <Group id="board-marginnote" label="MarginNote">
+      <Group id="board-marginnote" label="MarginNote · the primitive and its tones (FX_NOTES); not rendered by any R2 screen">
         <Grid size="wide">
-          <Cell caption="breach · open (counted, with Amend term)" block>
+          <Cell caption="breach · open (counted) · Show row and Amend term at an amendable live gate" block>
             <NoteSpecimen note={NOTE_BREACH} />
           </Cell>
           <Cell caption="watch · open (counted)" block>
@@ -1498,11 +1709,8 @@ function NotesBoard() {
           <Cell caption="low confidence · uploaded file (counted)" block>
             <NoteSpecimen note={NOTE_LOW} />
           </Cell>
-          <Cell caption="evidence check · info, not counted" block>
+          <Cell caption="evidence check · info, not counted · Show in memo" block>
             <NoteSpecimen note={NOTE_EVIDENCE} />
-          </Cell>
-          <Cell caption="returned · Revision 2" block>
-            <NoteSpecimen note={NOTE_RETURNED} />
           </Cell>
           <Cell caption="restructure · info" block>
             <NoteSpecimen note={NOTE_RESTRUCTURE} />
@@ -1510,7 +1718,7 @@ function NotesBoard() {
           <Cell caption="signed over · after the seal" block>
             <NoteSpecimen note={NOTE_SIGNED_OVER} />
           </Cell>
-          <Cell caption="active · its covenant row is hovered (2px ink outline)" block>
+          <Cell caption="active (2px ink outline)" block>
             <NoteSpecimen note={NOTE_BREACH} active />
           </Cell>
         </Grid>
@@ -1523,86 +1731,366 @@ function NotesBoard() {
 // Board 16 · SectionHead · Disclosure · JsonBlock
 // =============================================================================
 
+interface HeadCase { key: string; s: SectionView | null; caption: string; aside?: SectionAside | null }
+const HEAD_CASES: HeadCase[] = [
+  { key: 'breach', s: FIN, caption: 'set · breach takeaway · no aside (a set card states its tool, confidence and duration in its footer line)' },
+  { key: 'watch', s: RISK_UPLOAD, caption: 'set · watch takeaway (uploaded file)' },
+  { key: 'info', s: PEERS_SECTION, caption: 'set · info takeaway with a basis line' },
+  { key: 'pass', s: REVISION, caption: 'set · pass takeaway (Revision 2, its own outcome)' },
+  { key: 'rec', s: REC_SECTION, caption: 'recommendation · the token, the sentence and the basis' },
+  { key: 'rec-prior', s: REC_REV2, caption: 'recommendation · struck prior token, then the token (rev 2)' },
+  { key: 'drafting', s: DRAFTING_SECTION, caption: 'drafting · status aside, no takeaway (the drafting line and caret sit in the card)' },
+  { key: 'excluded', s: SKELETON_PEERS, aside: EXCLUDED_ASIDE, caption: 'excluded · status aside, no takeaway' },
+  { key: 'pending', s: SKELETON_REC, caption: 'pending (skeleton card) · no aside, no takeaway' },
+];
+
 function SectionHeadBoard() {
   const [flash, setFlash] = useState(0);
   const [openA, setOpenA] = useState(false);
   const [openB, setOpenB] = useState(true);
-  const running = FX_FILE_RUNNING.sections;
-  const head = (kind: SectionView['kind'], from: SectionView[]) => from.find((s) => s.kind === kind) ?? null;
-  const rec = head('recommendation', running);
-  const drafting = running.find((s) => s.phase === 'drafting') ?? null;
-  const fin = head('financials', GATE.sections);
-  const peers = head('peers', GATE.sections);
-  const risk = head('risk', GATE.sections);
-  const cov = head('covenants', GATE.sections);
-  const specimens: { key: string; s: SectionView | null; status: StatusKey; caption: string }[] = [
-    { key: 'pending', s: rec, status: 'pending', caption: 'pending' },
-    { key: 'drafting', s: drafting, status: 'drafting', caption: 'drafting' },
-    { key: 'done', s: fin, status: 'done', caption: 'done' },
-    { key: 'excluded', s: peers, status: 'excluded', caption: 'excluded (skipped at plan review)' },
-    { key: 'error', s: risk, status: 'error', caption: 'error (stopped)' },
-  ];
   return (
     <Board
       id={B.sechead.id}
       name={B.sechead.name}
-      spec="SectionHead 28, grid [24 ordinal t-figure --ink-3 | 1fr t-heading h2 | 16 glyph] · Disclosure: label-sized link, chevron 90° over --dur-1, panel 0fr→1fr over --dur-2, inert when closed · JsonBlock: --sunken, t-small, max 240, persistent CopyButton"
+      spec="SectionHead (P-26): top row t-eyebrow --ink-3 step line (ellipsized) + aside · title h2 t-figure-lg --ink, 4 below · takeaway 8 below: StatusGlyph (or struck prior + Token) + t-strong --ink sentence + t-meta --ink-3 basis · keeps data-anchor, flash and highlight · Disclosure: label-sized link, chevron 90° over --dur-1, panel 0fr→1fr over --dur-2, inert when closed; an optional lead shares the trigger's line and the panel unfolds under the whole line · JsonBlock: --sunken, t-small, max 240, persistent CopyButton"
       action={
         <Button variant="secondary" size="sm" onClick={() => setFlash((n) => n + 1)}>
           Flash heading
         </Button>
       }
     >
-      <Group label="SectionHead">
+      <Group label="SectionHead · new anatomy, from the FX_FILE_* fixtures">
         <Grid size="wide">
-          {specimens.map(({ key, s, status, caption }) =>
+          {HEAD_CASES.map(({ key, s, caption, aside }) =>
             s ? (
               <Cell key={key} caption={caption} block>
-                <SectionHead ordinal={s.ordinal} heading={s.heading} suffix={null} status={status} statusLabel={STATUS_WORD[status]} anchorId={`kit-sechead-${key}`} />
+                <HeadSpecimen s={s} aside={aside} anchorId={`kit-sechead-${key}`} />
               </Cell>
             ) : null,
           )}
-          {cov ? (
-            <Cell caption="done + suffix · flash (press Flash heading)" block>
-              <SectionHead ordinal={cov.ordinal} heading={cov.heading} suffix={cov.suffix} status="done" statusLabel={STATUS_WORD.done} anchorId="kit-sechead-flash" flashKey={flash === 0 ? undefined : flash} />
+          {FIN ? (
+            <Cell caption="flash · one v2-flash on the head (press Flash heading)" block>
+              <HeadSpecimen s={FIN} anchorId="kit-sechead-flash" flashKey={flash === 0 ? undefined : flash} />
             </Cell>
           ) : null}
-          {cov ? (
-            <Cell caption="highlighted (reduced-motion cue)" block>
-              <SectionHead ordinal={cov.ordinal} heading={cov.heading} suffix={cov.suffix} status="done" statusLabel={STATUS_WORD.done} anchorId="kit-sechead-highlight" highlighted />
+          {FIN ? (
+            <Cell caption="highlighted · the reduced-motion cue (static --sunken)" block>
+              <HeadSpecimen s={FIN} anchorId="kit-sechead-highlight" highlighted />
             </Cell>
           ) : null}
         </Grid>
       </Group>
-      <Group id="board-disclosure" label="Disclosure">
+      <Group id="board-disclosure" label="Disclosure (a memo card's Record, collapsed by default)">
         <Grid size="wide">
+          {FIN?.footer ? (
+            <Cell caption="with lead · the Financials footer line: tool · confidence · duration, then Record (args, result, reasoning)" block>
+              <FooterSpecimen f={FIN.footer} />
+            </Cell>
+          ) : null}
           <Cell caption={`closed · click to open (${openA ? 'open' : 'closed'})`} block>
-            <Disclosure label={COPY.reasoning} meta={STUB?.meta} open={openA} onToggle={() => setOpenA((o) => !o)}>
-              <p className="t-small kp-ink2">{STUB?.reasoning ?? ''}</p>
+            <Disclosure label={COPY.reasoning} meta={STUB.meta} open={openA} onToggle={() => setOpenA((o) => !o)}>
+              <p className="kp-prewrap t-small kp-ink2">{STUB.reasoning}</p>
             </Disclosure>
           </Cell>
           <Cell caption={`open · click to close (${openB ? 'open' : 'closed'})`} block>
-            <Disclosure label={COPY.record} meta={STUB?.recordMeta} open={openB} onToggle={() => setOpenB((o) => !o)}>
-              <p className="t-small kp-ink2">{STUB ? `${STUB.tool} · ${STUB.meta}` : ''}</p>
+            <Disclosure label={COPY.record} meta={STUB.recordMeta} open={openB} onToggle={() => setOpenB((o) => !o)}>
+              <p className="t-small kp-ink2">{`${STUB.tool} · ${STUB.meta}`}</p>
             </Disclosure>
           </Cell>
         </Grid>
       </Group>
-      <Group id="board-jsonblock" label="JsonBlock + CopyButton (Document Intelligence record)">
-        {STUB ? (
-          <Grid size="wide">
-            <Cell caption="args in" block>
-              <JsonBlock label={STUB.argsLabel} count={STUB.argsCount} value={STUB.args} />
-            </Cell>
-            <Cell caption="data out" block>
-              <JsonBlock label={STUB.resultLabel} count={STUB.resultCount} value={STUB.result} />
-            </Cell>
-            <Cell caption="CopyButton alone · Copy → Check for 1200 ms, announces Copied">
-              <CopyButton text={JSON.stringify(STUB.result, null, 2)} label={COPY.copyJson} />
-            </Cell>
-          </Grid>
+      <Group id="board-jsonblock" label="JsonBlock + CopyButton (FX_STUB_EXTRACT, the Document Intelligence record)">
+        <Grid size="wide">
+          <Cell caption="args in" block>
+            <JsonBlock label={STUB.argsLabel} count={STUB.argsCount} value={STUB.args} />
+          </Cell>
+          <Cell caption="data out" block>
+            <JsonBlock label={STUB.resultLabel} count={STUB.resultCount} value={STUB.result} />
+          </Cell>
+          <Cell caption="CopyButton alone · Copy → Check for 1200 ms, announces Copied">
+            <CopyButton text={JSON.stringify(STUB.result, null, 2)} label={COPY.copyJson} />
+          </Cell>
+        </Grid>
+      </Group>
+    </Board>
+  );
+}
+
+// =============================================================================
+// Board 16b · MemoCard · section cards
+// =============================================================================
+
+const LEVERAGE_ANCHOR = FIGURES.find((f) => f.mark === 'breach')?.anchorId ?? FIGURES[0]?.anchorId ?? '';
+
+function FinancialsCard({ s, prefix, flashKey }: { s: SecOf<'financials'>; prefix: string; flashKey?: number }) {
+  const rows = s.body ?? [];
+  const tableRows = (group: FigureRow['group']): TableRow[] =>
+    figRows(
+      rows.filter((f) => f.group === group),
+      prefix,
+    ).map((r) => (r.anchorId === `${prefix}-${LEVERAGE_ANCHOR}` && flashKey !== undefined ? { ...r, flashKey } : r));
+  return (
+    <MemoCard section={s.id} ariaLabel={s.heading}>
+      <HeadSpecimen s={s} anchorId={`${prefix}-${s.anchorId}`} />
+      <Block label={s.blockLabels.size}>
+        <Table columns={FIG_COLUMNS} rows={tableRows('size')} caption={`${s.heading} · ${s.blockLabels.size} (specimen)`} stackBelow={480} />
+      </Block>
+      <Block label={s.blockLabels.tested}>
+        <Table columns={FIG_COLUMNS} rows={tableRows('tested')} caption={`${s.heading} · ${s.blockLabels.tested} (specimen)`} header={false} stackBelow={480} />
+      </Block>
+      <CardFoot s={s} />
+    </MemoCard>
+  );
+}
+
+function RiskCard({ s }: { s: SecOf<'risk'> }) {
+  const body = s.body;
+  return (
+    <MemoCard section={s.id} ariaLabel={s.heading}>
+      <HeadSpecimen s={s} anchorId={`kit-card-${s.anchorId}`} />
+      {body ? (
+        <>
+          <Block label={body.scoreLabel}>
+            <p className="kp-score">
+              <span className="t-figure">{body.scoreText}</span>
+              <span className="t-meta kp-ink3">{body.outOf}</span>
+              <span className="t-body">{body.rating}</span>
+              <EvidenceSpecimen ev={body.evidence} />
+            </p>
+            <Meter kind="risk" value={body.value} tick={body.tick} tone={body.tone} ariaLabel={`${s.heading} · ${body.scoreText}${body.outOf} · ${body.tickCaption}`} />
+            <p className="t-meta kp-ink3">{body.tickCaption}</p>
+          </Block>
+          <Block label={body.driversLabel}>
+            <ul className="kp-drivers">
+              {body.drivers.map((d) => (
+                <li key={d.factor} className="kp-driver">
+                  <span className="t-body">{d.factor}</span>
+                  <span className={`t-small ${d.tone === 'bad' ? 'kp-bad' : d.tone === 'warn' ? 'kp-warn' : d.tone === 'good' ? 'kp-good' : 'kp-ink2'}`}>{d.impact}</span>
+                </li>
+              ))}
+            </ul>
+          </Block>
+        </>
+      ) : null}
+      <CardFoot s={s} />
+    </MemoCard>
+  );
+}
+
+function CovenantsCard({ s }: { s: SecOf<'covenants'> }) {
+  return (
+    <MemoCard section={s.id} ariaLabel={s.heading}>
+      <HeadSpecimen s={s} anchorId={`kit-card-${s.anchorId}`} />
+      <Block label={s.testsLabel}>
+        <Table columns={COV_COLUMNS} rows={(s.body ?? []).map((c) => covRow(c))} caption={`${s.heading} (specimen card)`} stackBelow={640} />
+      </Block>
+      <CardFoot s={s} />
+    </MemoCard>
+  );
+}
+
+function RecommendationCard({ s }: { s: SecOf<'recommendation'> }) {
+  const body = s.body;
+  return (
+    <MemoCard section={s.id} ariaLabel={s.heading}>
+      <HeadSpecimen s={s} anchorId={`kit-card-${s.anchorId}`} />
+      {body ? (
+        <>
+          <Block label={body.summaryLabel}>
+            <p className="t-body kp-ink2">{body.summary}</p>
+          </Block>
+          <Block label={body.keyFiguresLabel}>
+            <KeyFigures ariaLabel={`${body.keyFiguresLabel} (specimen card)`}>
+              {body.keyFigures.map((k) => (
+                <KeyFigureSpecimen key={k.anchorId} k={k} />
+              ))}
+            </KeyFigures>
+          </Block>
+          <Block label={body.aidLabel}>
+            <p className="t-small kp-ink2">{body.nearestFlip}</p>
+            <span>
+              <LinkButton role="small" onClick={noop}>
+                {body.stressLinkLabel}
+              </LinkButton>
+            </span>
+          </Block>
+        </>
+      ) : null}
+      <CardFoot s={s} />
+    </MemoCard>
+  );
+}
+
+/** A card with only its head and phase line: pending (skeleton) or excluded. */
+function PhaseCard({ s, aside, line }: { s: SectionView; aside?: SectionAside | null; line: string | null }) {
+  return (
+    <MemoCard section={s.id} ariaLabel={s.heading}>
+      <HeadSpecimen s={s} aside={aside} anchorId={`kit-phase-${s.anchorId}`} />
+      {line ? <p className="t-small kp-ink3">{line}</p> : null}
+    </MemoCard>
+  );
+}
+
+function MemoCardBoard() {
+  const [flash, setFlash] = useState(0);
+  const finUpload = sectionOf(FX_FILE_UPLOAD_GATE, 'financials');
+  return (
+    <Board
+      id={B.memocard.id}
+      name={B.memocard.name}
+      spec="MemoCard (P-26): section.k-memocard, paper, 1px --line, --r-md, scroll-margin-top 60, its own container (k-memocard) · body: padding 24 (16 under a 560px card), flex column, gap 24 · Block: t-label --ink-2 label, 8px above its table, meter or list · foot: row-less flags as one marked t-small line each (no notes block), then ONE quiet t-meta footer line with the collapsed Record · cards sit 16px apart on --canvas · an agent panel link (Covenants →) scrolls the memo to its card and flashes the head or row once, nothing else moves (P-24)"
+      action={
+        <Button variant="secondary" size="sm" onClick={() => setFlash((n) => n + 1)}>
+          Show row
+        </Button>
+      }
+    >
+      <Group label="A memo on the canvas: one card per section (Atlas, rev 1 gate and rev 2)">
+        <Cell caption="Financials (breach marked where it sits, the evidence check as a foot line; press Show row to flash total leverage) · Covenant compliance (stackBelow 640) · Recommendation rev 2 (struck prior + token) · every set card ends in its footer line and Record" block>
+          <div className="kp-canvas">
+            {FIN ? <FinancialsCard s={FIN} prefix="kit-card" flashKey={flash === 0 ? undefined : flash} /> : null}
+            {COV_SECTION ? <CovenantsCard s={COV_SECTION} /> : null}
+            {REC_REV2 ? <RecommendationCard s={REC_REV2} /> : null}
+          </div>
+        </Cell>
+      </Group>
+      <Group label="Uploaded file: a low-confidence flag has no row, so it is one marked line at the foot of its card; the footer confidence reads in bad-ink under the 75% floor">
+        {RISK_UPLOAD ? (
+          <div className="kp-canvas">
+            <RiskCard s={RISK_UPLOAD} />
+          </div>
         ) : null}
       </Group>
+      <Group label="Skeleton and excluded cards (not started, plan review): the step list is shown here, on the right, never in the agent panel">
+        <Grid size="wide">
+          {SKELETON_REC ? (
+            <Cell caption="pending · head + phase line, no controls" block>
+              <div className="kp-canvas">
+                <PhaseCard s={SKELETON_REC} line={SKELETON_REC.phaseLine} />
+              </div>
+            </Cell>
+          ) : null}
+          {SKELETON_PEERS ? (
+            <Cell caption="excluded · off in the plan under review" block>
+              <div className="kp-canvas">
+                <PhaseCard s={SKELETON_PEERS} aside={EXCLUDED_ASIDE} line={COPY.excludedDraftLine} />
+              </div>
+            </Cell>
+          ) : null}
+        </Grid>
+      </Group>
+      <Group label="Narrow card (480px frame, uploaded file): padding drops to 16, the Financials tables stack by their own width, the footer line wraps before Record">
+        {finUpload ? (
+          <div className="kp-frame480">
+            <FinancialsCard s={finUpload} prefix="kit-narrow" />
+          </div>
+        ) : null}
+      </Group>
+    </Board>
+  );
+}
+
+// =============================================================================
+// Board 16c · Agent panel · command and control (P-22, P-27)
+// =============================================================================
+
+/** One panel line, verbatim: an optional status glyph, ONE line of text, an optional link to a memo card. */
+function PanelLine({ l }: { l: ThreadLine }) {
+  return (
+    <li className="kp-pline" data-kind={l.kind}>
+      <span className="kp-pline__glyph">{l.glyph ? <StatusGlyph state={l.glyph} srLabel={STATUS_WORD[l.glyph]} /> : null}</span>
+      <span className={l.kind === 'answer' ? 'kp-pline__text kp-pline__text--answer t-body' : 'kp-pline__text t-body'}>{l.text}</span>
+      {l.link ? (
+        <span className="kp-pline__link">
+          <LinkButton role="small" onClick={noop}>
+            {l.link.label}
+          </LinkButton>
+        </span>
+      ) : null}
+    </li>
+  );
+}
+
+/** The agent panel rendered verbatim from an AgentPanelView: head, lines, the plan prompt, the composer. */
+function PanelSpecimen({ v }: { v: AgentPanelView }) {
+  const p = v.plan;
+  return (
+    <div className="kp-panel">
+      <div className="kp-panel__head">
+        <p className="kp-panel__title t-label">{v.title}</p>
+        <IconButton icon={ChevronsLeft} label={COPY.hideAgentPanel} onClick={noop} />
+      </div>
+      <ol className="kp-panel__lines" aria-label={`${v.title} (specimen)`}>
+        {v.lines.map((l) => (
+          <PanelLine key={l.id} l={l} />
+        ))}
+      </ol>
+      {p ? (
+        <div className="kp-panel__plan">
+          <p className="t-body">{p.text}</p>
+          <div className="kp-row">
+            <Button variant="primary" kbd={p.start.kbd} disabled={p.start.disabled} onClick={noop}>
+              {p.start.label}
+            </Button>
+            {p.optional ? (
+              <Button variant="secondary" onClick={noop}>
+                {p.optional.label}
+              </Button>
+            ) : null}
+            <Button variant="ghost" onClick={noop}>
+              {p.cancelLabel}
+            </Button>
+          </div>
+          {p.countdown ? (
+            <p className="t-meta kp-ink3">
+              {p.countdown.text}
+              {p.countdown.holdLabel ? (
+                <>
+                  {' · '}
+                  <LinkButton role="meta" onClick={noop}>
+                    {p.countdown.holdLabel}
+                  </LinkButton>
+                </>
+              ) : null}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      <div className="kp-panel__composer">
+        <div className="kp-composer">
+          <TextArea size="composer" value="" onChange={noop} placeholder={v.composer.placeholder} ariaLabel={COPY.composerLabel} disabled={v.composer.disabled} />
+          <IconButton icon={ArrowUp} label={COPY.send} disabled onClick={noop} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const PANEL_CASES: { key: string; v: AgentPanelView; caption: string }[] = [
+  { key: 'not-started', v: FX_PANEL_NOT_STARTED, caption: 'not started · one ready line; the composer takes “draft the memo” (⌘↵ also starts)' },
+  { key: 'plan', v: FX_PANEL_PLAN_REVIEW, caption: 'plan review · the plan prompt above the composer: one line, one row of buttons, the countdown with Hold; the steps themselves are the skeleton cards in the memo' },
+  { key: 'running', v: FX_PANEL_RUNNING, caption: 'drafting · the running step carries the static drafting glyph (the memo caret stays the only loop)' },
+  { key: 'gate', v: FX_PANEL_ATLAS_GATE, caption: 'at the gate · ONE line, “Decision →” scrolls the memo to the Decision card; no token, no verbs, no note here' },
+  { key: 'rev2', v: FX_PANEL_ATLAS_REV2, caption: 'rev 2 after Q&A · a typed “countersign” is refused with a pointer to the Decision card; answers clip to 2 lines' },
+  { key: 'countdown', v: FX_PANEL_MERIDIAN_COUNTDOWN, caption: 'policy countdown · one line; the countdown itself fills the reviewer line on the Decision card' },
+  { key: 'sealed', v: FX_PANEL_SEALED, caption: 'countersigned · the decided line links to the record on the Decision card' },
+  { key: 'rejected', v: FX_PANEL_COBALT_REJECTED, caption: 'rejected after a send-back found no cure' },
+];
+
+function AgentPanelBoard() {
+  return (
+    <Board
+      id={B.panel.id}
+      name={B.panel.name}
+      spec="The middle pane is command and control only (P-27): head 44 = agent · file + the collapse chevron, nothing else · one-line status lines in t-body (ellipsis on overflow; answers clip to 2 lines), an optional 16px status glyph and an optional trailing link that scrolls the memo to its card · the plan prompt and the composer at the foot · it never displays data and holds no decision: every figure, record and the whole decision live in the memo (P-23)"
+    >
+      <div className="kp-panels">
+        {PANEL_CASES.map(({ key, v, caption }) => (
+          <Cell key={key} caption={caption} block>
+            <PanelSpecimen v={v} />
+          </Cell>
+        ))}
+      </div>
     </Board>
   );
 }
@@ -1616,7 +2104,7 @@ function KeyFigureBoard() {
   const warn = KEYFIGS.find((k) => k.tone === 'warn') ?? null;
   const bad = KEYFIGS.find((k) => k.tone === 'bad') ?? null;
   return (
-    <Board id={B.keyfig.id} name={B.keyfig.name} spec="KeyFigure: one button, no interactive descendants, min-height 76, label t-label --ink-3 (6px tone-mark dot), value t-figure-lg in tone ink, evidence plain t-small · KeyFigures: 1px --line frame and rules, wraps 3+2 below a 600px container">
+    <Board id={B.keyfig.id} name={B.keyfig.name} spec="KeyFigure: one button, no interactive descendants, min-height 76, label t-label --ink-3 (6px tone-mark dot), value t-heading (15/20/600) in tone ink, since the 18px role belongs to memo section titles, evidence plain t-small · KeyFigures: 1px --line frame and rules, wraps 3+2 below a 600px container">
       <Group label="KeyFigure">
         <Grid>
           {ink ? (
@@ -1703,18 +2191,190 @@ function SliderBoard() {
 }
 
 // =============================================================================
+// Board 18b · Decision card (memo): the ONE place to decide (P-23)
+// =============================================================================
+
+/**
+ * The memo's Decision card rendered verbatim from a SignatureView, in the owner-approved order:
+ * signed over, reviewer note, amendment summary, the call directly above the verbs, the verbs in
+ * one horizontal row (it may wrap; never a vertical list) with a consequence under each, the
+ * attestation and the policy line, then the signature lines, which become the sealed record.
+ */
+function DecisionSpecimen({ v, anchor }: { v: SignatureView; anchor: string }) {
+  const [note, setNote] = useState(v.note?.value ?? '');
+  const [checksOpen, setChecksOpen] = useState(false);
+  const sealed = v.sealed;
+  return (
+    <MemoCard section="signature" ariaLabel={v.heading}>
+      <SectionHead eyebrow={v.eyebrow} heading={v.heading} anchorId={anchor} />
+      {v.signedOver.length > 0 || !sealed ? (
+        <div className="kp-block">
+          <p className="kp-block__label t-label">{v.signedOverLabel}</p>
+          {v.signedOver.length > 0 ? (
+            <ul className="kp-signedover">
+              {v.signedOver.map((o) => (
+                <li key={o.noteId} className="kp-signedover__row">
+                  <StatusLabel state={o.state} role="small">
+                    {o.text}
+                  </StatusLabel>
+                  {o.cleared ? <span className="t-meta kp-ink3">{COPY.clearedByAmendment}</span> : null}
+                  <LinkButton role="label" onClick={noop}>
+                    {o.linkLabel}
+                  </LinkButton>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+      {v.note ? (
+        <div className="kp-block">
+          <div className="kp-row">
+            <p className="t-label kp-ink2">{v.note.label}</p>
+            <LinkButton role="label" disabled={v.note.draftDisabled} onClick={noop}>
+              {v.note.draftLabel}
+            </LinkButton>
+            {v.note.chip ? <Chip>{v.note.chip}</Chip> : null}
+          </div>
+          <TextArea value={note} onChange={setNote} placeholder={v.note.placeholder} ariaLabel={v.note.label} />
+        </div>
+      ) : null}
+      {v.amendment ? (
+        <div className="kp-row">
+          <span className="t-small">{v.amendment.text}</span>
+          <Token tone={v.amendment.token.tone}>{v.amendment.token.word}</Token>
+          <LinkButton role="small" onClick={noop}>
+            {v.amendment.revertLabel}
+          </LinkButton>
+          <LinkButton role="small" onClick={noop}>
+            {v.amendment.editLabel}
+          </LinkButton>
+        </div>
+      ) : null}
+      {v.call && v.verbs ? (
+        <div className="kp-decide">
+          <div className="kp-call">
+            <p className="kp-call__lead t-label kp-ink3">
+              <span>{v.call.lead}</span>
+              <Token tone={v.call.token.tone}>{v.call.token.word}</Token>
+            </p>
+            <p className="t-heading">{v.call.title}</p>
+            <p className="t-small kp-ink2">{v.call.why}</p>
+          </div>
+          <ul className="kp-verbs">
+            <li className="kp-verb">
+              <Button variant="primary" kbd={v.verbs.kbd.sign} disabled={v.verbs.disabled} onClick={noop}>
+                {v.verbs.primary}
+              </Button>
+              <span className="t-small kp-ink2">{v.verbs.notes.sign}</span>
+            </li>
+            <li className="kp-verb">
+              <Button variant="secondary" kbd={v.verbs.kbd.ret} disabled={v.verbs.disabled} onClick={noop}>
+                {v.verbs.returnLabel}
+              </Button>
+              <span className="t-small kp-ink2">{v.verbs.notes.ret}</span>
+            </li>
+            <li className="kp-verb">
+              <Button variant="danger" kbd={v.verbs.kbd.rej} disabled={v.verbs.disabled} onClick={noop}>
+                {v.verbs.rejectLabel}
+              </Button>
+              <span className="t-small kp-ink2">{v.verbs.notes.rej}</span>
+            </li>
+          </ul>
+          {v.attestation ? <p className="t-meta kp-ink3">{v.attestation}</p> : null}
+          <div className="kp-row">
+            <span className="t-meta kp-ink3">{v.policy.line}</span>
+          </div>
+          {v.policy.checks ? (
+            <Disclosure label={COPY.showChecks} open={checksOpen} onToggle={() => setChecksOpen((o) => !o)}>
+              <ul className="kp-checks">
+                {v.policy.checks.map((c) => (
+                  <li key={c.text}>
+                    <StatusLabel state={c.ok ? 'pass' : 'breach'} role="small">
+                      {c.text}
+                    </StatusLabel>
+                  </li>
+                ))}
+              </ul>
+            </Disclosure>
+          ) : null}
+        </div>
+      ) : null}
+      {v.record ? (
+        <StatusLabel state={v.record.state} role="strong">
+          {v.record.headline}
+        </StatusLabel>
+      ) : null}
+      <div className="kp-siglines">
+        <SignatureLine role="agent" state="pre-signed" text={v.agent.text} caption={v.agent.caption} />
+        <SignatureLine
+          role="reviewer"
+          state={v.reviewer.sigState}
+          ink={v.reviewer.ink}
+          text={v.reviewer.autoText ?? undefined}
+          rejectedWord={v.reviewer.rejectedWord ?? undefined}
+          fillMs={v.reviewer.fillMs}
+          caption={v.reviewer.caption}
+        />
+      </div>
+      {sealed ? (
+        <div className="kp-block">
+          {sealed.quote ? <p className="t-small kp-ink2">{sealed.quote}</p> : null}
+          {sealed.provenance ? <p className="t-meta kp-ink3">{sealed.provenance}</p> : null}
+          {sealed.routed ? (
+            <p className="t-small">
+              {`${sealed.routed} · `}
+              {sealed.routedLinkLabel ? (
+                <LinkButton role="small" onClick={noop}>
+                  {sealed.routedLinkLabel}
+                </LinkButton>
+              ) : null}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </MemoCard>
+  );
+}
+
+const DECISION_CASES: { key: string; v: SignatureView; caption: string }[] = [
+  { key: 'gate', v: FX_SIG_ATLAS_GATE, caption: 'Atlas rev 1 gate · the call (always the agent’s own token) directly above the verbs; one row of verbs, a consequence under each; attestation and policy line under the verbs' },
+  { key: 'amended', v: FX_SIG_ATLAS_AMENDED, caption: 'amended in place on the covenant row · the amendment summary with Revert and Edit in memo; the lead token still reads the agent’s ESCALATE' },
+  { key: 'rev2', v: FX_SIG_ATLAS_REV2, caption: 'rev 2 on the revised structure · policy on, not eligible (Show checks)' },
+  { key: 'cobalt', v: FX_SIG_COBALT_GATE, caption: 'Cobalt rev 1 · DECLINE, five notes to sign over' },
+  { key: 'sealed', v: FX_SIG_SEALED, caption: 'countersigned · the same card becomes the sealed record: no verbs, no note field; headline, ink, quote, provenance, routed line' },
+];
+
+function DecisionCardBoard() {
+  return (
+    <Board
+      id={B.decision.id}
+      name={B.decision.name}
+      spec="The Decision card is a MemoCard (data-section signature) right after step 5 Recommendation, before the stress test: the ONE place to decide (P-23). Order: Signed over (Show row) · reviewer note (Draft from notes + provenance chip; optional to countersign, required to return or reject) · amendment summary · the call (lead + Token + question + one-sentence reason) directly above the verbs · the verbs in one horizontal row that may wrap, never a vertical list, each with its one-line consequence · attestation and policy line · the signature lines, which become the sealed record. The agent panel only links here (Decision →)."
+    >
+      <div className="kp-canvas">
+        {DECISION_CASES.map(({ key, v, caption }) => (
+          <Cell key={key} caption={caption} block>
+            <DecisionSpecimen v={v} anchor={`kit-decision-${key}`} />
+          </Cell>
+        ))}
+      </div>
+    </Board>
+  );
+}
+
+// =============================================================================
 // Board 19 · SignatureLine
 // =============================================================================
 
 function SignatureBoard() {
   const [replay, setReplay] = useState(0);
-  const [signedNow, setSignedNow] = useState(false);
   const agent = FX_SIG_ATLAS_GATE.agent;
   return (
     <Board
       id={B.sig.id}
       name={B.sig.name}
-      spec="Pad 40 + rule · open reviewer line = 2px --accent (the only 2px teal stroke on app screens) · ink: fixed 200×40 svg, --ink 2px, v2-ink over --dur-3 · countdown fill v2-fill over AUTO_COUNTDOWN_MS · caption t-meta --ink-3, a sibling of the hit area (P-01, P-11, P-20)"
+      spec="The signature lines at the foot of the memo's Decision card (P-01): pad 40 + rule · open reviewer line = 2px --accent (the only 2px teal stroke on app screens), the record awaiting ink and never a control: the verbs directly above it sign (P-23) · ink: fixed 200×40 svg, --ink 2px, v2-ink over --dur-3 · countdown fill v2-fill over AUTO_COUNTDOWN_MS · caption t-meta --ink-3, a sibling of the line (P-11, P-20)"
       action={
         <Button variant="secondary" size="sm" icon={RotateCcw} onClick={() => setReplay((n) => n + 1)}>
           Replay
@@ -1727,22 +2387,12 @@ function SignatureBoard() {
             <SignatureLine role="agent" state="pre-signed" text={agent.text} caption={agent.caption} />
           </div>
         </Cell>
-        <Cell caption={signedNow ? 'reviewer · signed from the open line (ink animates on the transition)' : 'reviewer · open · click or Enter to sign the specimen'} block>
+        <Cell caption="reviewer · open · the record awaiting ink (no onActivate: clicking it does nothing)" block>
           <div className="kp-sig">
             <SignatureLine
               role="reviewer"
-              state={signedNow ? 'signed' : 'open'}
-              ink={signedNow ? 'animate' : 'none'}
-              caption={
-                signedNow ? (
-                  <LinkButton role="meta" onClick={() => setSignedNow(false)}>
-                    Reset the specimen
-                  </LinkButton>
-                ) : (
-                  FX_SIG_ATLAS_GATE.reviewer.caption
-                )
-              }
-              onActivate={() => setSignedNow(true)}
+              state="open"
+              caption={FX_SIG_ATLAS_GATE.reviewer.caption}
             />
           </div>
         </Cell>
@@ -1754,13 +2404,12 @@ function SignatureBoard() {
               state="countdown"
               fillMs={FX_SIG_MERIDIAN_COUNTDOWN.reviewer.fillMs}
               caption={FX_SIG_MERIDIAN_COUNTDOWN.reviewer.caption}
-              onActivate={noop}
             />
           </div>
         </Cell>
         <Cell caption="reviewer · held" block>
           <div className="kp-sig">
-            <SignatureLine role="reviewer" state="held" caption={HOLD_CAPTION.engaged} onActivate={noop} />
+            <SignatureLine role="reviewer" state="held" caption={HOLD_CAPTION.engaged} />
           </div>
         </Cell>
         <Cell caption="reviewer · signed · ink animates (press Replay)" block>
@@ -1809,13 +2458,19 @@ function SignatureBoard() {
 
 function CaretBoard() {
   return (
-    <Board id={B.caret.id} name={B.caret.name} spec="2×14 --accent, margin-left 4, v2-caret over --dur-caret, steps(1), infinite: the single loop in V2 (P-06) · Preview reduced motion stops it">
-      <Cell caption="the single live loop specimen on this page · drafting text from FX_FILE_RUNNING" block>
-        <p className="kp-draft t-body">
-          {DRAFTING?.text ?? COPY.pendingSection}
-          <Caret />
-        </p>
-        {DRAFTING?.callLine ? <p className="t-small kp-ink2">{DRAFTING.callLine}</p> : null}
+    <Board id={B.caret.id} name={B.caret.name} spec="2×14 --accent, margin-left 4, v2-caret over --dur-caret, steps(1), infinite: the single loop in V2 (P-06), at the end of the memo's drafting card line; no agent panel line animates · Preview reduced motion stops it">
+      <Cell caption="the single live loop specimen on this page · the drafting card from FX_FILE_RUNNING (t-small --ink-2 line, caret at its end)" block>
+        {DRAFTING_SECTION ? (
+          <div className="kp-canvas">
+            <MemoCard section={DRAFTING_SECTION.id} ariaLabel={DRAFTING_SECTION.heading}>
+              <HeadSpecimen s={DRAFTING_SECTION} anchorId={`kit-caret-${DRAFTING_SECTION.anchorId}`} />
+              <p className="kp-draft t-small kp-ink2">
+                {DRAFTING_SECTION.drafting?.line ?? COPY.draftingLine}
+                {DRAFTING_SECTION.drafting?.caret ? <Caret /> : null}
+              </p>
+            </MemoCard>
+          </div>
+        ) : null}
       </Cell>
     </Board>
   );
@@ -1938,7 +2593,7 @@ function RejectedBoard() {
         <h2 id="rejected-h" className="t-heading">
           {B.rejected.name}
         </h2>
-        <p className="t-small kp-ink2">Owner decisions carried over from V1. V2 does not resurrect them.</p>
+        <p className="t-small kp-ink2">Owner decisions from V1 and from the V2 build. V2 does not resurrect them.</p>
       </div>
       <ul className="kp-rejected">
         {REJECTED_BEFORE.map((r) => (
@@ -2032,8 +2687,11 @@ export default function KitPage() {
             <TableBoard />
             <NotesBoard />
             <SectionHeadBoard />
+            <MemoCardBoard />
+            <AgentPanelBoard />
             <KeyFigureBoard />
             <SliderBoard />
+            <DecisionCardBoard />
             <SignatureBoard />
             <CaretBoard />
             <EmptyDropLiveBoard />

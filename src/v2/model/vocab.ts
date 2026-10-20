@@ -5,8 +5,8 @@
 // ---------------------------------------------------------------------------
 
 import type { NoteProvenance, Recommendation, ToolName } from '../../agent/types';
-import type { HoldReason } from '../state/store';
-import type { Actor, SectionId, StatusKey, TokenView, Verb } from './types';
+import type { HoldReason } from '../state/contracts';
+import type { Actor, FileAt, SectionId, StatusKey, TokenView, Verb } from './types';
 
 // ---- policy and timing constants (policy, not motion)
 
@@ -186,32 +186,56 @@ export function sectionHeading(id: SectionId): string {
   }
 }
 
-/** '' for Recommendation, '1'–'4' for §1–§4, 'R2' for revision 2. */
-export function sectionOrdinal(id: SectionId): string {
-  switch (id) {
-    case 'recommendation':
-      return '5';
+/**
+ * The agent panel's step lines (THREE-PANE R2.1): one line per plan step, updated in place.
+ * Running "Testing covenants" (a static working glyph; no ellipsis, no animation), done
+ * "Covenants tested", stopped when the run errored mid-step. The Structuring Engine's done line
+ * is chosen from REWORK_DONE_LINE by the model, keyed on its result (asCure), never its title.
+ */
+export const STEP_LINE: Record<ToolName, { running: string; done: string; stopped: string }> = {
+  extract_financials: { running: 'Extracting financials', done: 'Financials extracted', stopped: 'Stopped while extracting financials' },
+  compute_risk_score: { running: 'Scoring risk', done: 'Risk scored', stopped: 'Stopped while scoring risk' },
+  benchmark_peers: { running: 'Benchmarking peers', done: 'Peers benchmarked', stopped: 'Stopped while benchmarking peers' },
+  check_covenants: { running: 'Testing covenants', done: 'Covenants tested', stopped: 'Stopped while testing covenants' },
+  assemble_approval_package: { running: 'Writing the recommendation', done: 'Recommendation written', stopped: 'Stopped while writing the recommendation' },
+  propose_restructure: { running: 'Searching for a revised structure', done: 'Revision drafted', stopped: 'Stopped while searching for a revised structure' },
+};
+
+/** The Structuring Engine's done line by its result: a viable cure, an exhausted search, or nothing to cure. */
+export const REWORK_DONE_LINE = {
+  proposed: (amount: string): string => `Proposed a ${amount} sponsor equity cure`,
+  none: 'No restructure within policy',
+  stands: 'No restructure needed',
+} as const;
+
+/** The link label of a panel line, by the memo card it scrolls to ("Covenants →", "Decision →"). */
+export function sectionLinkLabel(at: FileAt): string {
+  switch (at) {
     case 'financials':
-      return '1';
+      return 'Financials →';
     case 'risk':
-      return '2';
+      return 'Risk →';
     case 'peers':
-      return '3';
+      return 'Peers →';
     case 'covenants':
-      return '4';
+      return 'Covenants →';
+    case 'recommendation':
+      return 'Recommendation →';
+    case 'exhibits':
+      return 'Exhibits →';
+    case 'stress':
+      return 'Stress test →';
+    case 'signature':
+      return 'Decision →';
+    case 'monitoring':
+      return 'Appendix →';
     default:
-      return `R${id.slice('revision-'.length)}`;
+      return `Revision ${at.slice('revision-'.length)} →`;
   }
 }
 
-/** Contents describe lines (§10). */
-export const STEP_DESCRIBE: Record<string, string> = {
-  step_extract: 'Pulls revenue, EBITDA, debt, coverage and liquidity from the CIM.',
-  step_risk: 'Scores the credit and maps it to a rating.',
-  step_peers: 'Places the credit against simulated sector comparables.',
-  step_covenants: 'Tests each proposed covenant against the extracted figures.',
-  step_package: 'Writes the recommendation last, after every covenant is tested.',
-};
+/** The short word for an optional step in the plan prompt's toggle ("Skip peers"). */
+export const OPTIONAL_SHORT: Record<string, string> = { step_peers: 'peers' };
 
 // ---- hold captions (§8)
 
@@ -258,7 +282,6 @@ export const COPY = {
   reviewAndCountersign: 'Review and countersign',
   reRun: 'Re-run',
   openRecord: 'Open record',
-  lastRunCancelled: 'Last run cancelled · reset before a decision',
   groupLabel: {
     awaiting: 'Awaiting your countersignature',
     'plan-review': 'Plan review',
@@ -280,24 +303,18 @@ export const COPY = {
   preparedBy: 'Prepared by Credit Analyst (agent)',
   notDraftedYet: 'not drafted yet',
   cimReady: 'CIM ready',
-  contents: 'Contents',
   required: 'required',
-  optionalTag: 'optional · simulated comparables',
   startDrafting: 'Start drafting',
   cancel: 'Cancel',
   hold: 'Hold',
   heldStartWhenReady: 'Held · start when ready',
-  unattendedNote: "An unattended start is recorded as 'Plan auto-started', never as your approval.",
-  contentsEmptyMargin: 'Notes, evidence checks and the run log appear here as the memo is drafted.',
   pendingRecommendation: 'Written last, after every covenant is tested.',
   pendingSection: 'Not drafted yet.',
   excludedLine: 'Excluded at plan review by the reviewer.',
   stopped: 'Stopped',
-  showAllReasoning: 'Show all reasoning',
   askPlaceholder: 'Ask about this file',
   askDisabledNotStarted: 'Draft the memo first. Questions answer about the file being drafted.',
   askDisabledRunning: 'Questions open when the memo is assembled.',
-  askDisabledSnapshot: 'Questions answer about the live file only. Re-run this file to ask about it.',
   askMetaEngine: 'rule-based responder · simulated',
   askMetaLocal: 'Countersign',
   evidenceCheck: 'Evidence check',
@@ -312,13 +329,12 @@ export const COPY = {
   riskTickCaption: 'Decline line · 75 (with a breach)',
   unchanged: 'unchanged',
   showRow: 'Show row',
-  trace: 'Trace',
   amendTerm: 'Amend term',
   record: 'Record',
   reasoning: 'Reasoning',
   argsLabel: 'args →',
   resultLabel: '← result',
-  goToSignature: 'Go to signature',
+  goToDecision: 'Go to decision',
   goToDrafting: 'Go to drafting',
   reviewManually: 'Review manually',
   stop: 'Stop',
@@ -336,8 +352,101 @@ export const COPY = {
   sourceToggle: 'Source CIM',
   hideSource: 'Hide source',
   simulatedExtraction: 'simulated extraction',
-  appendixHeading: 'Appendix · Portfolio Monitor readings',
   firstSweepPending: 'First sweep pending.',
+
+  // three-pane case file (THREE-PANE §5, R2)
+  agentName: 'Credit Analyst',
+  agentPanel: 'Agent panel',
+  hideAgentPanel: 'Hide agent panel (])',
+  closeAgentPanel: 'Close agent panel (])',
+  showInMemo: 'Show in memo',
+  editInMemo: 'Edit in memo',
+  signReady: 'Countersign is focused. Press A again to sign.',
+  composerLabel: 'Message the Credit Analyst',
+  send: 'Send',
+  returningForRevision: 'Returning for revision',
+  recordEyebrow: 'Countersignature record',
+  figureGroupSize: 'Earnings and debt',
+  figureGroupTested: 'Tested by covenants',
+  riskScoreBlock: 'Score',
+  riskDriversBlock: 'Drivers',
+  peersBlock: 'Against simulated comparables',
+  testsFiled: 'Tests on the filed figures',
+  testsAmended: 'Tests as amended',
+  reviewerNoteBlock: 'Reviewer note',
+  proposalBlock: 'Proposed revision',
+  outcomeBlock: 'Outcome',
+  summaryBlock: 'Summary',
+  keyFiguresBlock: 'Key figures',
+  excludedDraftLine: 'Optional · will be skipped',
+  draftingLine: 'Writing this section…',
+  draftingRevision: (n: number): string => `Writing revision ${n}…`,
+  exhibitsEyebrow: 'Attached by the reviewer',
+  appendixEyebrow: 'Appendix · simulated drift',
+  appendixTitle: 'Portfolio Monitor readings',
+  planReviewInPanel: 'Plan review · review the plan in the agent panel',
+  amendedBasis: 'Tested against the covenants as filed; amended terms are tested in Covenant compliance.',
+  peersBasis: 'Comparables are simulated.',
+  // the agent panel (THREE-PANE R2.1): command and control only, one line each
+  composerPlaceholder: 'Ask or instruct',
+  decision: 'Decision',
+  decisionEyebrow: 'Your countersignature',
+  gateLine: 'Your countersignature is needed',
+  recordLink: 'Record →',
+  runCancelled: 'Run cancelled',
+  runLine: (name: string): string => `Drafting the memo for ${name}.`,
+  runLineAuto: (name: string): string => `Plan auto-started. Drafting the memo for ${name}.`,
+  readyLine: (name: string): string => `Ready to draft ${name}.`,
+  autoCountdownLine: (t: string): string => `Auto-countersigning in ${t}`,
+  autoHeldLine: (reason: string): string => `Auto-countersign held · ${reason}`,
+  returnedLine: (n: number): string => `Returned for revision · rev ${n}`,
+  stoppedAtLine: (heading: string): string => `Drafting stopped at ${heading}`,
+  skippedLine: (heading: string): string => `${heading} skipped`,
+  youLine: (text: string): string => `You · ${text}`,
+  planPrompt: (included: number, total: number, optional: string[], allIn: boolean): string => {
+    const steps = included === total ? `I'll draft ${total} steps.` : `I'll draft ${included} of ${total} steps.`;
+    if (optional.length === 0) return steps;
+    const names = optional.length === 1 ? optional[0] : `${optional.slice(0, -1).join(', ')} and ${optional[optional.length - 1]}`;
+    const verb = optional.length === 1 ? 'is' : 'are';
+    return `${steps} ${names} ${verb} ${allIn ? 'optional' : 'skipped'}.`;
+  },
+  skipOptional: (short: string): string => `Skip ${short}`,
+  includeOptional: (short: string): string => `Include ${short}`,
+  startsIn: (t: string): string => `Starts in ${t}`,
+
+  // composer replies (THREE-PANE §4.3); parameterised lines are functions
+  reply: {
+    startStrip: (liveName: string, target: string): string =>
+      `${liveName} is live. Confirm in the bar above the memo to start ${target}, or keep ${liveName}.`,
+    startStripGeneric: 'Another file is live. Confirm in the bar above the memo to start this one, or keep the live run.',
+    toggledInStart: (heading: string, include: boolean): string =>
+      `${heading} is ${include ? 'in' : 'off in'} the plan. The countdown is held: choose Start drafting when ready.`,
+    toggledOff: (heading: string): string => `${heading} is off. Drafting skips it and the memo marks it excluded.`,
+    toggledOn: (heading: string): string => `${heading} is back in the plan.`,
+    toggledAlready: (heading: string, include: boolean): string => `${heading} is already ${include ? 'in' : 'off in'} the plan.`,
+    countdownHeld: ' The auto-start countdown is held.',
+    holdPlan: 'Held. Drafting starts when you choose Start drafting.',
+    holdPolicy: 'Auto-countersign held. The memo waits for your decision.',
+    stop: 'Stopping discards this run. Confirm in the bar above the memo.',
+    openStress: 'The stress test is open in the memo. Nothing there is on the record until you attach it.',
+    decisionGate: 'Decide in the memo:',
+    decisionIdle: 'Nothing awaits your decision yet. The Decision card opens in the memo when the agent stops for your countersignature.',
+    amendGate: 'Amend terms on the covenant row; they take effect only with your countersignature.',
+    amendIdle: 'Terms can be amended only at the countersignature, on a memo built on the filed figures.',
+    noteGate: 'Your note goes on the Decision card:',
+    noteIdle: 'Notes are written at the countersignature, on the Decision card in the memo.',
+    requiredStep: (heading: string, optional: string): string =>
+      `${heading} is required and cannot be skipped. ${optional ? `Only ${optional} is optional.` : 'No step is optional.'}`,
+    ambiguous: (step: string): string => `Say “skip ${step}” or “include ${step}”.`,
+    noPlan: 'No plan is open yet. Type “draft the memo” to open one; optional steps are chosen there.',
+    planFixed: 'The plan is fixed once drafting starts. Optional steps are chosen at plan review.',
+    alreadyDrafting: (name: string): string => `${name} is already drafting. Type “stop” to discard the run.`,
+    alreadyAtGate: (name: string): string => `${name} is awaiting your countersignature. Decide in the memo, or type “stop” to discard the run.`,
+    nothingToHold: 'Nothing is counting down.',
+    nothingRunning: 'Nothing is running on this file.',
+    noStress: 'The stress test opens once the memo is assembled.',
+    unknown: 'Try “draft the memo”, “skip peer benchmarks”, “hold” or “stop”. Questions open once the memo is assembled.',
+  },
 
   // decision
   countersignature: 'Countersignature',
@@ -352,7 +461,6 @@ export const COPY = {
   needNoteRework: 'A reason is required to return for revision. It goes on the record.',
   revert: 'Revert',
   clearedByAmendment: 'cleared by amendment',
-  showNote: 'Show note',
   awaitingFirstReading: 'Not swept yet',
   routedLine: 'Routed to the Book for senior credit review',
   openInBook: 'Open in Book',

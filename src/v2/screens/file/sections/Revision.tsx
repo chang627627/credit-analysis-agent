@@ -1,8 +1,11 @@
 // ---------------------------------------------------------------------------
-// Case file · Revision N (spec §7.2 "Section bodies", §1 pillar 4). The
-// revision stays inside the document: the returned note quoted and attributed,
-// then either the Structuring Engine's proposal as a rev 1 → rev N redline or
-// the honest no-cure line (the recommendation stands).
+// Case file · Revision N (THREE-PANE.md §5.4). The revision stays inside the
+// document as its own card, between step 4 and step 5: "Reviewer note" (the
+// returned note quoted and attributed), then "Proposed revision" (the
+// Structuring Engine's summary and its rev 1 → rev N redline) or "Outcome"
+// (the honest no-cure line, or "no restructure is needed"). The card's
+// takeaway states the revision's own outcome. The redline stacks under 480px
+// of its own width; its cells are the one emphasis.
 // ---------------------------------------------------------------------------
 
 import { Redline, StatusLabel, Table } from '../../../kit';
@@ -32,26 +35,33 @@ export function Revision(props: { body: RevisionBody; heading: string; ctx: File
     },
   }));
 
+  const outcome = b.viable ? (
+    <>
+      {b.summary ? <p className="file-rev__summary t-body">{b.summary}</p> : null}
+      {rows.length > 0 ? <Table columns={columns} rows={rows} caption={heading} stackBelow={480} /> : null}
+    </>
+  ) : b.noCure ? (
+    <StatusLabel state="watch" role="small">
+      {b.noCure}
+    </StatusLabel>
+  ) : null;
+
   return (
     <>
       {b.returned ? (
-        <div className="file-rev__returned">
-          <p className="file-rev__quote t-small">{b.returned.quote}</p>
-          <p className="file-rev__attr t-meta">{b.returned.attribution}</p>
+        <div className="file-block">
+          <p className="file-block__label t-label">{b.noteLabel}</p>
+          <div className="file-rev__returned">
+            <p className="file-rev__quote t-small">{b.returned.quote}</p>
+            <p className="file-rev__attr t-meta">{b.returned.attribution}</p>
+          </div>
         </div>
       ) : null}
-      {b.viable ? (
-        <>
-          {b.summary ? <p className="t-body">{b.summary}</p> : null}
-          {rows.length > 0 ? (
-            <Table columns={columns} rows={rows} caption={heading} stackBelow={ctx.stackTables ? 760 : undefined} />
-          ) : null}
-        </>
-      ) : null}
-      {!b.viable && b.noCure ? (
-        <StatusLabel state="watch" role="small">
-          {b.noCure}
-        </StatusLabel>
+      {outcome ? (
+        <div className="file-block">
+          <p className="file-block__label t-label">{b.proposalLabel}</p>
+          {outcome}
+        </div>
       ) : null}
     </>
   );

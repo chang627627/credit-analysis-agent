@@ -1,13 +1,17 @@
 // ---------------------------------------------------------------------------
 // Countersign V2 · case file selectors (spec §7.2, §9.4 "File resolution",
-// "Data sources for sections", "Key figures", "Notes", "Ask").
+// "Data sources for sections", "Key figures", "Notes"; THREE-PANE.md §5, R2.2).
 //
 // `fileContext` resolves which run a file shows (live, sealed snapshot, or the
 // bare deal) exactly once; every other derivation (sections, notes, the doc
 // bar, the header, the source) reads that context. The Desk, the decision
 // blocks and the exports reuse the same context, so a file reads the same on
 // every screen. Step results are narrowed with type guards and fall back to the
-// deal's own fields; nothing here throws on an unexpected shape.
+// deal's own fields; nothing here throws on an unexpected shape. The memo is
+// one paper card per section (eyebrow, title, a facts-only takeaway, labelled
+// blocks, one quiet record footer); flags are marked where they sit (the row,
+// or one line at the foot of the card). The agent panel only points here
+// (select-thread.ts), and the decision is the memo's Decision card.
 // ---------------------------------------------------------------------------
 
 import type { CovenantTest, Deal, ExtractedFinancials, RiskScore } from '../../agent/mockData';
@@ -16,23 +20,35 @@ import { getPlan } from '../../agent/runAgent';
 import type { Amendment, ApprovalPackage, Flag, NoteProvenance, PlanStep, Recommendation } from '../../agent/types';
 import { amendedOutcome, baselineScenario, decide, findCure } from '../../agent/whatif';
 import type { AuditHistoryEntry, RunDecision, RunRecord, StepView } from '../../hooks/useCreditAgent';
-import type { CaseFileSnapshot, PresentedAtSign, V2Store } from '../state/store';
+import type { CaseFileSnapshot, PresentedAtSign, V2Store } from '../state/contracts';
 import {
   cushionOf,
   distanceOf,
   evidenceFor,
   evidenceText,
   FIGURES,
+  financialValue,
   fmtFigure,
   modelEvidence,
   paragraphsOf,
-  paraLabel,
   parseThreshold,
   quotedSpans,
   segmentsOf,
 } from './evidence';
 import type { QuotedSpan } from './evidence';
-import { amendmentsFor, anchorFor, classifyFlag, covenantKind, isCounted, overridesFromAmendments, sectionOfStep } from './flags';
+import {
+  amendmentsFor,
+  anchorFor,
+  classifyFlag,
+  covenantForFigure,
+  covenantKind,
+  flagClause,
+  isCounted,
+  isRowAnchor,
+  memoTargetOfAnchor,
+  overridesFromAmendments,
+  sectionOfStep,
+} from './flags';
 import { nearestFlip, scenarioKey } from './flip';
 import type { FlipOrigin } from './flip';
 import {
@@ -52,6 +68,7 @@ import {
 } from './format';
 import { startConfirmCopy, stopConfirmCopy } from './select-commands';
 import {
+  chatShown,
   dealOf,
   entriesOf,
   isRunLive,
@@ -64,9 +81,7 @@ import {
 } from './select-top';
 import type {
   AppendixView,
-  AskView,
   ConfirmView,
-  ContentsView,
   CovenantRow,
   CushionView,
   DeskRow,
@@ -81,11 +96,15 @@ import type {
   HeaderView,
   KeyFigureView,
   MeaningTone,
+  MemoTarget,
   NoteView,
   PeersBody,
   RecommendationBody,
   RevisionBody,
   RiskBody,
+  SectionAside,
+  SectionFlagLine,
+  SectionFooter,
   SectionId,
   SectionPhase,
   SectionView,
@@ -93,17 +112,23 @@ import type {
   StatusKey,
   StatusText,
   StubView,
+  TakeawayView,
 } from './types';
+import {
+  covenantsTakeaway,
+  financialsTakeaway,
+  peersTakeaway,
+  recommendationTakeaway,
+  revisionTakeaway,
+  riskTakeaway,
+} from './takeaways';
 import {
   COPY,
   driverTone,
   noCureText,
-  PLAN_COUNTDOWN_S,
   provenanceText,
   sectionHeading,
-  sectionOrdinal,
   STATUS_WORD,
-  STEP_DESCRIBE,
   STEP_SECTION,
   tokenOf,
   tokenWord,
@@ -125,7 +150,7 @@ function isStr(v: unknown): v is string {
   return typeof v === 'string';
 }
 
-function asFinancials(v: unknown, deal: Deal): ExtractedFinancials {
+export function asFinancials(v: unknown, deal: Deal): ExtractedFinancials {
   if (!isObj(v)) return deal.financials;
   const keys: (keyof ExtractedFinancials)[] = [
     'revenueTtm',
@@ -140,7 +165,7 @@ function asFinancials(v: unknown, deal: Deal): ExtractedFinancials {
   return keys.every((k) => isNum(v[k])) ? (v as unknown as ExtractedFinancials) : deal.financials;
 }
 
-function asRisk(v: unknown, deal: Deal): RiskScore {
+export function asRisk(v: unknown, deal: Deal): RiskScore {
   if (!isObj(v) || !isNum(v.score) || !isStr(v.rating) || !Array.isArray(v.drivers)) return deal.risk;
   const drivers = v.drivers.filter((d): d is { factor: string; impact: string } => isObj(d) && isStr(d.factor) && isStr(d.impact));
   return { score: v.score, scale: isStr(v.scale) ? v.scale : deal.risk.scale, rating: v.rating, drivers };
@@ -255,7 +280,7 @@ export function reworkTag(title: string): string {
 }
 
 /** First letter lower-cased (verb words inside a sentence). */
-function lowerFirst(t: string): string {
+export function lowerFirst(t: string): string {
   return t.length > 0 ? t[0].toLowerCase() + t.slice(1) : t;
 }
 
@@ -286,13 +311,6 @@ function cushionTone(c: CushionView): 'ink' | 'warn' | 'bad' {
 function toolLabelOf(step: StepView | undefined, plan: PlanStep | undefined): string {
   if (step?.call?.label) return step.call.label;
   return plan ? TOOL_LABEL[plan.toolName] : 'Credit Analyst';
-}
-
-/** The covenant a figure is tested against (leverage, interest, fixed, liquidity), if any. */
-function covenantForFigure(deal: Deal, fig: FigureId): CovenantTest | undefined {
-  const kind = fig === 'leverage' ? 'leverage' : fig === 'interest' ? 'interest' : fig === 'fixed' ? 'fixed' : fig === 'liquidity' ? 'liquidity' : null;
-  if (!kind) return undefined;
-  return deal.covenants.find((c) => covenantKind(c.name) === kind);
 }
 
 /** Key-metric label → figure id. */
@@ -578,7 +596,7 @@ export function fileContext(s: V2Store, dealId: string): FileCtx | null {
 }
 
 /** The live gate on this file, at a package built on the filed figures (amendable). */
-function amendable(ctx: FileCtx): boolean {
+export function amendable(ctx: FileCtx): boolean {
   return ctx.live && ctx.mode === 'gate' && !!ctx.pkg && !ctx.pkg.restructure && !verbsDead(ctx.s);
 }
 
@@ -616,7 +634,7 @@ export function cureOf(ctx: FileCtx, n: number): CureData | null {
 
 interface DraftPoint { heading: string; index: number; total: number; rework: number | null; tag: string | null }
 
-function draftPoint(ctx: FileCtx): DraftPoint {
+export function draftPoint(ctx: FileCtx): DraftPoint {
   const runnable = ctx.plan.filter((p) => !p.skipped && reworkN(p.id) === null);
   const total = runnable.length;
   let cur: StepView | undefined;
@@ -656,7 +674,7 @@ export interface StageView {
   action: DeskRow['action'];
 }
 
-function decidedState(decision: RunDecision): StatusKey {
+export function decidedState(decision: RunDecision): StatusKey {
   return decision === 'auto-countersigned' ? 'signed-auto' : decision === 'rejected' ? 'rejected' : decision === 'cancelled' ? 'cancelled' : 'signed';
 }
 
@@ -744,20 +762,17 @@ export function stageOf(ctx: FileCtx): StageView {
 }
 
 // =============================================================================
-// Notes (margin) and the evidence check
+// Notes (flags as the memo marks them, the Signed over list, J/K)
 // =============================================================================
 
-interface FlagRef { flag: Flag; kind: FlagKind; step: StepView; anchorId: string; sectionId: SectionId }
+interface FlagRef { flag: Flag; kind: FlagKind; step: StepView; anchorId: string }
 
-/** Every flag on the page in emission order, with its anchor and the section whose margin holds it. */
-function flagRefs(ctx: FileCtx, sectionIds: SectionId[]): FlagRef[] {
+/** Every flag of the run in emission order (steps in creation order, flags in order within each). */
+function flagRefs(ctx: FileCtx): FlagRef[] {
   const out: FlagRef[] = [];
   for (const step of ctx.steps) {
     for (const flag of step.flags) {
-      const anchorId = anchorFor(flag, step.id, ctx.deal);
-      let sectionId: SectionId = anchorId.startsWith('cov:') ? 'covenants' : (anchorId.slice(4) as SectionId);
-      if (!sectionIds.includes(sectionId)) sectionId = sectionOfStep(step.id);
-      out.push({ flag, kind: classifyFlag(flag), step, anchorId, sectionId });
+      out.push({ flag, kind: classifyFlag(flag), step, anchorId: anchorFor(flag, step.id, ctx.deal) });
     }
   }
   return out;
@@ -827,9 +842,13 @@ function noteTone(kind: FlagKind): { tone: NoteView['tone']; status: StatusKey }
   }
 }
 
+/** One flag note with the step that emitted it and when (the panel's flag line and the card's foot lines read it). */
+export interface FlagNote { note: NoteView; kind: FlagKind; stepId: string; t: number | null }
+
 export interface NotesBuild {
-  bySection: Map<SectionId, NoteView[]>;
-  /** counted notes in page order (signed-over after an approval) */
+  /** every flag note in emission order, send-backs included (the revision card states those) */
+  notes: FlagNote[];
+  /** counted, non-superseded notes in emission order (J/K and the Signed over list walk them) */
   toReview: NoteView[];
 }
 
@@ -848,15 +867,35 @@ function pageSectionIds(ctx: FileCtx): SectionId[] {
   return out;
 }
 
+/** The note actions for an anchor: "Show row" on a row, "Show in memo" on a section, then "Amend term". */
+function noteActions(anchorId: string, amend: boolean): NoteView['actions'] {
+  const out: NoteView['actions'] = [isRowAnchor(anchorId) ? { kind: 'show', label: COPY.showRow } : { kind: 'memo', label: COPY.showInMemo }];
+  if (amend) out.push({ kind: 'amend', label: COPY.amendTerm });
+  return out;
+}
+
+/** Flag kinds a revision card already states in its own body (the send-back quote, the proposal, the no-cure line). */
+const REVISION_STATED: FlagKind[] = ['send-back', 'restructure', 'no-cure'];
+
+/**
+ * Where J / K, Signed over and the panel land for a flag: its row, or, for a row-less flag that the
+ * card marks as one line at its foot (flagLinesOf), that line ('flag:<flagId>'), so the cue flashes
+ * the flag itself rather than the card head. Revision-stated flags have no line: their card's head.
+ */
+function noteTarget(anchorId: string, flagId: string, kind: FlagKind): MemoTarget {
+  const t = memoTargetOfAnchor(anchorId);
+  if (isRowAnchor(anchorId) || t.section === 'header' || REVISION_STATED.includes(kind)) return t;
+  return { section: t.section, anchorId: `flag:${flagId}` };
+}
+
 export function buildNotes(ctx: FileCtx): NotesBuild {
   const s = ctx.s;
-  const ids = pageSectionIds(ctx);
-  const refs = flagRefs(ctx, ids);
+  const refs = flagRefs(ctx);
   const timeOf = flagTimer(ctx.entries);
   const canAmend = amendable(ctx);
   const sealedApprove = ctx.mode === 'sealed' && ctx.seal?.outcome === 'approve';
   const opened = ctx.live ? s.gate.opened : [];
-  const bySection = new Map<SectionId, NoteView[]>();
+  const notes: FlagNote[] = [];
 
   for (const ref of refs) {
     const t = timeOf(ref.flag.message);
@@ -878,10 +917,6 @@ export function buildNotes(ctx: FileCtx): NotesBuild {
     const covKind = covName ? covenantKind(covName) : 'other';
     const amendKind: NoteView['amendKind'] =
       canAmend && counted && (covKind === 'leverage' || covKind === 'liquidity') ? covKind : null;
-    const actions: NoteView['actions'] = [];
-    if (covName) actions.push({ kind: 'show', label: COPY.showRow });
-    actions.push({ kind: 'trace', label: COPY.trace });
-    if (amendKind) actions.push({ kind: 'amend', label: COPY.amendTerm });
 
     let { tone, status } = noteTone(ref.kind);
     if (sup !== null) {
@@ -892,90 +927,62 @@ export function buildNotes(ctx: FileCtx): NotesBuild {
       status = 'signed-over';
     }
 
-    const note: NoteView = {
-      id: `note:${ref.flag.id}`,
-      flagId: ref.flag.id,
+    notes.push({
       kind: ref.kind,
-      tone,
-      status,
-      heading: noteHeading(ref),
-      text: ref.flag.message,
-      meta,
-      anchorId: ref.anchorId,
-      counted,
-      opened: opened.includes(ref.flag.id),
-      actions,
-      traceStepId: ref.step.id,
-      amendKind,
-    };
-    const list = bySection.get(ref.sectionId);
-    if (list) list.push(note);
-    else bySection.set(ref.sectionId, [note]);
+      stepId: ref.step.id,
+      t,
+      note: {
+        id: `note:${ref.flag.id}`,
+        flagId: ref.flag.id,
+        kind: ref.kind,
+        tone,
+        status,
+        heading: noteHeading(ref),
+        text: ref.flag.message,
+        meta,
+        anchorId: ref.anchorId,
+        counted,
+        opened: opened.includes(ref.flag.id),
+        target: noteTarget(ref.anchorId, ref.flag.id, ref.kind),
+        actions: noteActions(ref.anchorId, amendKind !== null),
+        amendKind,
+      },
+    });
   }
 
-  const toReview: NoteView[] = [];
-  for (const id of ids) for (const n of bySection.get(id) ?? []) if (n.counted) toReview.push(n);
-  return { bySection, toReview };
-}
-
-function evidenceCheckNote(ctx: FileCtx, rows: FigureRow[]): NoteView {
-  const unquoted = rows.filter((r) => r.evidence.cls === 'unquoted');
-  const names = unquoted.map((r) => lowerFirst(r.label));
-  let text =
-    unquoted.length === 0
-      ? `All ${rows.length} figures are quoted in the CIM or derived from quoted figures.`
-      : `${unquoted.length} of ${rows.length} figures are not quoted in the CIM: ${listJoin(names)}. They come from the extraction model; verify against the source.`;
-  const extract = ctx.steps.find((st) => st.id === 'step_extract');
-  if (ctx.deal.uploaded && extract?.result) {
-    text += ` Extraction ran at ${fmtConf(extract.result.confidence)} confidence on an unseen document.`;
-  }
-  return {
-    id: 'note:evidence-check',
-    flagId: null,
-    kind: 'evidence-check',
-    tone: 'info',
-    status: 'info',
-    heading: COPY.evidenceCheck,
-    text,
-    meta: COPY.evidenceCheckMeta,
-    anchorId: 'sec:financials',
-    counted: false,
-    opened: false,
-    actions: [{ kind: 'trace', label: COPY.trace }],
-    traceStepId: 'step_extract',
-    amendKind: null,
-  };
+  return { notes, toReview: notes.filter((n) => n.note.counted).map((n) => n.note) };
 }
 
 // =============================================================================
 // Section bodies
 // =============================================================================
 
-function figureRows(ctx: FileCtx, data: unknown): FigureRow[] {
+/** The four figures the covenant package tests (the "Tested by covenants" block). */
+const TESTED_FIGURES: FigureId[] = ['leverage', 'interest', 'fixed', 'liquidity'];
+
+/**
+ * The eight memo figures. A tested figure that breaches its FILED covenant carries the one
+ * emphasis of the Financials card (breach mark + bad-ink value); thin headroom is not marked
+ * here, the takeaway names it. Amendments never move these marks (they are tested in §4).
+ */
+export function figureRows(ctx: FileCtx, data: unknown): FigureRow[] {
   const f = asFinancials(data, ctx.deal);
-  const value = (id: FigureId): number => {
-    switch (id) {
-      case 'revenue':
-        return f.revenueTtm;
-      case 'ebitda':
-        return f.ebitdaTtm;
-      case 'margin':
-        return f.ebitdaMarginPct;
-      case 'debt':
-        return f.totalDebt;
-      case 'leverage':
-        return f.leverageX;
-      case 'interest':
-        return f.interestCoverageX;
-      case 'fixed':
-        return f.fixedChargeCoverageX;
-      case 'liquidity':
-        return f.liquidity;
-    }
-  };
   return FIGURES.map(({ id, label }) => {
-    const v = value(id);
-    return { id, anchorId: `fig:${id}`, label, value: fmtFigure(id, v), evidence: evidenceFor(id, v, ctx.deal, ctx.paras, ctx.markIds) };
+    const v = financialValue(f, id);
+    const value = fmtFigure(id, v);
+    const tested = TESTED_FIGURES.includes(id);
+    const cov = tested ? covenantForFigure(ctx.deal, id) : undefined;
+    const breach = !!cov && cushionOf(cov.threshold, value).pct < 0;
+    return {
+      id,
+      anchorId: `fig:${id}`,
+      label,
+      value,
+      evidence: evidenceFor(id, v, ctx.deal, ctx.paras, ctx.markIds),
+      group: tested ? 'tested' : 'size',
+      valueTone: breach ? 'bad' : 'ink',
+      mark: breach ? 'breach' : null,
+    };
   });
 }
 
@@ -991,13 +998,19 @@ function riskBody(ctx: FileCtx, data: unknown): RiskBody {
     tickCaption: COPY.riskTickCaption,
     evidence: modelEvidence('risk'),
     drivers: r.drivers.map((d) => ({ factor: d.factor, impact: d.impact, tone: driverTone(d.impact) })),
+    scoreLabel: COPY.riskScoreBlock,
+    driversLabel: COPY.riskDriversBlock,
   };
 }
 
-function peersBody(ctx: FileCtx, data: unknown): PeersBody | null {
+/** The simulated "Sector median" cohort (the middle cohort when none is named so). */
+function peerMedian(p: PeersData): PeerFig | undefined {
+  return p.peers.find((x) => /median/i.test(x.cohort)) ?? p.peers[Math.floor(p.peers.length / 2)];
+}
+
+function peersBody(data: unknown): PeersBody | null {
   const p = asPeers(data);
   if (!p) return null;
-  const median = p.peers.find((x) => /median/i.test(x.cohort)) ?? p.peers[Math.floor(p.peers.length / 2)];
   const row = (cohort: string, x: PeerFig, isDeal: boolean) => ({
     cohort,
     leverage: fmtX(x.leverageX),
@@ -1006,8 +1019,8 @@ function peersBody(ctx: FileCtx, data: unknown): PeersBody | null {
     isDeal,
   });
   return {
+    label: COPY.peersBlock,
     rows: [row('This deal', p.deal, true), ...p.peers.map((x) => row(x.cohort, x, false))],
-    position: `${ctx.deal.name} is ${p.position}${median ? ` (${fmtX(median.leverageX)})` : ''}. Comparables are simulated.`,
   };
 }
 
@@ -1027,6 +1040,7 @@ export function covenantRow(c: CovenantTest, amendments: Amendment[], changed: s
     threshold: c.threshold,
     amended: eff.amended,
     actual: c.actual,
+    actualTone: pass ? 'ink' : 'bad',
     cushion: cushionOf(eff.threshold, c.actual),
     status: pass ? 'pass' : 'breach',
     statusText: eff.amended ? `${word} · as amended` : word,
@@ -1060,7 +1074,6 @@ function keyFigures(ctx: FileCtx, pkg: ApprovalPackage, rows: FigureRow[]): KeyF
     const revised = k.source === 'propose_restructure' && !!pkg.restructure;
     const row = id ? rows.find((r) => r.id === id) : undefined;
     const evidence: EvidenceView = revised ? modelEvidence('revised') : row?.evidence ?? { cls: 'unquoted', text: 'Unquoted · extracted' };
-    const traceStepId = revised ? `step_rework_${pkg.revision}` : 'step_extract';
     const anchorId = revised && id ? `rev${pkg.revision}:${id}` : id ? `fig:${id}` : 'sec:financials';
     const cov = id ? covenantForFigure(ctx.deal, id) : undefined;
     let caption: string | null = null;
@@ -1075,7 +1088,8 @@ function keyFigures(ctx: FileCtx, pkg: ApprovalPackage, rows: FigureRow[]): KeyF
     }
     const sub = id === 'ebitda' && second ? `${second} margin` : second ?? null;
     const evText = evidenceText(evidence);
-    const toolLabel = revised ? TOOL_LABEL.propose_restructure : TOOL_LABEL.extract_financials;
+    // the figure takes the reader to its own row (or card) in the memo
+    const where = sectionHeading(revised && id ? `revision-${pkg.revision}` : 'financials');
     return {
       label,
       value,
@@ -1084,9 +1098,9 @@ function keyFigures(ctx: FileCtx, pkg: ApprovalPackage, rows: FigureRow[]): KeyF
       tone,
       dot,
       evidenceText: evText,
-      traceStepId,
       anchorId,
-      ariaLabel: `${label} ${value}${caption ? `, ${caption}` : ''}. ${evText}. Trace to ${toolLabel}.`,
+      ariaLabel: `${label} ${value}${caption ? `, ${caption}` : ''}. ${evText}. Show in ${where}.`,
+      target: memoTargetOfAnchor(anchorId),
     };
   });
 }
@@ -1121,7 +1135,7 @@ function flipLine(ctx: FileCtx, pkg: ApprovalPackage): string {
   return `${COPY.flipOnRevised} · ${nearestFlipCached(ctx.deal, { scenario, rec: pkg.recommendation })}`;
 }
 
-function filedCounts(ctx: FileCtx): { breaches: number; score: number } {
+export function filedCounts(ctx: FileCtx): { breaches: number; score: number } {
   const tests = asCovenants(stepData(ctx, 'step_covenants'), ctx.deal);
   const risk = asRisk(stepData(ctx, 'step_risk'), ctx.deal);
   return { breaches: tests.filter((c) => c.status === 'breach').length, score: risk.score };
@@ -1168,6 +1182,8 @@ function recommendationBody(ctx: FileCtx, pkg: ApprovalPackage, rows: FigureRow[
     nearestFlip: flipLine(ctx, pkg),
     stressLinkLabel: COPY.stressLink,
     reworkLine,
+    summaryLabel: COPY.summaryBlock,
+    keyFiguresLabel: COPY.keyFiguresBlock,
   };
 }
 
@@ -1212,17 +1228,18 @@ function revisionBody(ctx: FileCtx, n: number, data: unknown): RevisionBody {
           .join(' · '),
       }
     : null;
+  const labels = { noteLabel: COPY.reviewerNoteBlock, proposalLabel: COPY.outcomeBlock };
   const parsed = asCure(data);
   if (parsed && !parsed.viable) {
-    return { n, returned, viable: false, summary: null, redline: [], noCure: noCureTextFor(ctx.deal) };
+    return { n, returned, viable: false, summary: null, redline: [], noCure: noCureTextFor(ctx.deal), ...labels };
   }
   // The filed structure already clears every covenant (the search returns a zero contribution, or
   // finds nothing to cure): no restructure was proposed and the recommendation stands. Never a
   // "$0.0M sponsor equity" proposal, and never the no-cure line, which would be false here.
   const needsNone = parsed && parsed.viable ? parsed.contributionM <= 0 : filedCounts(ctx).breaches === 0;
-  if (needsNone) return { n, returned, viable: true, summary: COPY.noRestructureNeeded, redline: [], noCure: null };
+  if (needsNone) return { n, returned, viable: true, summary: COPY.noRestructureNeeded, redline: [], noCure: null, ...labels };
   const cure = parsed && parsed.viable ? parsed : cureFromEngine(ctx.deal);
-  if (!cure) return { n, returned, viable: false, summary: null, redline: [], noCure: noCureTextFor(ctx.deal) };
+  if (!cure) return { n, returned, viable: false, summary: null, redline: [], noCure: noCureTextFor(ctx.deal), ...labels };
   const f = ctx.deal.financials;
   const score = cure.revised.riskScore;
   const { breaches: filedBreaches, score: filedScore } = filedCounts(ctx);
@@ -1246,6 +1263,27 @@ function revisionBody(ctx: FileCtx, n: number, data: unknown): RevisionBody {
       line('recommendation', 'Recommendation', fromRec, toRec),
     ],
     noCure: null,
+    noteLabel: COPY.reviewerNoteBlock,
+    proposalLabel: COPY.proposalBlock,
+  };
+}
+
+/** Revision n's own outcome for its takeaway: a viable cure (FROM becomes TO), nothing to cure, or no cure. */
+function revisionOutcome(ctx: FileCtx, n: number, data: unknown): Parameters<typeof revisionTakeaway>[0] {
+  const filed = filedCounts(ctx);
+  const standing = decide(filed.breaches, filed.score);
+  const parsed = asCure(data);
+  if (parsed && !parsed.viable) return { kind: 'no-cure', rec: standing };
+  const needsNone = parsed && parsed.viable ? parsed.contributionM <= 0 : filed.breaches === 0;
+  if (needsNone) return { kind: 'none-needed', rec: standing };
+  const cure = parsed && parsed.viable ? parsed : cureFromEngine(ctx.deal);
+  if (!cure) return { kind: 'no-cure', rec: standing };
+  return {
+    kind: 'cure',
+    contributionM: cure.contributionM,
+    revisedLeverageX: cure.revised.leverageX,
+    from: standing,
+    to: decide(cure.breachesRemaining, cure.revised.riskScore),
   };
 }
 
@@ -1254,7 +1292,7 @@ function noCureTextFor(deal: Deal): string {
   return noCureText(fmtM(deal.financials.totalDebt * 0.35));
 }
 
-function stubOf(step: StepView): StubView | null {
+export function stubOf(step: StepView): StubView | null {
   if (!step.call || !step.result) return null;
   const conf = step.result.confidence;
   const argsCount = countOf(step.call.args);
@@ -1279,13 +1317,108 @@ function stubOf(step: StepView): StubView | null {
 // Sections
 // =============================================================================
 
-type SectionBaseView = Omit<SectionView, 'kind' | 'body'>;
+type SectionBaseView = Omit<SectionView, 'kind' | 'body' | 'blockLabels' | 'testsLabel'>;
 
-function buildSections(ctx: FileCtx, notes: NotesBuild, rows: FigureRow[]): SectionView[] {
-  if (ctx.mode === 'not-started' || ctx.mode === 'plan-review') return [];
+/**
+ * Where the pen is while drafting, when no step is running (between two steps, right after a
+ * send-back, before the first step starts): that pending card shows the drafting line and the
+ * one caret, so the memo always has exactly one drafting card while the run is live.
+ */
+function penSection(ctx: FileCtx): SectionId | null {
+  if (ctx.mode !== 'running') return null;
+  if (ctx.steps.some((st) => st.status === 'running')) return null;
+  const pkg = ctx.pkg;
+  if (pkg) {
+    const n = pkg.revision + 1;
+    const rework = ctx.plan.find((p) => p.id === `step_rework_${n}`);
+    return rework && !ctx.steps.some((st) => st.id === rework.id) ? `revision-${n}` : null;
+  }
+  if (ctx.steps.some((st) => st.id === 'step_package' && st.status === 'done')) return null; // the recommendation shows its own gap
+  const next = ctx.plan.find((p) => !p.skipped && reworkN(p.id) === null && !ctx.steps.some((st) => st.id === p.id));
+  return next ? STEP_SECTION[next.id] ?? sectionOfStep(next.id) : null;
+}
+
+/** Right of the eyebrow: a status label while drafting, excluded or stopped. A set card has none (its footer carries the record). */
+function asideOf(phase: SectionPhase): SectionAside | null {
+  switch (phase) {
+    case 'drafting':
+      return { kind: 'status', state: 'drafting', text: STATUS_WORD.drafting };
+    case 'excluded':
+      return { kind: 'status', state: 'excluded', text: STATUS_WORD.excluded };
+    case 'stopped':
+      return { kind: 'status', state: 'error', text: COPY.stopped };
+    default:
+      return null;
+  }
+}
+
+/**
+ * The set card's footer (R2.2): "Document Intelligence · 94% · 1.1 s" and the collapsed "Record"
+ * (args in, data out, the reasoning). Null until the step has returned.
+ */
+export function footerOf(step: StepView | undefined): SectionFooter | null {
+  const record = step ? stubOf(step) : null;
+  const r = step?.result;
+  if (!step || !r || !record) return null;
+  const conf = fmtConf(r.confidence);
+  const duration = fmtDuration(r.durationMs);
+  return {
+    tool: record.tool,
+    conf,
+    confTone: confTone(r.confidence),
+    duration,
+    text: `${record.tool} · ${conf} · ${duration}`,
+    recordLabel: COPY.record,
+    record,
+  };
+}
+
+/**
+ * The row-less flags of one card, one marked line each, in emission order (R2.2). A flag anchored
+ * to a row is marked on that row instead; the Financials card adds the evidence check when a
+ * figure is not quoted in the CIM.
+ */
+function flagLinesOf(ctx: FileCtx, id: SectionId, notes: NotesBuild, rows: FigureRow[]): SectionFlagLine[] {
+  const out: SectionFlagLine[] = [];
+  for (const n of notes.notes) {
+    if (n.note.anchorId !== `sec:${id}` || REVISION_STATED.includes(n.kind)) continue;
+    out.push({ id: n.note.id, flagId: n.note.flagId, state: n.note.status, text: flagClause(n.note.text), anchorId: `flag:${n.note.flagId ?? n.note.id}` });
+  }
+  if (id === 'financials') {
+    const check = evidenceCheckLine(ctx, rows);
+    if (check) out.push({ id: 'evidence-check', flagId: null, state: 'info', text: check, anchorId: 'flag:evidence-check' });
+  }
+  return out;
+}
+
+/** The evidence check as one memo line, or null when every figure is quoted or derived from quoted figures. */
+export function evidenceCheckLine(ctx: FileCtx, rows: FigureRow[]): string | null {
+  const unquoted = rows.filter((r) => r.evidence.cls === 'unquoted');
+  if (unquoted.length === 0) return null;
+  const names = listJoin(unquoted.map((r) => lowerFirst(r.label)));
+  let text = `${unquoted.length} of ${rows.length} figures are not quoted in the CIM (${names}); verify them against the source.`;
+  const extract = ctx.steps.find((st) => st.id === 'step_extract');
+  if (ctx.deal.uploaded && extract?.result) text += ` Extraction ran at ${fmtConf(extract.result.confidence)} confidence on an unseen document.`;
+  return text;
+}
+
+/**
+ * One paper card per section (THREE-PANE §5.3, §5.4, §5.7). Not started and plan review return
+ * the five skeleton cards (an optional step toggled off in the plan under review reads excluded,
+ * live); running returns exactly one drafting card; a set card carries its takeaway.
+ */
+export function buildSections(ctx: FileCtx, rows: FigureRow[], built?: NotesBuild): SectionView[] {
   const out: SectionView[] = [];
+  const notes = built ?? buildNotes(ctx);
   const pkg = ctx.pkg;
   const running = ctx.mode === 'running';
+  const review = ctx.mode === 'plan-review';
+  const skeleton = ctx.mode === 'not-started' || review;
+  const enabled = ctx.s.plan.enabledIds;
+  const runnable = ctx.plan.filter((p) => reworkN(p.id) === null);
+  const pen = penSection(ctx);
+  const amendments = amendmentsOf(ctx);
+  const amended = amendments.length > 0;
 
   const planFor = (sec: SectionId): PlanStep | undefined =>
     ctx.plan.find((p) => (reworkN(p.id) !== null ? sectionOfStep(p.id) === sec : (STEP_SECTION[p.id] ?? sectionOfStep(p.id)) === sec));
@@ -1293,10 +1426,11 @@ function buildSections(ctx: FileCtx, notes: NotesBuild, rows: FigureRow[]): Sect
   for (const id of pageSectionIds(ctx)) {
     const planStep = planFor(id);
     if (!planStep) continue;
-    const step = ctx.steps.find((st) => st.id === planStep.id);
+    const step = skeleton ? undefined : ctx.steps.find((st) => st.id === planStep.id);
     const n = reworkN(planStep.id);
     let phase: SectionPhase;
-    if (planStep.skipped) phase = 'excluded';
+    if (skeleton) phase = review && planStep.optional && !enabled.includes(planStep.id) ? 'excluded' : 'pending';
+    else if (planStep.skipped) phase = 'excluded';
     else if (!step) phase = 'pending';
     else if (step.status === 'done') phase = 'set';
     else if (running) phase = 'drafting';
@@ -1305,61 +1439,103 @@ function buildSections(ctx: FileCtx, notes: NotesBuild, rows: FigureRow[]): Sect
     // the memo is "set" only once its package exists (a short gap after the Memo Builder returns)
     if (id === 'recommendation' && phase === 'set' && !pkg) phase = running ? 'drafting' : 'pending';
     if (n !== null && phase === 'set' && !step?.result) phase = running ? 'drafting' : 'stopped';
+    // likewise a revision is set only once its revised package is assembled (the gap before it suspends)
+    if (n !== null && phase === 'set' && running && (!pkg || pkg.revision < n)) phase = 'drafting';
+    if (phase === 'pending' && pen === id) phase = 'drafting';
 
     const status: StatusKey =
       phase === 'set' ? 'done' : phase === 'drafting' ? 'drafting' : phase === 'excluded' ? 'excluded' : phase === 'stopped' ? 'error' : 'pending';
+    const callLine = step?.call && !step.result ? `Calling ${step.call.label}…` : null;
     const drafting =
-      phase === 'drafting' && step
-        ? {
-            text: step.thinking,
-            callLine: step.call && !step.result ? `Calling ${step.call.label}…` : null,
-            caret: running,
-          }
-        : null;
+      phase === 'drafting' ? { line: callLine ?? (n !== null ? COPY.draftingRevision(n) : COPY.draftingLine), caret: running } : null;
+    const phaseLine =
+      phase === 'pending'
+        ? id === 'recommendation'
+          ? COPY.pendingRecommendation
+          : COPY.pendingSection
+        : phase === 'excluded'
+          ? review
+            ? COPY.excludedDraftLine
+            : COPY.excludedLine
+          : null;
+    const ordinal = runnable.findIndex((p) => p.id === planStep.id) + 1;
+    const tool = TOOL_LABEL[planStep.toolName];
+    const eyebrow = n !== null ? `${STATUS_WORD.returned} · ${tool}` : `Step ${ordinal} of ${runnable.length} · ${tool}`;
 
-    let suffix: string | null = null;
-    const baseView: SectionBaseView = {
+    const base: SectionBaseView = {
       id,
       anchorId: `sec:${id}`,
-      ordinal: sectionOrdinal(id),
+      eyebrow,
       heading: sectionHeading(id),
-      suffix,
       phase,
       status,
       statusLabel: phase === 'stopped' ? COPY.stopped : STATUS_WORD[status],
-      pendingLine: id === 'recommendation' ? COPY.pendingRecommendation : COPY.pendingSection,
+      aside: asideOf(phase),
+      takeaway: null,
+      phaseLine,
       drafting,
-      stub: step && phase !== 'drafting' ? stubOf(step) : null,
-      notes: notes.bySection.get(id) ?? [],
+      footer: phase === 'set' || phase === 'stopped' ? footerOf(step) : null,
+      flagLines: phase === 'set' ? flagLinesOf(ctx, id, notes, rows) : [],
     };
     const set = phase === 'set';
+    const data = step?.result?.data;
+    const withTake = (t: TakeawayView | null): SectionBaseView => (set && t ? { ...base, takeaway: t } : base);
 
     if (id === 'recommendation') {
-      out.push({ ...baseView, kind: 'recommendation', body: set && pkg ? recommendationBody(ctx, pkg, rows) : null });
+      const body = set && pkg ? recommendationBody(ctx, pkg, rows) : null;
+      out.push({ ...withTake(body ? recommendationTakeaway(body) : null), kind: 'recommendation', body });
     } else if (id === 'financials') {
-      out.push({ ...baseView, kind: 'financials', body: set ? rows : null });
+      const take = set ? financialsTakeaway(ctx.deal, asFinancials(data, ctx.deal), amended) : null;
+      out.push({ ...withTake(take), kind: 'financials', body: set ? rows : null, blockLabels: { size: COPY.figureGroupSize, tested: COPY.figureGroupTested } });
     } else if (id === 'risk') {
-      out.push({ ...baseView, kind: 'risk', body: set ? riskBody(ctx, step?.result?.data) : null });
+      out.push({ ...withTake(set ? riskTakeaway(asRisk(data, ctx.deal)) : null), kind: 'risk', body: set ? riskBody(ctx, data) : null });
     } else if (id === 'peers') {
-      out.push({ ...baseView, kind: 'peers', body: set ? peersBody(ctx, step?.result?.data) : null });
+      const peers = set ? asPeers(data) : null;
+      const median = peers ? peerMedian(peers) : undefined;
+      const take = peers && median ? peersTakeaway(peers.deal.leverageX, median.leverageX) : null;
+      out.push({ ...withTake(take), kind: 'peers', body: set ? peersBody(data) : null });
     } else if (id === 'covenants') {
-      const body = set ? covenantRows(ctx, step?.result?.data) : null;
-      if (body) {
-        const breached = body.filter((r) => r.status === 'breach').length;
-        suffix = breached === 0 ? `· all ${body.length} pass` : `· ${breached} of ${body.length} breached`;
-      }
-      out.push({ ...baseView, suffix, kind: 'covenants', body });
+      const body = set ? covenantRows(ctx, data) : null;
+      out.push({
+        ...withTake(body ? covenantsTakeaway(body, amended) : null),
+        kind: 'covenants',
+        body,
+        testsLabel: amended ? COPY.testsAmended : COPY.testsFiled,
+      });
     } else if (n !== null) {
-      suffix = `· ${reworkTag(planStep.title)}`;
-      out.push({ ...baseView, suffix, kind: 'revision', body: set ? revisionBody(ctx, n, step?.result?.data) : null });
+      const body = set ? revisionBody(ctx, n, data) : null;
+      out.push({ ...withTake(body ? revisionTakeaway(revisionOutcome(ctx, n, data)) : null), kind: 'revision', body });
     }
   }
   return out;
 }
 
 // =============================================================================
-// Header, contents, source, appendix, doc bar
+// Header, source, appendix, doc bar
 // =============================================================================
+
+/**
+ * The seal sentence. `full` states the agent's call and who signed ("The agent recommended
+ * ESCALATE. You countersigned."), for the Decision card's sealed record;
+ * `who` is the reviewer clause alone for the header ("You countersigned as amended."), which
+ * never shows a token. Null until sealed.
+ */
+export function sealHeadline(ctx: FileCtx): { who: string; full: string } | null {
+  const sl = ctx.seal;
+  const pkg = ctx.pkg;
+  if (ctx.mode !== 'sealed' || !sl || !pkg) return null;
+  const rec = `The agent recommended ${tokenWord(pkg.recommendation)}${pkg.restructure ? ' on the revised structure' : ''}.`;
+  const who =
+    sl.decision === 'auto-countersigned'
+      ? 'The policy countersigned.'
+      : sl.decision === 'rejected'
+        ? 'You rejected the memo.'
+        : sl.decision === 'countersigned-amended'
+          ? 'You countersigned as amended.'
+          : 'You countersigned.';
+  const fullWho = sl.decision === 'countersigned-amended' ? amendedWho(ctx.deal, sl.amendments) : who;
+  return { who, full: `${rec} ${fullWho}` };
+}
 
 function headerView(ctx: FileCtx): HeaderView {
   const d = ctx.deal;
@@ -1384,15 +1560,6 @@ function headerView(ctx: FileCtx): HeaderView {
   if (ctx.mode === 'sealed' && ctx.seal && ctx.pkg) {
     const sl = ctx.seal;
     const pkg = ctx.pkg;
-    const rec = `The agent recommended ${tokenWord(pkg.recommendation)}${pkg.restructure ? ' on the revised structure' : ''}.`;
-    const who =
-      sl.decision === 'auto-countersigned'
-        ? 'The policy countersigned.'
-        : sl.decision === 'rejected'
-          ? 'You rejected the memo.'
-          : sl.decision === 'countersigned-amended'
-            ? amendedWho(ctx.deal, sl.amendments)
-            : 'You countersigned.';
     const timing = runTiming(ctx.entries, startedAt ?? sl.decidedAt, sl.decidedAt);
     const finalWait = timing.finalWaitMs ?? (preparedAt !== null ? Math.max(0, sl.decidedAt - preparedAt) : 0);
     const confs = ctx.steps.filter((st) => st.result).map((st) => st.result?.confidence ?? 1);
@@ -1408,7 +1575,8 @@ function headerView(ctx: FileCtx): HeaderView {
     ]
       .filter((x): x is string => !!x)
       .join(' · ');
-    seal = { state: decidedState(sl.decision), headline: `${rec} ${who}`, receipt };
+    // the top of a sealed memo never states the agent's call: the who-clause only (THREE-PANE §5.11)
+    seal = { state: decidedState(sl.decision), headline: sealHeadline(ctx)?.who ?? '', receipt };
   }
 
   return {
@@ -1419,43 +1587,6 @@ function headerView(ctx: FileCtx): HeaderView {
     uploaded: !!d.uploaded,
     cancelled,
     seal,
-  };
-}
-
-function contentsView(ctx: FileCtx): ContentsView | null {
-  if (ctx.mode !== 'not-started' && ctx.mode !== 'plan-review') return null;
-  const s = ctx.s;
-  const review = ctx.mode === 'plan-review';
-  const rows = ctx.plan
-    .filter((p) => reworkN(p.id) === null)
-    .map((p) => {
-      const sec = STEP_SECTION[p.id] ?? sectionOfStep(p.id);
-      const required = !p.optional;
-      return {
-        stepId: p.id,
-        ordinal: sectionOrdinal(sec),
-        title: sectionHeading(sec),
-        describe: STEP_DESCRIBE[p.id] ?? p.title,
-        tool: TOOL_LABEL[p.toolName],
-        required,
-        included: review ? required || s.plan.enabledIds.includes(p.id) : true,
-        tag: required ? COPY.required : COPY.optionalTag,
-      };
-    });
-  let countdown: string | null = null;
-  if (review) {
-    countdown = s.plan.held
-      ? COPY.heldStartWhenReady
-      : `Drafting starts in ${fmtCountdown(s.plan.deadline ?? s.now + PLAN_COUNTDOWN_S(s.agent.speed) * 1000, s.now)}`;
-  }
-  return {
-    mode: review ? 'plan-review' : 'not-started',
-    rows,
-    sourceLine: `Source · ${ctx.deal.name} CIM · ${plural(ctx.paras.length, 'paragraph')}`,
-    countdown,
-    held: review && s.plan.held,
-    holdLabel: COPY.hold,
-    unattendedNote: review ? COPY.unattendedNote : null,
   };
 }
 
@@ -1493,14 +1624,11 @@ export function healthStatus(h: 'pass' | 'watch' | 'breach' | 'healthy'): Status
 function appendixView(ctx: FileCtx): AppendixView {
   const m = ctx.s.monitor;
   const p = m.portfolio.find((x) => x.dealId === ctx.deal.id);
-  const head = 'Simulated drift on the filed figures';
-  const meta =
-    m.sweepCount > 0 && m.lastSweepAt !== null
-      ? `${head} · sweep #${m.sweepCount} · ${fmtAgo(ctx.s.now - m.lastSweepAt)}`
-      : `${head} · first sweep pending`;
-  if (!p) return { heading: COPY.appendixHeading, meta, rows: null, empty: COPY.firstSweepPending };
+  const meta = m.sweepCount > 0 && m.lastSweepAt !== null ? `sweep #${m.sweepCount} · ${fmtAgo(ctx.s.now - m.lastSweepAt)}` : 'first sweep pending';
+  if (!p) return { eyebrow: COPY.appendixEyebrow, heading: COPY.appendixTitle, meta, rows: null, empty: COPY.firstSweepPending };
   return {
-    heading: COPY.appendixHeading,
+    eyebrow: COPY.appendixEyebrow,
+    heading: COPY.appendixTitle,
     meta,
     rows: p.covenants.map((c) => ({
       name: c.name,
@@ -1544,11 +1672,15 @@ function docBarView(ctx: FileCtx, notes: NotesBuild, confirm: ConfirmView | null
       status = { state: 'pending', text: `${STATUS_WORD.pending} · ${COPY.cimReady} · ${plural(ctx.paras.length, 'paragraph')}` };
       break;
     case 'plan-review':
+      // the plan countdown arms only with the plan card on screen: a plan that never armed asks
+      // for the panel instead of showing a frozen countdown (THREE-PANE §1.5, §5.10)
       status = {
         state: 'awaiting',
         text: s.plan.held
           ? 'Plan review · held'
-          : `Plan review · drafting starts in ${fmtCountdown(s.plan.deadline ?? s.now + PLAN_COUNTDOWN_S(s.agent.speed) * 1000, s.now)}`,
+          : s.plan.deadline !== null
+            ? `Plan review · drafting starts in ${fmtCountdown(s.plan.deadline, s.now)}`
+            : COPY.planReviewInPanel,
       };
       break;
     case 'running': {
@@ -1611,10 +1743,7 @@ function docBarView(ctx: FileCtx, notes: NotesBuild, confirm: ConfirmView | null
   const conf = extract?.result?.confidence;
   const extraction = conf !== undefined && conf < 0.9 ? { text: `Extraction ${fmtConf(conf)}`, tone: confTone(conf) } : null;
 
-  const n = notes.toReview.length;
-  const cursor = s.ui.noteCursor;
-  const stepper = n > 0 ? { label: `${cursor >= 0 && cursor < n ? String(cursor + 1) : COPY.noCall} of ${n}`, count: n } : null;
-
+  const atGate = ctx.live && ctx.mode === 'gate';
   return {
     fileName: d.name,
     files,
@@ -1623,9 +1752,10 @@ function docBarView(ctx: FileCtx, notes: NotesBuild, confirm: ConfirmView | null
     extraction,
     policySuffix,
     countdown,
-    stepper,
-    goToSignature: ctx.mode === 'gate',
+    goToDecision: atGate,
     goToDrafting: ctx.mode === 'running',
+    // the decision is in the memo now ("Go to decision" scrolls to its card): a hidden panel always gets its toggle
+    chatToggle: !chatShown(s) ? { label: COPY.agentPanel } : null,
     actions,
     confirm,
   };
@@ -1642,7 +1772,7 @@ export function exhibitEntries(ctx: FileCtx): AuditHistoryEntry[] {
 }
 
 // =============================================================================
-// selectFile / selectAsk
+// selectFile and the local Ask intercepts
 // =============================================================================
 
 export function selectFile(s: V2Store, dealId: string): FileView | null {
@@ -1651,8 +1781,7 @@ export function selectFile(s: V2Store, dealId: string): FileView | null {
   const notes = buildNotes(ctx);
   const extract = ctx.steps.find((st) => st.id === 'step_extract');
   const rows = figureRows(ctx, extract?.result?.data);
-  const sections = buildSections(ctx, notes, rows);
-  const financialsSet = sections.some((sec) => sec.kind === 'financials' && sec.phase === 'set');
+  const sections = buildSections(ctx, rows, notes);
   const parsing = parsingReason(s);
   const pkg = ctx.pkg;
   const confirm = confirmFor(s, dealId);
@@ -1674,13 +1803,7 @@ export function selectFile(s: V2Store, dealId: string): FileView | null {
     restructured: !!pkg?.restructure,
     docBar: docBarView(ctx, notes, confirm),
     header: headerView(ctx),
-    contents: contentsView(ctx),
     sections,
-    headerMargin: {
-      showReasoning: s.ui.showReasoning,
-      reasoningLabel: COPY.showAllReasoning,
-      evidenceCheck: financialsSet ? evidenceCheckNote(ctx, rows) : null,
-    },
     toReview: notes.toReview,
     sourceView: sourceView(ctx),
     appendix: appendixView(ctx),
@@ -1696,36 +1819,8 @@ export function selectFile(s: V2Store, dealId: string): FileView | null {
   };
 }
 
-export function selectAsk(s: V2Store, dealId: string): AskView {
-  const a = s.agent;
-  const live = dealId === selectLiveDealId(s);
-  const enabled = live && (a.status === 'awaiting_approval' || a.status === 'approved' || a.status === 'rejected');
-  let disabledReason: string | null = null;
-  if (!enabled) {
-    if (!live) disabledReason = s.snapshots[dealId] ? COPY.askDisabledSnapshot : COPY.askDisabledNotStarted;
-    else if (a.status === 'plan_review') disabledReason = COPY.askDisabledNotStarted;
-    else disabledReason = COPY.askDisabledRunning;
-  }
-  const thread: AskView['thread'] = [];
-  if (live) {
-    const local = s.ui.thread.filter((t) => t.runId === a.runId);
-    const emitLocal = (i: number) => {
-      for (const t of local) {
-        if (t.at !== i) continue;
-        thread.push({ id: t.id, role: t.role, text: t.text, meta: t.role === 'answer' ? COPY.askMetaLocal : null });
-      }
-    };
-    a.messages.forEach((m, i) => {
-      emitLocal(i);
-      thread.push({ id: m.id, role: m.role === 'user' ? 'you' : 'answer', text: m.text, meta: m.role === 'user' ? null : COPY.askMetaEngine });
-    });
-    emitLocal(a.messages.length);
-  }
-  return { enabled, placeholder: COPY.askPlaceholder, disabledReason, thread };
-}
-
 /**
- * Local intercepts for "Ask about this file" (§9.4): what-if questions point at
+ * Local intercepts for composer questions (§9.4, THREE-PANE §4.3): what-if questions point at
  * the stress test; on a restructured revision the recommendation and leverage
  * questions answer from the revision (the engine responder only knows the
  * filed figures). Everything else goes to the engine's rule-based responder.
@@ -1733,23 +1828,26 @@ export function selectAsk(s: V2Store, dealId: string): AskView {
 export function askRoute(
   q: string,
   ctx: { restructured: boolean; revision: number; rec: Recommendation | null; summary: string | null; filedLeverage: string; revisedLeverage: string | null },
-): { kind: 'engine' } | { kind: 'local'; text: string } {
+): { kind: 'engine' } | { kind: 'local'; text: string; stress: boolean } {
   if (/what.?if|waiver|step.?down|stress|scenario|sensitiv/i.test(q)) {
     return {
       kind: 'local',
-      text: 'Use the stress test in this file, below the exhibits. It re-runs the same decide rule the agent uses, and you can attach a scenario as an exhibit.',
+      stress: true,
+      text: 'Use the stress test in this file, below the Decision card. It re-runs the same decide rule the agent uses, and you can attach a scenario as an exhibit.',
     };
   }
   if (ctx.restructured && /why|recommend|decision|approve|decline|escalat/i.test(q)) {
     const word = ctx.rec ? tokenWord(ctx.rec) : '';
     return {
       kind: 'local',
+      stress: false,
       text: `On revision ${ctx.revision} the agent recommends ${word} on the revised structure.${ctx.summary ? ` ${ctx.summary}` : ''}`,
     };
   }
   if (ctx.restructured && /leverage|levered/i.test(q)) {
     return {
       kind: 'local',
+      stress: false,
       text: `Filed leverage is ${ctx.filedLeverage} against the ≤ 4.00x covenant. Revision ${ctx.revision} proposes a restructure that brings it to ${ctx.revisedLeverage ?? ctx.filedLeverage}.`,
     };
   }

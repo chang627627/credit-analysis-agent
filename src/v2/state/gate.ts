@@ -1,22 +1,29 @@
 // ---------------------------------------------------------------------------
-// The gate (spec §8, §9.2 #2-#4): the reviewer's draft (note, provenance,
-// amended terms), the verbs (sign, return, reject) with every V1 integrity
-// guard, and the clean-approval policy countdown with its holds.
+// The gate (spec §8, §9.2 #2-#4, THREE-PANE.md R2.2, R2.3): the reviewer's
+// draft (note, provenance, amended terms), the verbs (sign, return, reject)
+// with every V1 integrity guard, and the clean-approval policy countdown with
+// its holds. The whole decision is ONE card in the memo pane (the Decision
+// card, FileAt 'signature', registered through registerDecision); the agent
+// panel holds no decision and only points at the card.
 //
 // Integrity rules this file exists to keep:
 //   - a refusal attempt always holds the countdown first, so a countdown can
-//     never fire through a refusal;
+//     never fire through a refusal (the composer engages the same way,
+//     state/composer.ts);
 //   - no countdown completes off screen: it arms only while the live file is
 //     the route and the tab is visible, and re-checks every condition at the
 //     deadline;
 //   - an open Stop or Re-run confirm strip is engagement: the countdown holds
 //     under it and never arms, so the policy cannot sign a memo the reviewer is
-//     deciding whether to discard;
+//     deciding whether to discard; so is unsent text in the live file's composer;
 //   - a note counts as opened only at the live gate, before the seal, so a
 //     sealed record never changes after the signature;
-//   - every verb is dead while the block recedes (leaving) and once this run
+//   - every verb is dead while the card recedes (leaving) and once this run
 //     has been signed;
-//   - signing is two-phase: the first press only brings the line into view.
+//   - A is two-phase unless the card's reviewer line is already on screen:
+//     the first press only brings the verbs and the line into view and focuses
+//     the primary; the next press signs. Activating the primary itself (click,
+//     Enter, Space) is the deliberate act and signs at once.
 // ---------------------------------------------------------------------------
 
 import { useEffect } from 'react';
@@ -26,7 +33,9 @@ import type { NoteProvenance } from '../../agent/types';
 import type { CreditAgentApi } from '../../hooks/useCreditAgent';
 import { AUTO_COUNTDOWN_MS, AUTO_NOTE, amendmentsFor, selectFile, selectLiveDealId, selectSignature } from '../model';
 import type { GateState, HoldReason, Policy, PresentedAtSign, V2Actions, V2Internals, V2Store } from './store';
-import { cssMs } from './ui';
+import { cssMs, sourceIsOverlay } from './ui';
+import { closeDrawerIn } from './panes';
+import { focusLost, onFrames, onScreen, rendered, revealInBand } from './reveal';
 
 // ---- persistence (v2.autonomy) ----------------------------------------------
 
@@ -105,6 +114,11 @@ function verbsDead(s: V2Store): boolean {
 
 function atGate(s: V2Store): boolean {
   return s.agent.status === 'awaiting_approval' && s.agent.approvalPackage !== null;
+}
+
+/** The reviewer can decide right now: a package at the gate, not receding, not signed. */
+export function canDecide(s: V2Store): boolean {
+  return atGate(s) && !verbsDead(s);
 }
 
 /** V1's clean-approval rule, unchanged. */
@@ -209,10 +223,196 @@ function filedThreshold(deal: Deal, kind: 'leverage' | 'liquidity'): number | nu
   return m ? parseFloat(m[0]) : null;
 }
 
-// ---- actions ------------------------------------------------------------------
+// ---- the memo Decision card: find, reveal, focus ---------------------------
 
-/** A phase-one navigation hands focus to the line only if it mounts promptly. */
-const LINE_FOCUS_WINDOW_MS = 3000;
+/** A focus hand-off asked for before its target mounted is honoured only if the target mounts this promptly. */
+const FOCUS_WINDOW_MS = 3000;
+/** Frames the post-signature reveal waits for the sealed card to render (the engine seals within a task). */
+const SEAL_FRAMES = 20;
+
+/** The registered card root, when it is on the page. */
+function cardOf(x: V2Internals): HTMLElement | null {
+  const card = x.decisionRef.current;
+  return card && card.isConnected ? card : null;
+}
+
+/** The card's primary verb button ([data-sign-primary]). */
+function primaryOf(card: HTMLElement | null): HTMLElement | null {
+  if (!card) return null;
+  const el = card.querySelector('[data-sign-primary] button');
+  return rendered(el) ? el : null;
+}
+
+/**
+ * The card's reviewer signature line: the kit SignatureLine root
+ * ([data-pattern="P-01"][data-role="reviewer"]), else the [data-record-focus]
+ * wrapper around the lines. Null when neither is rendered.
+ */
+function reviewerLineOf(card: HTMLElement | null): HTMLElement | null {
+  if (!card) return null;
+  const line = card.querySelector('[data-pattern="P-01"][data-role="reviewer"]');
+  if (rendered(line)) return line;
+  const record = card.querySelector('[data-record-focus]');
+  return rendered(record) ? record : null;
+}
+
+/** The registered reviewer note field, when it is on the page. */
+function noteFieldOf(x: V2Internals): HTMLTextAreaElement | null {
+  const f = x.noteFieldRef.current;
+  return f && f.isConnected && f.getClientRects().length > 0 ? f : null;
+}
+
+/** Smooth unless the reader asked for reduced motion. */
+function behaviorOf(x: V2Internals): ScrollBehavior {
+  return x.current().reducedMotion ? 'auto' : 'smooth';
+}
+
+/** The decision is in the memo: the drawer (over the memo's left edge) and an overlaid source (its right edge) step aside. */
+function clearMemoCovers(x: V2Internals): void {
+  closeDrawerIn(x, { returnFocus: false });
+  if (x.uiRef.current.sourceOpen && sourceIsOverlay()) x.setUi((u) => (u.sourceOpen ? { ...u, sourceOpen: false } : u));
+}
+
+/**
+ * Bring the card's verbs and reviewer line into view (centred, one scroll) and
+ * focus a control: the note field when `noteFirst` and a note is required (an
+ * S or R that found it empty), else the primary verb. Returns false when the
+ * card has nothing to focus yet (not at the gate, or not laid out).
+ */
+function presentDecision(x: V2Internals, card: HTMLElement, noteFirst: boolean, behavior: ScrollBehavior): boolean {
+  const field = noteFieldOf(x);
+  if (noteFirst && field && x.gateRef.current.needNote !== null) {
+    revealInBand([field], 'center', behavior);
+    field.focus({ preventScroll: true });
+    return true;
+  }
+  const primary = primaryOf(card);
+  const line = reviewerLineOf(card);
+  if (!primary && !line) return false;
+  revealInBand([primary, line], 'center', behavior);
+  if (primary) primary.focus({ preventScroll: true });
+  return true;
+}
+
+/** Present the card on the next frames (after the commit that closed a drawer or mounted the card). */
+function presentDecisionSoon(x: V2Internals, noteFirst: boolean, behavior: ScrollBehavior): void {
+  onFrames(() => {
+    const card = cardOf(x);
+    return card !== null && presentDecision(x, card, noteFirst, behavior);
+  });
+}
+
+/**
+ * After a signature or a rejection, once the sealed card has rendered, bring
+ * the reviewer line into view (instant, the least distance) so the ink or the
+ * REJECTED stamp lands where the reviewer is looking. The verbs are gone, so
+ * focus that fell to the body goes to the card's record ([data-record-focus],
+ * tabIndex -1) without scrolling; focus held anywhere else is left alone.
+ */
+function revealSealSoon(x: V2Internals, runId: number): void {
+  onFrames(() => {
+    const c = x.current();
+    if (c.agent.runId !== runId) return true;
+    if (c.agent.status !== 'approved' && c.agent.status !== 'rejected') return false;
+    const card = cardOf(x);
+    revealInBand([reviewerLineOf(card)], 'nearest', 'auto');
+    const record = card ? card.querySelector('[data-record-focus]') : null;
+    if (focusLost() && rendered(record) && record.hasAttribute('tabindex')) record.focus({ preventScroll: true });
+    return true;
+  }, SEAL_FRAMES);
+}
+
+/**
+ * After a return for revision the verbs and the note field unmount (the card waits for the next
+ * revision), so focus that fell to the body goes to the card's pending line ([data-record-focus],
+ * tabIndex -1) once the card reads pending, without scrolling: the panel never takes focus (R2).
+ * Focus held anywhere else is left alone.
+ */
+function focusPendingSoon(x: V2Internals, runId: number): void {
+  onFrames(() => {
+    if (x.current().agent.runId !== runId) return true;
+    const card = cardOf(x);
+    if (!card || card.getAttribute('data-state') !== 'pending') return false;
+    const line = card.querySelector('[data-record-focus]');
+    if (focusLost() && rendered(line) && line.hasAttribute('tabindex')) line.focus({ preventScroll: true });
+    return true;
+  }, SEAL_FRAMES);
+}
+
+/** Focus the reviewer note field, bringing it into view first (it sits mid-card). */
+function focusNoteSoon(x: V2Internals, field: HTMLTextAreaElement): void {
+  onFrames(() => {
+    if (!field.isConnected || field.getClientRects().length === 0) return false;
+    revealInBand([field], 'center', behaviorOf(x));
+    field.focus({ preventScroll: true });
+    return true;
+  });
+}
+
+/** Unsent text in the live file's composer is engagement (state/composer.ts): a countdown holds instead of arming. */
+export function composerEngaged(s: V2Store): boolean {
+  const live = selectLiveDealId(s);
+  return live !== null && (s.ui.composerDraft[live] ?? '').trim() !== '';
+}
+
+/**
+ * S or R with an empty note: say a reason is needed and put the reviewer in
+ * the note. A mounted field is focused through focusTick (the card's own
+ * handler) and directly; an unmounted one is focused by registerNoteField when
+ * it mounts within the window.
+ */
+function askForNote(x: V2Internals, kind: 'reject' | 'rework'): void {
+  const g = x.gateRef.current;
+  const field = noteFieldOf(x);
+  if (field) {
+    x.pendingNoteFocus.current = 0;
+    x.setGate({ ...g, needNote: kind, focusTick: g.focusTick + 1 });
+    focusNoteSoon(x, field);
+    return;
+  }
+  x.pendingNoteFocus.current = Date.now();
+  x.setGate({ ...g, needNote: kind });
+}
+
+/** Keep a registered element unless a stale one is being released (React may release after the next registers). */
+function register<T extends HTMLElement>(box: { current: T | null }, el: T | null): void {
+  if (el) {
+    box.current = el;
+    return;
+  }
+  const cur = box.current;
+  if (!cur || !cur.isConnected) box.current = null;
+}
+
+/**
+ * Phase one (THREE-PANE.md R2.3): nothing is signed. Off the live file, go
+ * there (the card focuses its primary when it mounts, through
+ * pendingSignFocus); on it, clear what covers the memo, bring the verbs and the
+ * reviewer line into view and focus the primary (or, for "Go to decision" after
+ * an S or R that needs a note, the note field).
+ */
+export function bringDecisionIn(x: V2Internals, source: 'key' | 'button'): void {
+  const s = x.current();
+  if (!atGate(s) || verbsDead(s)) return;
+  const live = selectLiveDealId(s);
+  if (!live) return;
+  if (!onLiveFile(s)) {
+    x.pendingSignFocus.current = Date.now();
+    x.navigate({ name: 'file', dealId: live, at: 'signature' });
+    if (source === 'key') x.announce('sign-ready');
+    return;
+  }
+  clearMemoCovers(x);
+  if (cardOf(x)) {
+    x.pendingSignFocus.current = 0;
+    presentDecisionSoon(x, source === 'button', behaviorOf(x));
+  } else {
+    x.pendingSignFocus.current = Date.now(); // registerDecision presents it within the window
+  }
+  if (source === 'key') x.announce('sign-ready');
+}
+
+// ---- actions ------------------------------------------------------------------
 
 export type GateActions = Pick<
   V2Actions,
@@ -225,16 +425,11 @@ export type GateActions = Pick<
   | 'tryReject'
   | 'tryRework'
   | 'reviewManually'
-  | 'registerSignatureLine'
-  | 'markOpened'
+  | 'registerDecision'
+  | 'registerNoteField'
 >;
 
 export function createGateActions(x: V2Internals): GateActions {
-  const focusLine = (el: HTMLElement, reducedMotion: boolean) => {
-    el.scrollIntoView({ block: 'center', behavior: reducedMotion ? 'auto' : 'smooth' });
-    el.focus({ preventScroll: true });
-  };
-
   return {
     setPolicy: (p) => {
       if (x.policyRef.current === p) return;
@@ -284,28 +479,21 @@ export function createGateActions(x: V2Internals): GateActions {
       x.setGate({ ...g, levMax: null, liqMin: null });
     },
 
-    // two-phase: phase one only brings the line into view; phase two signs the LIVE draft
+    // THREE-PANE.md R2.3. 'card' (the primary itself) signs at once; 'key' (A) signs only while
+    // the card's reviewer line is on screen on the live file; 'button' (Go to decision, the
+    // panel's Decision link, the composer's refusal link) never signs. Otherwise phase one.
     requestSign: (source) => {
       const s = x.current();
       if (!atGate(s) || verbsDead(s)) return;
       const live = selectLiveDealId(s);
       if (!live) return;
       const here = onLiveFile(s);
-      const el = x.lineRef.current;
-      let visible = false;
-      if (here && el && el.isConnected) {
-        const rect = el.getBoundingClientRect();
-        const bar = document.querySelector('[data-docbar]');
-        const barBottom = bar ? bar.getBoundingClientRect().bottom : 0;
-        visible = rect.height > 0 && rect.top >= barBottom && rect.bottom <= window.innerHeight;
-      }
-      if (!visible || source === 'button') {
-        if (here && el && el.isConnected) {
-          focusLine(el, s.reducedMotion);
-        } else {
-          x.pendingLineFocus.current = Date.now();
-          x.navigate({ name: 'file', dealId: live, at: 'signature' });
-        }
+      const card = here ? cardOf(x) : null;
+      const line = reviewerLineOf(card) ?? primaryOf(card);
+      // the primary signs only on the live file's own card; A only while the line is on screen
+      const sign = here && (source === 'card' || (source === 'key' && line !== null && onScreen(line)));
+      if (!sign) {
+        bringDecisionIn(x, source === 'key' ? 'key' : 'button');
         return;
       }
       const g = s.gate;
@@ -314,49 +502,61 @@ export function createGateActions(x: V2Internals): GateActions {
       const provenance = provenanceOf(g);
       const presented = presentedFor(s, live);
       // manual signing always wins over a countdown
+      x.pendingSignFocus.current = 0;
       x.setGate({
         ...x.gateRef.current,
         autoDeadline: null,
         justSigned: { runId: s.agent.runId, verb: 'approve', auto: false, at: Date.now(), presented },
       });
       s.agent.approve(g.note.trim() ? g.note : undefined, { amendments, provenance });
+      // the ink draws in view: nothing covers the memo (the drawer, an overlaid source), and the
+      // line is brought in once sealed
+      clearMemoCovers(x);
+      revealSealSoon(x, s.agent.runId);
     },
 
     tryReject: () => {
       const s = x.current();
       if (!atGate(s) || verbsDead(s)) return;
       holdAuto(x, 'engaged');
+      if (onLiveFile(s)) clearMemoCovers(x);
       const g = x.gateRef.current;
       if (!g.note.trim()) {
-        x.setGate({ ...g, needNote: 'reject', focusTick: g.focusTick + 1 });
+        askForNote(x, 'reject');
         return;
       }
       const live = selectLiveDealId(s);
       const presented = presentedFor(s, live ?? '');
+      x.pendingNoteFocus.current = 0;
       x.setGate({
         ...g,
         needNote: null,
         justSigned: { runId: s.agent.runId, verb: 'reject', auto: false, at: Date.now(), presented },
       });
       s.agent.reject(g.note, provenanceOf(g));
+      revealSealSoon(x, s.agent.runId);
     },
 
     tryRework: () => {
       const s = x.current();
       if (!atGate(s) || verbsDead(s)) return;
       holdAuto(x, 'engaged');
+      if (onLiveFile(s)) clearMemoCovers(x);
       const g = x.gateRef.current;
       if (!g.note.trim()) {
-        x.setGate({ ...g, needNote: 'rework', focusTick: g.focusTick + 1 });
+        askForNote(x, 'rework');
         return;
       }
       const note = g.note;
       const provenance = provenanceOf(g);
+      x.pendingNoteFocus.current = 0;
       x.setGate({ ...g, needNote: null, leaving: true });
+      const runId = s.agent.runId;
       const resume = () => {
         x.current().agent.requestRework(note, provenance);
         x.setGate((cur) => (cur.leaving ? { ...cur, leaving: false } : cur));
         x.announce('returned');
+        focusPendingSoon(x, runId);
       };
       // wait out the recede (the --dur-2 token; 0 under reduced motion)
       const ms = cssMs('--dur-2');
@@ -366,20 +566,29 @@ export function createGateActions(x: V2Internals): GateActions {
 
     reviewManually: () => holdAuto(x, 'manual'),
 
-    registerSignatureLine: (el) => {
-      x.lineRef.current = el;
-      const since = x.pendingLineFocus.current;
-      if (el && since > 0) {
-        x.pendingLineFocus.current = 0;
-        if (Date.now() - since > LINE_FOCUS_WINDOW_MS) return;
-        const reduced = x.current().reducedMotion;
-        window.requestAnimationFrame(() => {
-          if (el.isConnected) focusLine(el, reduced);
-        });
-      }
+    // the memo Decision card registers its root; a phase-one press made before it mounted
+    // (Go to decision from another route, A off the file) presents it now: the verbs and the
+    // reviewer line come into view and the primary takes focus
+    registerDecision: (el) => {
+      register(x.decisionRef, el);
+      const since = x.pendingSignFocus.current;
+      if (!el || since <= 0) return;
+      x.pendingSignFocus.current = 0;
+      if (Date.now() - since > FOCUS_WINDOW_MS) return;
+      // instant: the file's own scroll to the card ([at]) may still be animating
+      presentDecisionSoon(x, false, 'auto');
     },
 
-    markOpened: (flagId) => markOpenedIn(x, flagId),
+    // the card's note field registers itself; an S or R made before it mounted focuses it now
+    registerNoteField: (el) => {
+      register(x.noteFieldRef, el);
+      const since = x.pendingNoteFocus.current;
+      if (!el || since <= 0) return;
+      x.pendingNoteFocus.current = 0;
+      if (Date.now() - since > FOCUS_WINDOW_MS) return;
+      focusNoteSoon(x, el);
+    },
+
   };
 }
 
@@ -398,13 +607,15 @@ export function useGateEffects(s: V2Store, x: V2Internals): void {
   // An open confirm strip (Stop, or a start that would replace this run) is
   // engagement: it holds instead of arming. This covers a gate reached under a
   // strip opened while drafting, and a palette Stop or Re-run that navigates to
-  // the file and opens its strip in the same tick.
+  // the file and opens its strip in the same tick. Unsent text in the live
+  // file's composer is engagement too (typed before the gate was reached).
   const armed = isArmed(s);
   const confirmOpen = s.ui.confirm !== null;
+  const drafting = composerEngaged(s);
   useEffect(() => {
     const g = x.gateRef.current;
     if (armed) {
-      if (x.uiRef.current.confirm !== null) {
+      if (x.uiRef.current.confirm !== null || composerEngaged(x.current())) {
         holdAuto(x, 'engaged');
         return;
       }
@@ -418,7 +629,7 @@ export function useGateEffects(s: V2Store, x: V2Internals): void {
     else if (!onLiveFile(c)) holdAuto(x, 'left');
     else if (!c.tabVisible) holdAuto(x, 'hidden');
     else x.setGate({ ...g, autoDeadline: null });
-  }, [armed, confirmOpen, s.gate.autoDeadline, s.gate.held, x]);
+  }, [armed, confirmOpen, drafting, s.gate.autoDeadline, s.gate.held, x]);
 
   // at the deadline, re-check EVERY arming condition before the policy signs
   const deadline = s.gate.autoDeadline;
@@ -428,7 +639,7 @@ export function useGateEffects(s: V2Store, x: V2Internals): void {
       const c = x.current();
       if (c.gate.autoDeadline !== deadline) return;
       if (!isArmed(c)) return;
-      if (c.ui.confirm !== null) {
+      if (c.ui.confirm !== null || composerEngaged(c)) {
         holdAuto(x, 'engaged');
         return;
       }

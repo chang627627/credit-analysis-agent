@@ -8,7 +8,7 @@
 
 import type { EscalationItem, PortfolioDealState } from '../../agent/monitor';
 import { DECLINE_SCORE } from '../../agent/rating';
-import type { V2Store } from '../state/store';
+import type { V2Store } from '../state/contracts';
 import { cushionOf, distanceOf } from './evidence';
 import { fmtAgo, fmtCountdown, fmtHM, fmtSeconds, plural } from './format';
 import { healthStatus } from './select-file';

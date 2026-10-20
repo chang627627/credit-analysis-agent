@@ -1,31 +1,45 @@
 // ---------------------------------------------------------------------------
-// Case file (spec §7.2): the product. The agent drafts the Credit Approval
-// Memorandum beside the CIM it quotes; flags are margin notes; the run log
-// lives in the margin; the decision is the signature at the foot.
+// Case file · the memo pane (THREE-PANE.md R2.2, §1.7, §5). Everything the
+// reviewer reads, and the whole decision, lives here; the agent panel beside
+// it is command and control only and merely points at these cards.
 //
-//   [canvas] or [source 360 | canvas]      canvas = sticky doc bar + content
-//   content = page grid: one .file-row per memo row (display: contents)
-//             holding a .file-pagecell (data-section) and a .file-margincell
+//   header on the canvas (borrower, facility and amount, CAM id, prepared-by,
+//     the CIM paragraphs; never the agent's call)
+//   one paper card per section, 16px of canvas apart: step eyebrow, real
+//     title, the model's one-line takeaway, labelled blocks with the flagged
+//     figure marked where it sits, the row-less flags as one marked line each
+//     at the card's foot, then ONE quiet record line with a collapsed Record
+//   the Decision card (slots.signature, rendered by screens/decision inside
+//     this screen's MemoCard section="signature"), right after step 5: the
+//     ONE place to decide, and the sealed record once decided
+//   the stress test (scratch, no card), the exhibits card, the appendix card
 //
-// The screen is a pure reduction of selectFile(): it renders the view
-// verbatim and calls only store actions. It owns the scroll/cue effects of
-// §7.2 (scroll to ?at=, trace, flash, note focus, amend focus) and the local
-// reading state (hovered note/row, open records, reasoning overrides).
+//   .file = [canvas] or [canvas | source 360]   (push at a memo pane of
+//   1064px and up, @container viz; an overlay on the right edge below)
+//   canvas = sticky doc bar + .file-content (max 808, cards 16px apart)
+//
+// No notes blocks, no margin column, no header margin, no Contents row. The
+// screen is a pure reduction of selectFile(): it renders the view verbatim and
+// calls only store actions. It owns the scroll and cue effects: [dealId, at,
+// navSeq] scrolling, ui.memoCue (panel links, J / K, Signed over, Edit in
+// memo, the stress link: scroll the card, bring the row into view, cue it with
+// the one-shot flash or a held highlight under reduced motion) and
+// ui.amendFocus (reaches the AmendField). Every card carries data-section, so
+// every panel link ("Covenants →", "Decision →") has a target.
 // ---------------------------------------------------------------------------
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PointerEvent, ReactNode } from 'react';
-import { Caret, EmptyNote, LinkButton, SectionHead, StatusLabel } from '../../kit';
-import { COPY, CUE_HOLD_MS, selectAsk, selectFile } from '../../model';
-import type { FileView, NoteView, SectionView } from '../../model';
+import type { ReactNode } from 'react';
+import { Caret, EmptyNote, LinkButton, MemoCard, SectionHead, StatusLabel } from '../../kit';
+import { COPY, CUE_HOLD_MS, isRowAnchor, selectFile } from '../../model';
+import type { FileView, MemoSection, SectionAside, SectionView } from '../../model';
+import { CardFlags, CardFooter } from './CardFoot';
 import { useV2 } from '../../state/store';
 import type { V2Actions } from '../../state/store';
 import type { FileScreenProps } from '../../state/screens';
 import { Appendix } from './Appendix';
-import { Contents } from './Contents';
 import { DocBar } from './DocBar';
-import { MarginCell, Notes, Stub } from './Margin';
-import { HeaderMargin, PageHeader } from './PageHeader';
+import { PageHeader } from './PageHeader';
 import { SourcePane } from './SourcePane';
 import { Covenants } from './sections/Covenants';
 import { Financials } from './sections/Financials';
@@ -34,104 +48,67 @@ import { Recommendation } from './sections/Recommendation';
 import { Revision } from './sections/Revision';
 import { Risk } from './sections/Risk';
 
-/** Everything a memo row needs from the screen: the view, actions and the local cue state. */
+/** Everything a memo card needs from the screen: the view, the actions and the local cue state. */
 export interface FileCtx {
   dealId: string;
   view: FileView;
   actions: V2Actions;
-  /** below 760px every memo table stacks (§3 responsive floor) */
-  stackTables: boolean;
-  /** below 1120px the five-column covenant tables stack too: their fixed columns leave no room for the name */
-  stackWide: boolean;
-  quotedMarkIds: string[];
   activeMarkId: string | null;
   amendFocus: { kind: 'leverage' | 'liquidity'; tick: number } | null;
   isHighlighted: (anchorId: string) => boolean;
   flashKeyOf: (anchorId: string) => number | undefined;
-  isNoteActive: (n: NoteView) => boolean;
-  hoverNote: (anchorId: string | null) => void;
-  noteAction: (n: NoteView, kind: 'show' | 'trace' | 'amend') => void;
-  isRecordOpen: (stepId: string) => boolean;
-  setRecordOpen: (stepId: string, open: boolean) => void;
-  isReasoningOpen: (stepId: string) => boolean;
-  setReasoningOpen: (stepId: string, open: boolean) => void;
   cite: (citeIndex: number) => void;
-  openStress: () => void;
 }
 
-/** Live media query (no ResizeObserver: the layout itself is pure CSS). */
-function useMedia(query: string): boolean {
-  const read = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(query).matches;
-  const [match, setMatch] = useState(read);
-  useEffect(() => {
-    if (typeof window.matchMedia !== 'function') return;
-    const mql = window.matchMedia(query);
-    const on = () => setMatch(mql.matches);
-    on();
-    mql.addEventListener('change', on);
-    return () => mql.removeEventListener('change', on);
-  }, [query]);
-  return match;
-}
+/** A cue written this recently is honoured when the memo mounts in the same batch (§2.6). */
+const CUE_FRESH_MS = 1000;
+/** Cards sit this far below the scroller's top edge, under the 44px doc bar (MemoCard scroll-margin-top). */
+const CARD_SCROLL_MARGIN = 60;
 
 /** Attribute selectors carry anchor ids such as `cov:Max Total Leverage`. */
 function esc(v: string): string {
   return typeof CSS !== 'undefined' && typeof CSS.escape === 'function' ? CSS.escape(v) : v.replace(/["\\]/g, '\\$&');
 }
 
-function allNotes(view: FileView | null): NoteView[] {
-  if (!view) return [];
-  const out = view.sections.flatMap((sec) => sec.notes);
-  if (view.headerMargin.evidenceCheck) out.push(view.headerMargin.evidenceCheck);
-  return out;
+/** Smooth unless the cue asks for an instant jump or the reader prefers reduced motion. */
+function scrollBehavior(instant: boolean, reduced: boolean): ScrollBehavior {
+  return instant || reduced ? 'auto' : 'smooth';
 }
 
-function Row(props: { section: string; page: ReactNode; margin: ReactNode }) {
+/** Right of the eyebrow while a card drafts, is excluded or stopped. A set card has none: its footer carries the record. */
+function Aside(props: { aside: SectionAside }) {
+  const { aside } = props;
+  if (aside.kind !== 'status') return null;
   return (
-    <div className="file-row">
-      <div className="file-pagecell" data-section={props.section}>
-        {props.page}
-      </div>
-      <MarginCell empty={props.margin === null}>{props.margin}</MarginCell>
-    </div>
+    <StatusLabel state={aside.state} role="label">
+      {aside.text}
+    </StatusLabel>
   );
 }
 
-function SectionContent(props: { sec: SectionView; ctx: FileCtx }) {
+function SectionBody(props: { sec: SectionView; ctx: FileCtx }) {
   const { sec, ctx } = props;
   switch (sec.phase) {
     case 'pending':
-      return <p className="file-pending t-small">{sec.pendingLine}</p>;
     case 'excluded':
-      return <p className="file-pending t-small">{COPY.excludedLine}</p>;
+      return sec.phaseLine ? <p className="file-phase t-small">{sec.phaseLine}</p> : null;
     case 'stopped':
-      return (
-        <div className="file-drafting">
-          {sec.drafting && sec.drafting.text ? <p className="file-drafting__text t-small">{sec.drafting.text}</p> : null}
-          <StatusLabel state="error" role="small">
-            {COPY.stopped}
-          </StatusLabel>
-        </div>
+      return sec.phaseLine ? (
+        <p className="file-phase t-small">{sec.phaseLine}</p>
+      ) : (
+        <StatusLabel state="error" role="small">
+          {sec.statusLabel}
+        </StatusLabel>
       );
     case 'drafting': {
       const d = sec.drafting;
-      if (!d) return <p className="file-pending t-small">{sec.pendingLine}</p>;
-      // exactly one caret, at the very end of the write point
+      if (!d) return sec.phaseLine ? <p className="file-phase t-small">{sec.phaseLine}</p> : null;
+      // the app's one caret, at the end of the write point
       return (
-        <div className="file-drafting">
-          {d.text || !d.callLine ? (
-            <p className="file-drafting__text t-small">
-              {d.text}
-              {d.caret && !d.callLine ? <Caret /> : null}
-            </p>
-          ) : null}
-          {d.callLine ? (
-            <p className="file-drafting__text t-small">
-              {d.callLine}
-              {d.caret ? <Caret /> : null}
-            </p>
-          ) : null}
-        </div>
+        <p className="file-drafting t-small">
+          {d.line}
+          {d.caret ? <Caret /> : null}
+        </p>
       );
     }
     case 'set':
@@ -144,16 +121,16 @@ function SectionContent(props: { sec: SectionView; ctx: FileCtx }) {
       body = sec.body ? <Recommendation body={sec.body} ctx={ctx} /> : null;
       break;
     case 'financials':
-      body = sec.body ? <Financials rows={sec.body} heading={sec.heading} ctx={ctx} /> : null;
+      body = sec.body ? <Financials rows={sec.body} labels={sec.blockLabels} ctx={ctx} /> : null;
       break;
     case 'risk':
       body = sec.body ? <Risk body={sec.body} ctx={ctx} /> : null;
       break;
     case 'peers':
-      body = sec.body ? <Peers body={sec.body} heading={sec.heading} ctx={ctx} /> : null;
+      body = sec.body ? <Peers body={sec.body} /> : null;
       break;
     case 'covenants':
-      body = sec.body ? <Covenants rows={sec.body} heading={sec.heading} ctx={ctx} /> : null;
+      body = sec.body ? <Covenants rows={sec.body} label={sec.testsLabel} ctx={ctx} /> : null;
       break;
     case 'revision':
       body = sec.body ? <Revision body={sec.body} heading={sec.heading} ctx={ctx} /> : null;
@@ -165,32 +142,24 @@ function SectionContent(props: { sec: SectionView; ctx: FileCtx }) {
   return <div className="file-secbody">{body}</div>;
 }
 
-function SectionPage(props: { sec: SectionView; ctx: FileCtx }) {
+function SectionCard(props: { sec: SectionView; ctx: FileCtx }) {
   const { sec, ctx } = props;
   return (
-    <>
+    <MemoCard section={sec.id} ariaLabel={sec.heading}>
       <SectionHead
-        ordinal={sec.ordinal}
+        eyebrow={sec.eyebrow}
         heading={sec.heading}
-        suffix={sec.suffix}
-        status={sec.status}
-        statusLabel={sec.statusLabel}
+        takeaway={sec.takeaway}
+        aside={sec.aside ? <Aside aside={sec.aside} /> : null}
         anchorId={sec.anchorId}
         flashKey={ctx.flashKeyOf(sec.anchorId)}
         highlighted={ctx.isHighlighted(sec.anchorId)}
       />
-      <SectionContent sec={sec} ctx={ctx} />
-    </>
-  );
-}
-
-function sectionMargin(sec: SectionView, ctx: FileCtx): ReactNode {
-  if (!sec.stub && sec.notes.length === 0) return null;
-  return (
-    <>
-      {sec.stub ? <Stub stub={sec.stub} ctx={ctx} /> : null}
-      <Notes notes={sec.notes} ctx={ctx} />
-    </>
+      <SectionBody sec={sec} ctx={ctx} />
+      {sec.flagLines.length > 0 ? <CardFlags lines={sec.flagLines} ctx={ctx} /> : null}
+      {/* keyed by run, so a re-run opens with every Record collapsed again */}
+      {sec.footer ? <CardFooter key={`${ctx.view.runId ?? 'none'}:${sec.footer.record.stepId}`} footer={sec.footer} /> : null}
+    </MemoCard>
   );
 }
 
@@ -199,46 +168,35 @@ export function FileScreen({ dealId, at, navSeq, slots }: FileScreenProps) {
   const a = s.actions;
   const view = selectFile(s, dealId);
 
-  const stackTables = useMedia('(max-width: 759px)');
-  const stackWide = useMedia('(max-width: 1119px)');
-
   const rootRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
   const reducedRef = useRef(s.reducedMotion);
   reducedRef.current = s.reducedMotion;
   const viewRef = useRef<FileView | null>(view);
   viewRef.current = view;
 
-  // ---- local reading state
-  const [hoverAnchor, setHoverAnchor] = useState<string | null>(null); // a hovered note's anchor → its row highlights
-  const [hoverRow, setHoverRow] = useState<string | null>(null); // a hovered anchored row → its notes go active
-  const [focusedNote, setFocusedNote] = useState<string | null>(null);
+  // ---- local cue state: replayed flashes, and held highlights under reduced motion
   const [flashKeys, setFlashKeys] = useState<Record<string, number>>({});
   const [held, setHeld] = useState<Record<string, number>>({});
-  const [records, setRecords] = useState<Record<string, boolean>>({});
-  const showReasoning = view ? view.headerMargin.showReasoning : false;
-  // per-stub reasoning overrides, discarded whenever "Show all reasoning" flips
-  const [reasoning, setReasoning] = useState<{ base: boolean; open: Record<string, boolean> }>({ base: showReasoning, open: {} });
 
+  // effects that wait a frame check this instead of cancelling, so a StrictMode remount keeps them
+  const alive = useRef(false);
   const timers = useRef<number[]>([]);
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
       timers.current.forEach((t) => window.clearTimeout(t));
       timers.current = [];
-    },
-    [],
-  );
+    };
+  }, []);
 
   const query = useCallback((sel: string): HTMLElement | null => {
     const root = rootRef.current;
     return root ? root.querySelector<HTMLElement>(sel) : null;
   }, []);
 
-  const scrollTo = useCallback((el: HTMLElement | null, block: ScrollLogicalPosition, instant = false) => {
-    if (!el) return;
-    el.scrollIntoView({ block, behavior: instant || reducedRef.current ? 'auto' : 'smooth' });
-  }, []);
-
-  /** Cue an anchored row or head: replay the flash, or (reduced motion) hold a static highlight. */
+  /** Cue an anchored row or head this screen renders: replay the flash, or (reduced motion) hold a static highlight. */
   const cue = useCallback((anchorId: string) => {
     if (reducedRef.current) {
       setHeld((h) => ({ ...h, [anchorId]: (h[anchorId] ?? 0) + 1 }));
@@ -257,71 +215,76 @@ export function FileScreen({ dealId, at, navSeq, slots }: FileScreenProps) {
     setFlashKeys((f) => ({ ...f, [anchorId]: (f[anchorId] ?? 0) + 1 }));
   }, []);
 
-  // ---- [dealId, at, navSeq]: scroll the target page cell into view
+  /** A memo cue (a panel link, J / K, Signed over, Edit in memo, the stress link): scroll the card
+      to the top (or, when the row would still sit below the fold, the row to the centre) in ONE
+      scroll, then cue the row (a table row or a row-less flag line) or the card's head. */
+  const presentCue = useCallback(
+    (section: MemoSection, anchorId: string | null, instant: boolean) => {
+      const card = query(`[data-section="${esc(section)}"]`);
+      if (!card) return;
+      const row =
+        anchorId !== null && isRowAnchor(anchorId) ? card.querySelector<HTMLElement>(`[data-anchor="${esc(anchorId)}"]`) : null;
+      const scroller = canvasRef.current;
+      let target: HTMLElement = card;
+      let block: ScrollLogicalPosition = 'start';
+      if (row && scroller) {
+        const below = row.getBoundingClientRect().bottom - card.getBoundingClientRect().top + CARD_SCROLL_MARGIN;
+        if (below > scroller.clientHeight) {
+          target = row;
+          block = 'center';
+        }
+      }
+      target.scrollIntoView({ block, behavior: scrollBehavior(instant, reducedRef.current) });
+
+      if (row && anchorId !== null) {
+        cue(anchorId);
+        return;
+      }
+      // the heads this screen renders; a slot card's head (the Decision card, exhibits) listens to
+      // the same memoCue itself, since no flash key can be passed into a slot
+      const v = viewRef.current;
+      const owned = section === 'monitoring' || (v ? v.sections.some((sec) => sec.id === section) : false);
+      if (owned) cue(`sec:${section}`);
+    },
+    [query, cue],
+  );
+
+  // ---- [dealId, at, navSeq]: scroll the target card into view. Opening the file jumps (no long
+  // smooth run down a freshly mounted memo, and nothing animating under the Decision card's own
+  // reveal, which state/gate.ts runs on the next frame); a later navigation within the file glides.
+  const atMounted = useRef(false);
   useEffect(() => {
+    const first = !atMounted.current;
+    atMounted.current = true;
     if (!at) return;
-    scrollTo(query(`.file-pagecell[data-section="${esc(at)}"]`), 'start');
-  }, [dealId, at, navSeq, query, scrollTo]);
+    const el = query(`[data-section="${esc(at)}"]`);
+    if (el) el.scrollIntoView({ block: 'start', behavior: scrollBehavior(first, reducedRef.current) });
+  }, [dealId, at, navSeq, query]);
 
-  // ---- ui.trace.tick: open that stub's Record, bring the stub into view, cue the anchor
-  const trace = s.ui.trace;
-  const traceTick = trace ? trace.tick : 0;
-  const lastTrace = useRef(traceTick);
+  // ---- ui.memoCue: a tick change after mount; on mount, a cue under CUE_FRESH_MS old (§2.6)
+  const memoCue = s.ui.memoCue;
+  const memoTick = memoCue ? memoCue.tick : 0;
+  const memoRef = useRef(memoCue);
+  memoRef.current = memoCue;
+  const seenMemo = useRef(-1); // -1: the mount pass has not run yet
   useEffect(() => {
-    if (traceTick === lastTrace.current) return;
-    lastTrace.current = traceTick;
-    if (!trace) return;
-    const { stepId, anchorId } = trace;
-    setRecords((r) => (r[stepId] ? r : { ...r, [stepId]: true }));
-    const raf = window.requestAnimationFrame(() => {
-      scrollTo(query(`[data-stub="${esc(stepId)}"]`), 'center');
-      if (anchorId) cue(anchorId);
+    const atMount = seenMemo.current === -1;
+    if (memoTick === seenMemo.current) return;
+    seenMemo.current = memoTick;
+    const c = memoRef.current;
+    if (!c || c.tick !== memoTick) return;
+    if (atMount && Date.now() - c.at >= CUE_FRESH_MS) return;
+    // one frame, so a card that mounted or grew in the same batch (the stress test opening) is laid out
+    window.requestAnimationFrame(() => {
+      if (!alive.current) return;
+      presentCue(c.section, c.anchorId, c.instant);
     });
-    return () => window.cancelAnimationFrame(raf);
-  }, [traceTick]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ---- ui.flash.tick: cue the anchor (Show row)
-  const flash = s.ui.flash;
-  const flashTick = flash ? flash.tick : 0;
-  const lastFlash = useRef(flashTick);
-  useEffect(() => {
-    if (flashTick === lastFlash.current) return;
-    lastFlash.current = flashTick;
-    if (!flash) return;
-    cue(flash.anchorId);
-    scrollTo(query(`[data-anchor="${esc(flash.anchorId)}"]`), 'nearest');
-  }, [flashTick]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ---- ui.noteFocus.tick: bring the note into view and cue its anchor
-  const noteFocus = s.ui.noteFocus;
-  const noteTick = noteFocus ? noteFocus.tick : 0;
-  const lastNote = useRef(noteTick);
-  useEffect(() => {
-    if (noteTick === lastNote.current) return;
-    lastNote.current = noteTick;
-    if (!noteFocus) return;
-    const { noteId } = noteFocus;
-    setFocusedNote(noteId);
-    scrollTo(query(`[data-note="${esc(noteId)}"]`), 'center');
-    const note = allNotes(viewRef.current).find((n) => n.id === noteId);
-    if (note) cue(note.anchorId);
-  }, [noteTick]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [memoTick, presentCue]);
 
   // ---- ui.amendFocus.tick reaches the AmendField as focusTick (Covenants); only changes after mount count
   const amendFocus = s.ui.amendFocus;
   const amendAtMount = useRef(amendFocus ? amendFocus.tick : 0);
   const liveAmendFocus = amendFocus && amendFocus.tick !== amendAtMount.current ? amendFocus : null;
-
-  // ---- hovering an anchored row (Table row or section head) activates its notes
-  const onGridOver = (e: PointerEvent<HTMLDivElement>) => {
-    const t = e.target;
-    if (!(t instanceof Element)) return;
-    const cell = t.closest('.file-pagecell');
-    const row = cell ? t.closest<HTMLElement>('[data-anchor]') : null;
-    const id = row && cell && cell.contains(row) ? row.getAttribute('data-anchor') : null;
-    setHoverRow(id);
-  };
-  const onGridLeave = () => setHoverRow(null);
 
   if (!view) {
     return (
@@ -334,90 +297,62 @@ export function FileScreen({ dealId, at, navSeq, slots }: FileScreenProps) {
     );
   }
 
-  const ask = selectAsk(s, dealId);
   const cites = s.ui.cites;
   const activeMarkId = cites && cites.dealId === dealId ? cites.markIds[cites.index] ?? null : null;
-  const reasoningMap = reasoning.base === showReasoning ? reasoning.open : {};
+  const quotedMarkIds = view.sourceView.quoted.markIds;
 
   const ctx: FileCtx = {
     dealId,
     view,
     actions: a,
-    stackTables,
-    stackWide,
-    quotedMarkIds: view.sourceView.quoted.markIds,
     activeMarkId,
     amendFocus: liveAmendFocus,
-    isHighlighted: (id) => hoverAnchor === id || (held[id] ?? 0) > 0,
+    isHighlighted: (id) => (held[id] ?? 0) > 0,
     flashKeyOf: (id) => flashKeys[id],
-    isNoteActive: (n) => hoverRow === n.anchorId || focusedNote === n.id,
-    hoverNote: (id) => setHoverAnchor(id),
-    noteAction: (n, kind) => {
-      if (n.flagId && view.live) a.markOpened(n.flagId);
-      if (kind === 'show') a.flashAnchor(n.anchorId);
-      else if (kind === 'trace') {
-        if (n.traceStepId) a.trace(n.traceStepId, n.anchorId);
-        else a.flashAnchor(n.anchorId);
-      } else if (kind === 'amend' && n.amendKind) a.focusAmend(n.amendKind);
-    },
-    isRecordOpen: (stepId) => records[stepId] === true,
-    setRecordOpen: (stepId, open) => setRecords((r) => ({ ...r, [stepId]: open })),
-    isReasoningOpen: (stepId) => reasoningMap[stepId] ?? showReasoning,
-    setReasoningOpen: (stepId, open) =>
-      setReasoning((prev) => ({ base: showReasoning, open: { ...(prev.base === showReasoning ? prev.open : {}), [stepId]: open } })),
-    cite: (citeIndex) => a.cite(dealId, view.sourceView.quoted.markIds, citeIndex),
-    openStress: () => {
-      a.openStress(dealId);
-      window.requestAnimationFrame(() => scrollTo(query('.file-pagecell[data-section="stress"]'), 'start'));
-    },
+    cite: (citeIndex) => a.cite(dealId, quotedMarkIds, citeIndex),
   };
 
   const goToDrafting = () => {
     const target = view.sections.find((sec) => sec.phase === 'drafting') ?? view.sections.find((sec) => sec.phase === 'pending');
-    if (target) scrollTo(query(`.file-pagecell[data-section="${esc(target.id)}"]`), 'start', true);
+    if (!target) return;
+    const el = query(`[data-section="${esc(target.id)}"]`);
+    if (el) el.scrollIntoView({ block: 'start', behavior: 'auto' });
   };
-
-  // ---- memo rows, in page order (§7.2 "Row order")
-  const rows: ReactNode[] = [
-    <Row
-      key="header"
-      section="header"
-      page={<PageHeader header={view.header} ctx={ctx} />}
-      margin={<HeaderMargin view={view} ask={ask} ctx={ctx} />}
-    />,
-  ];
-  if (view.contents) {
-    rows.push(
-      <Row
-        key="contents"
-        section="contents"
-        page={<Contents contents={view.contents} ctx={ctx} />}
-        margin={<EmptyNote>{COPY.contentsEmptyMargin}</EmptyNote>}
-      />,
-    );
-  } else {
-    for (const sec of view.sections) {
-      rows.push(<Row key={sec.id} section={sec.id} page={<SectionPage sec={sec} ctx={ctx} />} margin={sectionMargin(sec, ctx)} />);
-    }
-  }
-  if (view.rows.exhibits) rows.push(<Row key="exhibits" section="exhibits" page={slots.exhibits} margin={null} />);
-  if (view.rows.stress) rows.push(<Row key="stress" section="stress" page={slots.stress} margin={null} />);
-  if (view.rows.signature) rows.push(<Row key="signature" section="signature" page={slots.signature} margin={null} />);
-  if (view.rows.monitoring && view.appendix) {
-    rows.push(<Row key="monitoring" section="monitoring" page={<Appendix appendix={view.appendix} ctx={ctx} />} margin={null} />);
-  }
 
   return (
     <div ref={rootRef} className="file" data-source={view.sourceView.open ? 'open' : 'closed'}>
-      <SourcePane source={view.sourceView} dealId={dealId} actions={a} reducedMotion={s.reducedMotion} />
-      <div className="file-canvas">
+      <div ref={canvasRef} className="file-canvas">
         <DocBar docBar={view.docBar} source={view.sourceView} dealId={dealId} actions={a} onGoToDrafting={goToDrafting} />
         <div className="file-content">
-          <div className="file-grid" onPointerOver={onGridOver} onPointerLeave={onGridLeave}>
-            {rows}
-          </div>
+          <PageHeader header={view.header} ctx={ctx} />
+          {view.sections.map((sec) => (
+            <SectionCard key={sec.id} sec={sec} ctx={ctx} />
+          ))}
+          {/* R2.2: the Decision card right after step 5, before the stress test. The slot renders
+              the card's content (the whole decision at the gate, the sealed record after it). */}
+          {view.rows.signature ? (
+            <MemoCard section="signature" ariaLabel={COPY.decision}>
+              {slots.signature}
+            </MemoCard>
+          ) : null}
+          {view.rows.stress ? (
+            <div className="file-scratch" data-section="stress">
+              {slots.stress}
+            </div>
+          ) : null}
+          {view.rows.exhibits ? (
+            <MemoCard section="exhibits" ariaLabel={COPY.exhibits}>
+              {slots.exhibits}
+            </MemoCard>
+          ) : null}
+          {view.rows.monitoring && view.appendix ? (
+            <MemoCard section="monitoring" ariaLabel={view.appendix.heading}>
+              <Appendix appendix={view.appendix} ctx={ctx} />
+            </MemoCard>
+          ) : null}
         </div>
       </div>
+      <SourcePane source={view.sourceView} dealId={dealId} actions={a} reducedMotion={s.reducedMotion} />
     </div>
   );
 }

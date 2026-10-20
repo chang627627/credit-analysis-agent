@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------------------
 
 import type { AuditHistoryEntry, RunRecord } from '../../hooks/useCreditAgent';
-import type { CaseFileSnapshot, LedgerChip, MonitorLogEntry, V2Store } from '../state/store';
+import type { CaseFileSnapshot, LedgerChip, MonitorLogEntry, V2Store } from '../state/contracts';
 import { EM, fmtClock, fmtDuration, fmtElapsed, fmtHM, fmtIso, plural } from './format';
 import { countedFlagsOf, runTiming, signedVerdict } from './select-file';
 import type { Actor, LedgerRow, LedgerRun, LedgerView, StatusKey, StatusText } from './types';

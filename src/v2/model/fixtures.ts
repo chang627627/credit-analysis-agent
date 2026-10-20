@@ -4,17 +4,21 @@
 // selectors return these, and the kit page uses them for specimens. Engine
 // strings (flag messages, summaries, reasoning) are reproduced as the engine
 // writes them; their em dashes are interpolated from EM, never typed.
+// THREE-PANE: memo sections are cards (eyebrow, title, takeaway, labelled
+// blocks, a record footer, row-less flags as foot lines) whose takeaways equal
+// the §5.5 strings; FX_PANEL_* are the agent panel (R2: one-line status lines
+// with links, the plan prompt); FX_SIG_* are the memo's Decision card; FX_NOTES
+// are MarginNote specimens; the raw step record is FX_STUB_EXTRACT.
 // ---------------------------------------------------------------------------
 
-import { AUTO_NOTE, COPY, tokenOf } from './vocab';
+import { AUTO_NOTE, COPY, sectionLinkLabel, STATUS_WORD, tokenOf } from './vocab';
 import { EM, MINUS } from './format';
 import type {
   Actor,
-  AskView,
+  AgentPanelView,
   BookItem,
   BookRow,
   BookView,
-  ContentsView,
   CovenantRow,
   DeskRow,
   DeskView,
@@ -34,13 +38,19 @@ import type {
   RecommendationBody,
   RevisionBody,
   RiskBody,
+  SectionFlagLine,
+  SectionFooter,
+  SectionId,
   SectionView,
   SignatureView,
   SourceView,
   StressView,
   StubView,
+  TakeawayView,
+  ThreadLine,
   TopBarView,
   AppendixView,
+  FileAt,
 } from './types';
 
 const M = MINUS;
@@ -158,7 +168,6 @@ export const FX_DESK_ATLAS_GATE: DeskView = {
 
 const ATLAS_FLAG_BREACH = 'flag_24';
 const ATLAS_FLAG_FCC = 'flag_25';
-const ATLAS_FLAG_SENDBACK = 'flag_41';
 const ATLAS_FLAG_RESTRUCTURE = 'flag_42';
 
 const ATLAS_BREACH_MSG = `Max Total Leverage 4.26x breaches the ≤ 4.00x covenant ${EM} cannot auto-approve.`;
@@ -343,12 +352,11 @@ const NOTE_ATLAS_BREACH: NoteView = {
   anchorId: 'cov:Max Total Leverage',
   counted: true,
   opened: false,
+  target: { section: 'covenants', anchorId: 'cov:Max Total Leverage' },
   actions: [
     { kind: 'show', label: COPY.showRow },
-    { kind: 'trace', label: COPY.trace },
     { kind: 'amend', label: COPY.amendTerm },
   ],
-  traceStepId: 'step_covenants',
   amendKind: 'leverage',
 };
 const NOTE_ATLAS_FCC: NoteView = {
@@ -363,11 +371,8 @@ const NOTE_ATLAS_FCC: NoteView = {
   anchorId: 'cov:Min Fixed-Charge Coverage',
   counted: true,
   opened: false,
-  actions: [
-    { kind: 'show', label: COPY.showRow },
-    { kind: 'trace', label: COPY.trace },
-  ],
-  traceStepId: 'step_covenants',
+  target: { section: 'covenants', anchorId: 'cov:Min Fixed-Charge Coverage' },
+  actions: [{ kind: 'show', label: COPY.showRow }],
   amendKind: null,
 };
 const NOTE_ATLAS_EVIDENCE: NoteView = {
@@ -382,8 +387,8 @@ const NOTE_ATLAS_EVIDENCE: NoteView = {
   anchorId: 'sec:financials',
   counted: false,
   opened: false,
-  actions: [{ kind: 'trace', label: COPY.trace }],
-  traceStepId: 'step_extract',
+  target: { section: 'financials', anchorId: 'sec:financials' },
+  actions: [{ kind: 'memo', label: COPY.showInMemo }],
   amendKind: null,
 };
 /** After the seal (approve), counted notes read as signed over. */
@@ -395,31 +400,6 @@ const signedOver = (n: NoteView, opened: boolean): NoteView => ({
   actions: n.actions.filter((a) => a.kind !== 'amend'),
   amendKind: null,
 });
-/** At a restructured revision, rev 1's filed-figure notes are superseded (not counted). */
-const superseded = (n: NoteView): NoteView => ({
-  ...n,
-  tone: 'info',
-  counted: false,
-  meta: `${n.meta} · superseded by rev 2`,
-  actions: n.actions.filter((a) => a.kind !== 'amend'),
-  amendKind: null,
-});
-const NOTE_ATLAS_SENDBACK: NoteView = {
-  id: `note:${ATLAS_FLAG_SENDBACK}`,
-  flagId: ATLAS_FLAG_SENDBACK,
-  kind: 'send-back',
-  tone: 'returned',
-  status: 'returned',
-  heading: 'Returned for revision · rev 1',
-  text: ATLAS_SENDBACK_MSG,
-  meta: 'Reviewer · rev 1 · 14:05:48',
-  anchorId: 'sec:revision-2',
-  counted: false,
-  opened: false,
-  actions: [{ kind: 'trace', label: COPY.trace }],
-  traceStepId: 'step_rework_2',
-  amendKind: null,
-};
 const NOTE_ATLAS_RESTRUCTURE: NoteView = {
   id: `note:${ATLAS_FLAG_RESTRUCTURE}`,
   flagId: ATLAS_FLAG_RESTRUCTURE,
@@ -432,8 +412,8 @@ const NOTE_ATLAS_RESTRUCTURE: NoteView = {
   anchorId: 'sec:revision-2',
   counted: false,
   opened: false,
-  actions: [{ kind: 'trace', label: COPY.trace }],
-  traceStepId: 'step_rework_2',
+  target: { section: 'revision-2', anchorId: 'sec:revision-2' },
+  actions: [{ kind: 'memo', label: COPY.showInMemo }],
   amendKind: null,
 };
 
@@ -446,10 +426,10 @@ const UNQUOTED = { cls: 'unquoted', text: 'Unquoted · extracted' } as const;
 const ATLAS_MARKS = ['m2-80', 'm2-111', 'm2-121', 'm2-190'];
 
 const FIGURES_ATLAS: FigureRow[] = [
-  { id: 'revenue', anchorId: 'fig:revenue', label: 'Revenue (TTM)', value: '$128.4M', evidence: quoted(2, 80, 0) },
-  { id: 'ebitda', anchorId: 'fig:ebitda', label: 'Adj. EBITDA', value: '$22.6M', evidence: quoted(2, 111, 1) },
-  { id: 'margin', anchorId: 'fig:margin', label: 'EBITDA margin', value: '17.6%', evidence: quoted(2, 121, 2) },
-  { id: 'debt', anchorId: 'fig:debt', label: 'Total debt', value: '$96.3M', evidence: quoted(2, 190, 3) },
+  { id: 'revenue', anchorId: 'fig:revenue', label: 'Revenue (TTM)', value: '$128.4M', evidence: quoted(2, 80, 0), group: 'size', valueTone: 'ink', mark: null },
+  { id: 'ebitda', anchorId: 'fig:ebitda', label: 'Adj. EBITDA', value: '$22.6M', evidence: quoted(2, 111, 1), group: 'size', valueTone: 'ink', mark: null },
+  { id: 'margin', anchorId: 'fig:margin', label: 'EBITDA margin', value: '17.6%', evidence: quoted(2, 121, 2), group: 'size', valueTone: 'ink', mark: null },
+  { id: 'debt', anchorId: 'fig:debt', label: 'Total debt', value: '$96.3M', evidence: quoted(2, 190, 3), group: 'size', valueTone: 'ink', mark: null },
   {
     id: 'leverage',
     anchorId: 'fig:leverage',
@@ -464,10 +444,13 @@ const FIGURES_ATLAS: FigureRow[] = [
         { text: '22.6', markId: 'm2-111', citeIndex: 1 },
       ],
     },
+    group: 'tested',
+    valueTone: 'bad',
+    mark: 'breach',
   },
-  { id: 'interest', anchorId: 'fig:interest', label: 'Interest coverage', value: '2.10x', evidence: UNQUOTED },
-  { id: 'fixed', anchorId: 'fig:fixed', label: 'Fixed-charge coverage', value: '1.18x', evidence: UNQUOTED },
-  { id: 'liquidity', anchorId: 'fig:liquidity', label: 'Liquidity', value: '$14.2M', evidence: UNQUOTED },
+  { id: 'interest', anchorId: 'fig:interest', label: 'Interest coverage', value: '2.10x', evidence: UNQUOTED, group: 'tested', valueTone: 'ink', mark: null },
+  { id: 'fixed', anchorId: 'fig:fixed', label: 'Fixed-charge coverage', value: '1.18x', evidence: UNQUOTED, group: 'tested', valueTone: 'ink', mark: null },
+  { id: 'liquidity', anchorId: 'fig:liquidity', label: 'Liquidity', value: '$14.2M', evidence: UNQUOTED, group: 'tested', valueTone: 'ink', mark: null },
 ];
 
 const KEYFIGS_ATLAS: KeyFigureView[] = [
@@ -479,9 +462,9 @@ const KEYFIGS_ATLAS: KeyFigureView[] = [
     tone: 'ink',
     dot: null,
     evidenceText: 'Quoted · CIM para 2',
-    traceStepId: 'step_extract',
     anchorId: 'fig:revenue',
-    ariaLabel: 'Revenue (TTM) $128.4M. Quoted · CIM para 2. Trace to Document Intelligence.',
+    ariaLabel: 'Revenue (TTM) $128.4M. Quoted · CIM para 2. Show in Financials.',
+    target: { section: 'financials', anchorId: 'fig:revenue' },
   },
   {
     label: 'Adj. EBITDA',
@@ -491,9 +474,9 @@ const KEYFIGS_ATLAS: KeyFigureView[] = [
     tone: 'ink',
     dot: null,
     evidenceText: 'Quoted · CIM para 2',
-    traceStepId: 'step_extract',
     anchorId: 'fig:ebitda',
-    ariaLabel: 'Adj. EBITDA $22.6M. Quoted · CIM para 2. Trace to Document Intelligence.',
+    ariaLabel: 'Adj. EBITDA $22.6M. Quoted · CIM para 2. Show in Financials.',
+    target: { section: 'financials', anchorId: 'fig:ebitda' },
   },
   {
     label: 'Total leverage',
@@ -503,9 +486,9 @@ const KEYFIGS_ATLAS: KeyFigureView[] = [
     tone: 'bad',
     dot: 'bad',
     evidenceText: 'Derived · 96.3 ÷ 22.6',
-    traceStepId: 'step_extract',
     anchorId: 'fig:leverage',
-    ariaLabel: 'Total leverage 4.26x, 0.26x over ≤ 4.00x. Derived · 96.3 ÷ 22.6. Trace to Document Intelligence.',
+    ariaLabel: 'Total leverage 4.26x, 0.26x over ≤ 4.00x. Derived · 96.3 ÷ 22.6. Show in Financials.',
+    target: { section: 'financials', anchorId: 'fig:leverage' },
   },
   {
     label: 'Interest coverage',
@@ -515,9 +498,9 @@ const KEYFIGS_ATLAS: KeyFigureView[] = [
     tone: 'warn',
     dot: 'warn',
     evidenceText: 'Unquoted · extracted',
-    traceStepId: 'step_extract',
     anchorId: 'fig:interest',
-    ariaLabel: 'Interest coverage 2.10x, 0.10x room · ≥ 2.00x. Unquoted · extracted. Trace to Document Intelligence.',
+    ariaLabel: 'Interest coverage 2.10x, 0.10x room · ≥ 2.00x. Unquoted · extracted. Show in Financials.',
+    target: { section: 'financials', anchorId: 'fig:interest' },
   },
   {
     label: 'Liquidity',
@@ -527,9 +510,9 @@ const KEYFIGS_ATLAS: KeyFigureView[] = [
     tone: 'ink',
     dot: null,
     evidenceText: 'Unquoted · extracted',
-    traceStepId: 'step_extract',
     anchorId: 'fig:liquidity',
-    ariaLabel: 'Liquidity $14.2M, $4.2M room · ≥ $10.0M. Unquoted · extracted. Trace to Document Intelligence.',
+    ariaLabel: 'Liquidity $14.2M, $4.2M room · ≥ $10.0M. Unquoted · extracted. Show in Financials.',
+    target: { section: 'financials', anchorId: 'fig:liquidity' },
   },
 ];
 
@@ -544,6 +527,8 @@ const REC_ATLAS: RecommendationBody = {
   nearestFlip: `Nearest flip · Total debt ≤ $90.4M (${M}$5.9M) → APPROVE`,
   stressLinkLabel: COPY.stressLink,
   reworkLine: null,
+  summaryLabel: COPY.summaryBlock,
+  keyFiguresLabel: COPY.keyFiguresBlock,
 };
 
 const RISK_ATLAS: RiskBody = {
@@ -561,16 +546,18 @@ const RISK_ATLAS: RiskBody = {
     { factor: 'EBITDA margin 17.6%', impact: 'reduces risk · favorable', tone: 'good' },
     { factor: 'Sector cyclicality (industrials)', impact: 'adds risk · moderate', tone: 'warn' },
   ],
+  scoreLabel: COPY.riskScoreBlock,
+  driversLabel: COPY.riskDriversBlock,
 };
 
 const PEERS_ATLAS: PeersBody = {
+  label: COPY.peersBlock,
   rows: [
     { cohort: 'This deal', leverage: '4.26x', interest: '2.10x', margin: '17.6%', isDeal: true },
     { cohort: 'Top quartile', leverage: '3.07x', interest: '3.26x', margin: '22.9%', isDeal: false },
     { cohort: 'Sector median', leverage: '3.96x', interest: '2.35x', margin: '18.3%', isDeal: false },
     { cohort: 'Bottom quartile', leverage: '5.20x', interest: '1.64x', margin: '13.4%', isDeal: false },
   ],
-  position: 'Project Atlas is more levered than the sector median (3.96x). Comparables are simulated.',
 };
 
 const AMEND_LEVERAGE = { kind: 'leverage' as const, value: 4, step: 0.05, min: 1, max: 8, prefix: '≤ ', suffix: 'x' };
@@ -584,6 +571,7 @@ const COVENANTS_ATLAS: CovenantRow[] = [
     threshold: '≤ 4.00x',
     amended: null,
     actual: '4.26x',
+    actualTone: 'bad',
     cushion: { pct: -6.5, text: `${M}6.5%`, tone: 'bad' },
     status: 'breach',
     statusText: 'Breach',
@@ -595,6 +583,7 @@ const COVENANTS_ATLAS: CovenantRow[] = [
     threshold: '≥ 2.00x',
     amended: null,
     actual: '2.10x',
+    actualTone: 'ink',
     cushion: { pct: 5, text: '+5.0%', tone: 'warn' },
     status: 'pass',
     statusText: 'Pass',
@@ -606,6 +595,7 @@ const COVENANTS_ATLAS: CovenantRow[] = [
     threshold: '≥ 1.10x',
     amended: null,
     actual: '1.18x',
+    actualTone: 'ink',
     cushion: { pct: 7.3, text: '+7.3%', tone: 'warn' },
     status: 'pass',
     statusText: 'Pass',
@@ -617,6 +607,7 @@ const COVENANTS_ATLAS: CovenantRow[] = [
     threshold: '≥ $10.0M',
     amended: null,
     actual: '$14.2M',
+    actualTone: 'ink',
     cushion: { pct: 42, text: '+42.0%', tone: 'neutral' },
     status: 'pass',
     statusText: 'Pass',
@@ -644,71 +635,147 @@ const REVISION_ATLAS: RevisionBody = {
     { label: 'Recommendation', from: 'ESCALATE', to: 'APPROVE', unchanged: false, anchorId: 'rev2:recommendation' },
   ],
   noCure: null,
+  noteLabel: COPY.reviewerNoteBlock,
+  proposalLabel: COPY.proposalBlock,
 };
 
-// ---- sections
+// ---- sections (one paper card each; takeaways equal the THREE-PANE §5.5 strings)
 
 type SecOf<K extends SectionView['kind']> = Extract<SectionView, { kind: K }>;
 
-const SECTION_BASE = { suffix: null, phase: 'set' as const, status: 'done' as const, statusLabel: 'Done', pendingLine: COPY.pendingSection, drafting: null };
-
-const secRecommendation = (body: RecommendationBody | null, notes: NoteView[] = []): SecOf<'recommendation'> => ({
-  ...SECTION_BASE,
-  kind: 'recommendation',
-  id: 'recommendation',
-  anchorId: 'sec:recommendation',
-  ordinal: '',
-  heading: 'Recommendation',
-  pendingLine: COPY.pendingRecommendation,
-  stub: STUB_PACKAGE,
-  notes,
-  body,
+/** The set card's footer from its step record: "Document Intelligence · 94% · 1.1 s" + the collapsed Record (R2.2). */
+const footerOf = (record: StubView): SectionFooter => {
+  const [duration, conf] = record.meta.split(' · ');
+  return { tool: record.tool, conf, confTone: record.confTone, duration, text: `${record.tool} · ${conf} · ${duration}`, recordLabel: COPY.record, record };
+};
+/** A row-less flag, marked as one line at the foot of its card. */
+const flagLine = (flagId: string, state: SectionFlagLine['state'], text: string): SectionFlagLine => ({ id: `note:${flagId}`, flagId, state, text, anchorId: `flag:${flagId}` });
+const EVIDENCE_ATLAS: SectionFlagLine = {
+  id: 'evidence-check',
+  flagId: null,
+  state: 'info',
+  text: '3 of 8 figures are not quoted in the CIM (interest coverage, fixed-charge coverage and liquidity); verify them against the source.',
+  anchorId: 'flag:evidence-check',
+};
+const take = (state: TakeawayView['state'], text: string, basis: string | null = null): TakeawayView => ({ state, text, token: null, prior: null, basis });
+const recTake = (body: RecommendationBody): TakeawayView => ({
+  state: body.token.tone === 'good' ? 'pass' : body.token.tone === 'bad' ? 'breach' : 'watch',
+  text: body.sentence,
+  token: body.token,
+  prior: body.prior,
+  basis: body.basis,
 });
-const secFinancials = (body: FigureRow[] = FIGURES_ATLAS, stub: StubView = STUB_EXTRACT, notes: NoteView[] = []): SecOf<'financials'> => ({
-  ...SECTION_BASE,
+
+const SET = { phase: 'set' as const, status: 'done' as const, statusLabel: 'Done', phaseLine: null, drafting: null, aside: null };
+const PENDING = { phase: 'pending' as const, status: 'pending' as const, statusLabel: 'Not started', aside: null, takeaway: null, drafting: null, footer: null, flagLines: [] };
+const BLOCKS = { size: COPY.figureGroupSize, tested: COPY.figureGroupTested };
+const EYEBROW = {
+  financials: 'Step 1 of 5 · Document Intelligence',
+  risk: 'Step 2 of 5 · Risk Engine',
+  peers: 'Step 3 of 5 · Peer Benchmarks',
+  covenants: 'Step 4 of 5 · Covenant Tester',
+  recommendation: 'Step 5 of 5 · Memo Builder',
+  revision: 'Returned for revision · Structuring Engine',
+} as const;
+
+const TAKE_ATLAS = {
+  financials: take('breach', 'Total leverage 4.26x breaches the ≤ 4.00x covenant; the other 3 tested figures clear theirs.'),
+  risk: take('watch', 'Risk 58 (B2 / Speculative) is 17 points under the 75 decline line.'),
+  peers: take('info', 'Total leverage 4.26x is above the sector median of 3.96x.', COPY.peersBasis),
+  covenants: take('breach', '1 of 4 covenants breached: Max Total Leverage.'),
+  revision: take('pass', '$6.0M sponsor equity brings total leverage to 4.00x: ESCALATE becomes APPROVE.'),
+};
+
+const secFinancials = (body: FigureRow[] = FIGURES_ATLAS, record = STUB_EXTRACT, takeaway = TAKE_ATLAS.financials, flagLines: SectionFlagLine[] = [EVIDENCE_ATLAS]): SecOf<'financials'> => ({
+  ...SET,
   kind: 'financials',
   id: 'financials',
   anchorId: 'sec:financials',
-  ordinal: '1',
+  eyebrow: EYEBROW.financials,
   heading: 'Financials',
-  stub,
-  notes,
+  takeaway,
+  footer: footerOf(record),
+  flagLines,
   body,
+  blockLabels: BLOCKS,
 });
-const secRisk = (body: RiskBody = RISK_ATLAS, stub: StubView = STUB_RISK, notes: NoteView[] = []): SecOf<'risk'> => ({
-  ...SECTION_BASE,
+const secRisk = (body: RiskBody = RISK_ATLAS, record = STUB_RISK, takeaway = TAKE_ATLAS.risk, flagLines: SectionFlagLine[] = []): SecOf<'risk'> => ({
+  ...SET,
   kind: 'risk',
   id: 'risk',
   anchorId: 'sec:risk',
-  ordinal: '2',
+  eyebrow: EYEBROW.risk,
   heading: 'Risk score and rating',
-  stub,
-  notes,
+  takeaway,
+  footer: footerOf(record),
+  flagLines,
   body,
 });
-const secPeers = (body: PeersBody = PEERS_ATLAS, stub: StubView = STUB_PEERS, notes: NoteView[] = []): SecOf<'peers'> => ({
-  ...SECTION_BASE,
+const secPeers = (body: PeersBody = PEERS_ATLAS, record = STUB_PEERS, takeaway = TAKE_ATLAS.peers, flagLines: SectionFlagLine[] = []): SecOf<'peers'> => ({
+  ...SET,
   kind: 'peers',
   id: 'peers',
   anchorId: 'sec:peers',
-  ordinal: '3',
+  eyebrow: EYEBROW.peers,
   heading: 'Peer benchmarks',
-  stub,
-  notes,
+  takeaway,
+  footer: footerOf(record),
+  flagLines,
   body,
 });
-const secCovenants = (body: CovenantRow[], notes: NoteView[], suffix = '· 1 of 4 breached', stub: StubView = STUB_COVENANTS): SecOf<'covenants'> => ({
-  ...SECTION_BASE,
+const secCovenants = (body: CovenantRow[], record = STUB_COVENANTS, takeaway = TAKE_ATLAS.covenants, flagLines: SectionFlagLine[] = []): SecOf<'covenants'> => ({
+  ...SET,
   kind: 'covenants',
   id: 'covenants',
   anchorId: 'sec:covenants',
-  ordinal: '4',
+  eyebrow: EYEBROW.covenants,
   heading: 'Covenant compliance',
-  suffix,
-  stub,
-  notes,
+  takeaway,
+  footer: footerOf(record),
+  flagLines,
+  body,
+  testsLabel: COPY.testsFiled,
+});
+const secRecommendation = (body: RecommendationBody, record = STUB_PACKAGE, flagLines: SectionFlagLine[] = []): SecOf<'recommendation'> => ({
+  ...SET,
+  kind: 'recommendation',
+  id: 'recommendation',
+  anchorId: 'sec:recommendation',
+  eyebrow: EYEBROW.recommendation,
+  heading: 'Recommendation',
+  takeaway: recTake(body),
+  footer: footerOf(record),
+  flagLines,
   body,
 });
+
+/** Not started and plan review: the five skeleton cards (no controls in the memo). */
+const SKELETON: SectionView[] = [
+  { ...PENDING, kind: 'financials', id: 'financials', anchorId: 'sec:financials', eyebrow: EYEBROW.financials, heading: 'Financials', phaseLine: COPY.pendingSection, body: null, blockLabels: BLOCKS },
+  { ...PENDING, kind: 'risk', id: 'risk', anchorId: 'sec:risk', eyebrow: EYEBROW.risk, heading: 'Risk score and rating', phaseLine: COPY.pendingSection, body: null },
+  { ...PENDING, kind: 'peers', id: 'peers', anchorId: 'sec:peers', eyebrow: EYEBROW.peers, heading: 'Peer benchmarks', phaseLine: COPY.pendingSection, body: null },
+  {
+    ...PENDING,
+    kind: 'covenants',
+    id: 'covenants',
+    anchorId: 'sec:covenants',
+    eyebrow: EYEBROW.covenants,
+    heading: 'Covenant compliance',
+    phaseLine: COPY.pendingSection,
+    body: null,
+    testsLabel: COPY.testsFiled,
+  },
+  {
+    ...PENDING,
+    kind: 'recommendation',
+    id: 'recommendation',
+    anchorId: 'sec:recommendation',
+    eyebrow: EYEBROW.recommendation,
+    heading: 'Recommendation',
+    phaseLine: COPY.pendingRecommendation,
+    body: null,
+  },
+];
 
 // ---- header, source, appendix
 
@@ -775,8 +842,9 @@ const SOURCE_ATLAS_CITED: SourceView = {
 };
 
 const APPENDIX_ATLAS: AppendixView = {
-  heading: COPY.appendixHeading,
-  meta: 'Simulated drift on the filed figures · sweep #4 · 6 s ago',
+  eyebrow: COPY.appendixEyebrow,
+  heading: COPY.appendixTitle,
+  meta: 'sweep #4 · 6 s ago',
   rows: [
     { name: 'Max Total Leverage', threshold: '≤ 4.00x', actual: '4.32x', cushion: { pct: -8, text: `${M}8.0%`, tone: 'bad' }, status: { state: 'breach', text: 'Breach' } },
     { name: 'Min Interest Coverage', threshold: '≥ 2.00x', actual: '2.06x', cushion: { pct: 3, text: '+3.0%', tone: 'warn' }, status: { state: 'watch', text: 'Watch' } },
@@ -786,23 +854,15 @@ const APPENDIX_ATLAS: AppendixView = {
   empty: null,
 };
 
-const CONTENTS_ROWS: ContentsView['rows'] = [
-  { stepId: 'step_extract', ordinal: '1', title: 'Financials', describe: 'Pulls revenue, EBITDA, debt, coverage and liquidity from the CIM.', tool: 'Document Intelligence', required: true, included: true, tag: COPY.required },
-  { stepId: 'step_risk', ordinal: '2', title: 'Risk score and rating', describe: 'Scores the credit and maps it to a rating.', tool: 'Risk Engine', required: true, included: true, tag: COPY.required },
-  { stepId: 'step_peers', ordinal: '3', title: 'Peer benchmarks', describe: 'Places the credit against simulated sector comparables.', tool: 'Peer Benchmarks', required: false, included: true, tag: COPY.optionalTag },
-  { stepId: 'step_covenants', ordinal: '4', title: 'Covenant compliance', describe: 'Tests each proposed covenant against the extracted figures.', tool: 'Covenant Tester', required: true, included: true, tag: COPY.required },
-  { stepId: 'step_package', ordinal: '', title: 'Recommendation', describe: 'Writes the recommendation last, after every covenant is tested.', tool: 'Memo Builder', required: true, included: true, tag: COPY.required },
-];
-
 const DOCBAR_BASE: Omit<DocBarView, 'status' | 'files'> = {
   fileName: 'Project Atlas',
   elapsed: null,
   extraction: null,
   policySuffix: null,
   countdown: null,
-  stepper: null,
-  goToSignature: false,
+  goToDecision: false,
   goToDrafting: false,
+  chatToggle: null,
   actions: [],
   confirm: null,
 };
@@ -813,14 +873,12 @@ const SEALED_ACTIONS: DocBarView['actions'] = [
   { kind: 'ledger', label: COPY.openInLedger, variant: 'ghost', disabled: false },
 ];
 
-const HEADER_MARGIN_EMPTY = { showReasoning: false, reasoningLabel: COPY.showAllReasoning, evidenceCheck: null };
-const HEADER_MARGIN_ATLAS = { showReasoning: false, reasoningLabel: COPY.showAllReasoning, evidenceCheck: NOTE_ATLAS_EVIDENCE };
 
 // =============================================================================
 // Files
 // =============================================================================
 
-/** Atlas, never run: header + Contents + "Draft memo". */
+/** Atlas, never run: header + five skeleton cards; the panel shows one ready line (⌘↵ or "draft the memo" starts it). */
 export const FX_FILE_NOT_STARTED: FileView = {
   dealId: 'atlas',
   mode: 'not-started',
@@ -831,17 +889,7 @@ export const FX_FILE_NOT_STARTED: FileView = {
   restructured: false,
   docBar: { ...DOCBAR_BASE, files: FILES_INITIAL, status: { state: 'pending', text: 'Not started · CIM ready · 3 paragraphs' } },
   header: HEADER_ATLAS_NOT_DRAFTED,
-  contents: {
-    mode: 'not-started',
-    rows: CONTENTS_ROWS,
-    sourceLine: 'Source · Project Atlas CIM · 3 paragraphs',
-    countdown: null,
-    held: false,
-    holdLabel: COPY.hold,
-    unattendedNote: null,
-  },
-  sections: [],
-  headerMargin: HEADER_MARGIN_EMPTY,
+  sections: SKELETON,
   toReview: [],
   sourceView: SOURCE_ATLAS,
   appendix: APPENDIX_ATLAS,
@@ -851,7 +899,7 @@ export const FX_FILE_NOT_STARTED: FileView = {
   countedNotes: 0,
 };
 
-/** Atlas in plan review on its file: the countdown runs (6 s at 1×). */
+/** Atlas in plan review on its file, the plan card shown: the countdown runs (6 s at 1×). */
 export const FX_FILE_PLAN_REVIEW: FileView = {
   ...FX_FILE_NOT_STARTED,
   mode: 'plan-review',
@@ -862,19 +910,10 @@ export const FX_FILE_PLAN_REVIEW: FileView = {
     files: filesWithAtlas('Plan review · starts in 6 s'),
     status: { state: 'awaiting', text: 'Plan review · drafting starts in 6 s' },
   },
-  contents: {
-    mode: 'plan-review',
-    rows: CONTENTS_ROWS,
-    sourceLine: 'Source · Project Atlas CIM · 3 paragraphs',
-    countdown: 'Drafting starts in 6 s',
-    held: false,
-    holdLabel: COPY.hold,
-    unattendedNote: COPY.unattendedNote,
-  },
   primary: { label: COPY.startDrafting, kbd: '⌘↵', action: 'start-drafting', disabled: false, disabledReason: null },
 };
 
-/** Atlas drafting §4: one caret at the write point, Recommendation still pending. */
+/** Atlas drafting step 4: the one drafting card carries the caret, the recommendation still pending. */
 export const FX_FILE_RUNNING: FileView = {
   dealId: 'atlas',
   mode: 'running',
@@ -892,24 +931,24 @@ export const FX_FILE_RUNNING: FileView = {
     actions: [ACTION_STOP],
   },
   header: HEADER_ATLAS,
-  contents: null,
   sections: [
-    { ...secRecommendation(null), phase: 'pending', status: 'pending', statusLabel: 'Not started', stub: null },
     secFinancials(),
     secRisk(),
     secPeers(),
     {
-      ...secCovenants([], []),
-      suffix: null,
+      ...secCovenants([]),
       phase: 'drafting',
       status: 'drafting',
       statusLabel: 'Drafting',
-      drafting: { text: REASON_COVENANTS, callLine: 'Calling Covenant Tester…', caret: true },
-      stub: null,
+      aside: { kind: 'status', state: 'drafting', text: 'Drafting' },
+      takeaway: null,
+      drafting: { line: 'Calling Covenant Tester…', caret: true },
+      footer: null,
+      flagLines: [],
       body: null,
     },
+    SKELETON[4],
   ],
-  headerMargin: HEADER_MARGIN_ATLAS,
   toReview: [],
   sourceView: SOURCE_ATLAS,
   appendix: APPENDIX_ATLAS,
@@ -932,20 +971,11 @@ export const FX_FILE_ATLAS_GATE: FileView = {
     ...DOCBAR_BASE,
     files: filesWithAtlas('Awaiting you · rev 1 · waiting 1:12'),
     status: { state: 'awaiting', text: 'Awaiting your countersignature · rev 1 · 2 notes to review · waiting 1:12' },
-    stepper: { label: '– of 2', count: 2 },
-    goToSignature: true,
+    goToDecision: true,
     actions: [ACTION_STOP],
   },
   header: HEADER_ATLAS,
-  contents: null,
-  sections: [
-    secRecommendation(REC_ATLAS),
-    secFinancials(),
-    secRisk(),
-    secPeers(),
-    secCovenants(COVENANTS_ATLAS_GATE, [NOTE_ATLAS_BREACH, NOTE_ATLAS_FCC]),
-  ],
-  headerMargin: HEADER_MARGIN_ATLAS,
+  sections: [secFinancials(), secRisk(), secPeers(), secCovenants(COVENANTS_ATLAS_GATE), secRecommendation(REC_ATLAS)],
   toReview: [NOTE_ATLAS_BREACH, NOTE_ATLAS_FCC],
   sourceView: SOURCE_ATLAS_CITED,
   appendix: APPENDIX_ATLAS,
@@ -966,9 +996,9 @@ const KEYFIGS_ATLAS_REV2: KeyFigureView[] = [
     tone: 'warn',
     dot: 'warn',
     evidenceText: 'Model output · Structuring Engine',
-    traceStepId: 'step_rework_2',
     anchorId: 'rev2:leverage',
-    ariaLabel: 'Total leverage 4.00x, 0.00x room · ≤ 4.00x. Model output · Structuring Engine. Trace to Structuring Engine.',
+    ariaLabel: 'Total leverage 4.00x, 0.00x room · ≤ 4.00x. Model output · Structuring Engine. Show in Revision 2.',
+    target: { section: 'revision-2', anchorId: 'rev2:leverage' },
   },
   {
     label: 'Interest coverage',
@@ -978,9 +1008,9 @@ const KEYFIGS_ATLAS_REV2: KeyFigureView[] = [
     tone: 'ink',
     dot: null,
     evidenceText: 'Model output · Structuring Engine',
-    traceStepId: 'step_rework_2',
     anchorId: 'rev2:interest',
-    ariaLabel: 'Interest coverage 2.24x, 0.24x room · ≥ 2.00x. Model output · Structuring Engine. Trace to Structuring Engine.',
+    ariaLabel: 'Interest coverage 2.24x, 0.24x room · ≥ 2.00x. Model output · Structuring Engine. Show in Revision 2.',
+    target: { section: 'revision-2', anchorId: 'rev2:interest' },
   },
   {
     label: 'Liquidity',
@@ -990,9 +1020,9 @@ const KEYFIGS_ATLAS_REV2: KeyFigureView[] = [
     tone: 'ink',
     dot: null,
     evidenceText: 'Model output · Structuring Engine',
-    traceStepId: 'step_rework_2',
     anchorId: 'rev2:liquidity',
-    ariaLabel: 'Liquidity $14.2M, $4.2M room · ≥ $10.0M. Model output · Structuring Engine. Trace to Structuring Engine.',
+    ariaLabel: 'Liquidity $14.2M, $4.2M room · ≥ $10.0M. Model output · Structuring Engine. Show in Revision 2.',
+    target: { section: 'revision-2', anchorId: 'rev2:liquidity' },
   },
 ];
 
@@ -1005,11 +1035,27 @@ export const FX_FILE_ATLAS_REV2: FileView = {
     ...DOCBAR_BASE,
     files: filesWithAtlas('Awaiting you · rev 2 · waiting 0:08'),
     status: { state: 'awaiting', text: 'Awaiting your countersignature · rev 2 · waiting 0:08' },
-    goToSignature: true,
+    goToDecision: true,
     actions: [ACTION_STOP],
   },
   header: { ...HEADER_ATLAS, meta: 'Senior Secured Term Loan B · $45.0M · CAM-2026-0417 · rev 2' },
   sections: [
+    secFinancials(),
+    secRisk(),
+    secPeers(),
+    secCovenants(COVENANTS_ATLAS),
+    {
+      ...SET,
+      kind: 'revision',
+      id: 'revision-2',
+      anchorId: 'sec:revision-2',
+      eyebrow: EYEBROW.revision,
+      heading: 'Revision 2',
+      takeaway: TAKE_ATLAS.revision,
+      footer: footerOf(STUB_REWORK_ATLAS),
+      flagLines: [],
+      body: REVISION_ATLAS,
+    },
     secRecommendation({
       ...REC_ATLAS,
       basis: 'On the proposed revised structure · rev 2',
@@ -1021,22 +1067,6 @@ export const FX_FILE_ATLAS_REV2: FileView = {
       // read from the revised figures: how far the revised APPROVE is from being lost
       nearestFlip: `${COPY.flipOnRevised} · Nearest flip · Total debt ≥ $90.5M (+$0.2M) → ESCALATE`,
     }),
-    secFinancials(),
-    secRisk(),
-    secPeers(),
-    secCovenants(COVENANTS_ATLAS, [superseded(NOTE_ATLAS_BREACH), superseded(NOTE_ATLAS_FCC)]),
-    {
-      ...SECTION_BASE,
-      kind: 'revision',
-      id: 'revision-2',
-      anchorId: 'sec:revision-2',
-      ordinal: 'R2',
-      heading: 'Revision 2',
-      suffix: '· proposed restructure',
-      stub: STUB_REWORK_ATLAS,
-      notes: [NOTE_ATLAS_SENDBACK, NOTE_ATLAS_RESTRUCTURE],
-      body: REVISION_ATLAS,
-    },
   ],
   toReview: [],
   sourceView: SOURCE_ATLAS,
@@ -1044,7 +1074,7 @@ export const FX_FILE_ATLAS_REV2: FileView = {
   countedNotes: 0,
 };
 
-/** Atlas countersigned at rev 1 (ESCALATE, routed to the Book), one exhibit attached. */
+/** Atlas countersigned at rev 1 (ESCALATE, routed to the Book), one exhibit attached. The header seal is the who-clause only. */
 export const FX_FILE_SEALED: FileView = {
   ...FX_FILE_ATLAS_GATE,
   mode: 'sealed',
@@ -1052,24 +1082,17 @@ export const FX_FILE_SEALED: FileView = {
     ...DOCBAR_BASE,
     files: filesWithAtlas('Countersigned 14:03'),
     status: { state: 'signed', text: 'Countersigned 14:03 · rev 1' },
-    stepper: { label: '– of 2', count: 2 },
     actions: SEALED_ACTIONS,
   },
   header: {
     ...HEADER_ATLAS,
     seal: {
       state: 'signed',
-      headline: 'The agent recommended ESCALATE. You countersigned.',
+      headline: 'You countersigned.',
       receipt: '5 steps · 5 tool calls · drafted in 6.1 s · suspended 1:12 · lowest confidence 86% · rev 1 · run 1',
     },
   },
-  sections: [
-    secRecommendation(REC_ATLAS),
-    secFinancials(),
-    secRisk(),
-    secPeers(),
-    secCovenants(COVENANTS_ATLAS, [signedOver(NOTE_ATLAS_BREACH, true), signedOver(NOTE_ATLAS_FCC, false)]),
-  ],
+  sections: [secFinancials(), secRisk(), secPeers(), secCovenants(COVENANTS_ATLAS), secRecommendation(REC_ATLAS)],
   toReview: [signedOver(NOTE_ATLAS_BREACH, true), signedOver(NOTE_ATLAS_FCC, false)],
   sourceView: SOURCE_ATLAS,
   rows: { exhibits: true, stress: true, signature: true, monitoring: true },
@@ -1083,7 +1106,7 @@ const UP_MSG_PEERS = `Peer Benchmarks returned 68% confidence (floor 75%) ${EM} 
 const UP_MSG_MEMO = `Memo Builder returned 73% confidence (floor 75%) ${EM} figures need human verification against the source.`;
 const UP_MSG_BREACH = `Max Total Leverage 4.99x breaches the ≤ 4.00x covenant ${EM} cannot auto-approve.`;
 
-const lowConfNote = (flagId: string, tool: string, text: string, anchor: string, stepId: string, time: string): NoteView => ({
+const lowConfNote = (flagId: string, tool: string, text: string, anchor: string, time: string): NoteView => ({
   id: `note:${flagId}`,
   flagId,
   kind: 'low-confidence',
@@ -1095,13 +1118,14 @@ const lowConfNote = (flagId: string, tool: string, text: string, anchor: string,
   anchorId: anchor,
   counted: true,
   opened: false,
-  actions: [{ kind: 'trace', label: COPY.trace }],
-  traceStepId: stepId,
+  // row-less: J / K and Signed over land on the flag's marked line at the foot of its card
+  target: { section: anchor.slice(4) as SectionId, anchorId: `flag:${flagId}` },
+  actions: [{ kind: 'memo', label: COPY.showInMemo }],
   amendKind: null,
 });
-const NOTE_UP_MEMO = lowConfNote('flag_118', 'Memo Builder', UP_MSG_MEMO, 'sec:recommendation', 'step_package', '14:31:09');
-const NOTE_UP_RISK = lowConfNote('flag_109', 'Risk Engine', UP_MSG_RISK, 'sec:risk', 'step_risk', '14:31:03');
-const NOTE_UP_PEERS = lowConfNote('flag_112', 'Peer Benchmarks', UP_MSG_PEERS, 'sec:peers', 'step_peers', '14:31:05');
+const NOTE_UP_MEMO = lowConfNote('flag_118', 'Memo Builder', UP_MSG_MEMO, 'sec:recommendation', '14:31:09');
+const NOTE_UP_RISK = lowConfNote('flag_109', 'Risk Engine', UP_MSG_RISK, 'sec:risk', '14:31:03');
+const NOTE_UP_PEERS = lowConfNote('flag_112', 'Peer Benchmarks', UP_MSG_PEERS, 'sec:peers', '14:31:05');
 const NOTE_UP_BREACH: NoteView = {
   ...NOTE_ATLAS_BREACH,
   id: 'note:flag_115',
@@ -1109,24 +1133,24 @@ const NOTE_UP_BREACH: NoteView = {
   text: UP_MSG_BREACH,
   meta: 'raised by Covenant Tester · 14:31:07',
 };
-const NOTE_UP_EVIDENCE: NoteView = {
-  ...NOTE_ATLAS_EVIDENCE,
-  text:
-    '3 of 8 figures are not quoted in the CIM: interest coverage, fixed-charge coverage and liquidity. They come from the extraction model; verify against the source. Extraction ran at 76% confidence on an unseen document.',
+const EVIDENCE_UP: SectionFlagLine = {
+  ...EVIDENCE_ATLAS,
+  text: `${EVIDENCE_ATLAS.text} Extraction ran at 76% confidence on an unseen document.`,
 };
 
 const UP_MARKS = ['m2-65', 'm2-96', 'm2-106', 'm2-151', 'm2-163'];
 const FIGURES_UP: FigureRow[] = [
-  { id: 'revenue', anchorId: 'fig:revenue', label: 'Revenue (TTM)', value: '$155.7M', evidence: quoted(2, 65, 0) },
-  { id: 'ebitda', anchorId: 'fig:ebitda', label: 'Adj. EBITDA', value: '$23.4M', evidence: quoted(2, 96, 1) },
-  { id: 'margin', anchorId: 'fig:margin', label: 'EBITDA margin', value: '15.0%', evidence: quoted(2, 106, 2) },
-  { id: 'debt', anchorId: 'fig:debt', label: 'Total debt', value: '$116.8M', evidence: quoted(2, 151, 3) },
-  { id: 'leverage', anchorId: 'fig:leverage', label: 'Total leverage', value: '4.99x', evidence: quoted(2, 163, 4) },
-  { id: 'interest', anchorId: 'fig:interest', label: 'Interest coverage', value: '4.25x', evidence: UNQUOTED },
-  { id: 'fixed', anchorId: 'fig:fixed', label: 'Fixed-charge coverage', value: '1.45x', evidence: UNQUOTED },
-  { id: 'liquidity', anchorId: 'fig:liquidity', label: 'Liquidity', value: '$25.7M', evidence: UNQUOTED },
+  { id: 'revenue', anchorId: 'fig:revenue', label: 'Revenue (TTM)', value: '$155.7M', evidence: quoted(2, 65, 0), group: 'size', valueTone: 'ink', mark: null },
+  { id: 'ebitda', anchorId: 'fig:ebitda', label: 'Adj. EBITDA', value: '$23.4M', evidence: quoted(2, 96, 1), group: 'size', valueTone: 'ink', mark: null },
+  { id: 'margin', anchorId: 'fig:margin', label: 'EBITDA margin', value: '15.0%', evidence: quoted(2, 106, 2), group: 'size', valueTone: 'ink', mark: null },
+  { id: 'debt', anchorId: 'fig:debt', label: 'Total debt', value: '$116.8M', evidence: quoted(2, 151, 3), group: 'size', valueTone: 'ink', mark: null },
+  { id: 'leverage', anchorId: 'fig:leverage', label: 'Total leverage', value: '4.99x', evidence: quoted(2, 163, 4), group: 'tested', valueTone: 'bad', mark: 'breach' },
+  { id: 'interest', anchorId: 'fig:interest', label: 'Interest coverage', value: '4.25x', evidence: UNQUOTED, group: 'tested', valueTone: 'ink', mark: null },
+  { id: 'fixed', anchorId: 'fig:fixed', label: 'Fixed-charge coverage', value: '1.45x', evidence: UNQUOTED, group: 'tested', valueTone: 'ink', mark: null },
+  { id: 'liquidity', anchorId: 'fig:liquidity', label: 'Liquidity', value: '$25.7M', evidence: UNQUOTED, group: 'tested', valueTone: 'ink', mark: null },
 ];
 const upKey = (label: string, value: string, evidenceText: string, anchorId: string, extra: Partial<KeyFigureView> = {}): KeyFigureView => ({
+  target: { section: 'financials', anchorId },
   label,
   value,
   sub: null,
@@ -1134,9 +1158,8 @@ const upKey = (label: string, value: string, evidenceText: string, anchorId: str
   tone: 'ink',
   dot: null,
   evidenceText,
-  traceStepId: 'step_extract',
   anchorId,
-  ariaLabel: `${label} ${value}${extra.caption ? `, ${extra.caption}` : ''}. ${evidenceText}. Trace to Document Intelligence.`,
+  ariaLabel: `${label} ${value}${extra.caption ? `, ${extra.caption}` : ''}. ${evidenceText}. Show in Financials.`,
   ...extra,
 });
 const REC_UP: RecommendationBody = {
@@ -1157,6 +1180,8 @@ const REC_UP: RecommendationBody = {
   nearestFlip: `Nearest flip · Total debt ≤ $93.6M (${M}$23.2M) → APPROVE`,
   stressLinkLabel: COPY.stressLink,
   reworkLine: null,
+  summaryLabel: COPY.summaryBlock,
+  keyFiguresLabel: COPY.keyFiguresBlock,
 };
 const RISK_UP: RiskBody = {
   ...RISK_ATLAS,
@@ -1170,13 +1195,13 @@ const RISK_UP: RiskBody = {
   ],
 };
 const PEERS_UP: PeersBody = {
+  label: COPY.peersBlock,
   rows: [
     { cohort: 'This deal', leverage: '4.99x', interest: '4.25x', margin: '15.0%', isDeal: true },
     { cohort: 'Top quartile', leverage: '3.59x', interest: '6.59x', margin: '19.5%', isDeal: false },
     { cohort: 'Sector median', leverage: '4.64x', interest: '4.76x', margin: '15.6%', isDeal: false },
     { cohort: 'Bottom quartile', leverage: '6.09x', interest: '3.32x', margin: '11.4%', isDeal: false },
   ],
-  position: 'Q3 Cim is more levered than the sector median (4.64x). Comparables are simulated.',
 };
 const COVENANTS_UP: CovenantRow[] = [
   {
@@ -1215,8 +1240,7 @@ export const FX_FILE_UPLOAD_GATE: FileView = {
     status: { state: 'awaiting', text: 'Awaiting your countersignature · rev 1 · 4 notes to review · waiting 0:21' },
     extraction: { text: 'Extraction 76%', tone: 'warn' },
     policySuffix: 'Policy · not eligible',
-    stepper: { label: '– of 4', count: 4 },
-    goToSignature: true,
+    goToDecision: true,
     actions: [ACTION_STOP],
   },
   header: {
@@ -1228,16 +1252,15 @@ export const FX_FILE_UPLOAD_GATE: FileView = {
     cancelled: null,
     seal: null,
   },
-  contents: null,
   sections: [
-    { ...secRecommendation(REC_UP, [NOTE_UP_MEMO]), stub: upStub(STUB_PACKAGE, '700 ms · 73%', 'bad', { memoId: 'CAM-2026-6761', sections: 5, attachments: ['audit_trail.json'] }) },
-    secFinancials(FIGURES_UP, upStub(STUB_EXTRACT, '1.1 s · 76%', 'warn')),
-    secRisk(RISK_UP, upStub(STUB_RISK, '800 ms · 70%', 'bad'), [NOTE_UP_RISK]),
-    secPeers(PEERS_UP, upStub(STUB_PEERS, '850 ms · 68%', 'bad'), [NOTE_UP_PEERS]),
-    secCovenants(COVENANTS_UP, [NOTE_UP_BREACH], '· 1 of 4 breached', upStub(STUB_COVENANTS, '900 ms · 79%', 'warn')),
+    secFinancials(FIGURES_UP, upStub(STUB_EXTRACT, '1.1 s · 76%', 'warn'), take('breach', 'Total leverage 4.99x breaches the ≤ 4.00x covenant; the other 3 tested figures clear theirs.'), [EVIDENCE_UP]),
+    secRisk(RISK_UP, upStub(STUB_RISK, '800 ms · 70%', 'bad'), take('watch', 'Risk 54 (B2 / Speculative) is 21 points under the 75 decline line.'), [flagLine('flag_109', 'watch', 'Risk Engine returned 70% confidence (floor 75%)')]),
+    secPeers(PEERS_UP, upStub(STUB_PEERS, '850 ms · 68%', 'bad'), take('info', 'Total leverage 4.99x is above the sector median of 4.64x.', COPY.peersBasis), [flagLine('flag_112', 'watch', 'Peer Benchmarks returned 68% confidence (floor 75%)')]),
+    secCovenants(COVENANTS_UP, upStub(STUB_COVENANTS, '900 ms · 79%', 'warn')),
+    secRecommendation(REC_UP, upStub(STUB_PACKAGE, '700 ms · 73%', 'bad'), [flagLine('flag_118', 'watch', 'Memo Builder returned 73% confidence (floor 75%)')]),
   ],
-  headerMargin: { showReasoning: false, reasoningLabel: COPY.showAllReasoning, evidenceCheck: NOTE_UP_EVIDENCE },
-  toReview: [NOTE_UP_MEMO, NOTE_UP_RISK, NOTE_UP_PEERS, NOTE_UP_BREACH],
+  // emission order: Risk Engine, Peer Benchmarks, Covenant Tester, then Memo Builder
+  toReview: [NOTE_UP_RISK, NOTE_UP_PEERS, NOTE_UP_BREACH, NOTE_UP_MEMO],
   sourceView: {
     open: false,
     heading: 'Source · Q3 Cim CIM.pdf',
@@ -1272,7 +1295,7 @@ export const FX_FILE_UPLOAD_GATE: FileView = {
     spineCount: '5',
     toggleLabel: 'Hide source',
   },
-  appendix: { heading: COPY.appendixHeading, meta: 'Simulated drift on the filed figures · sweep #6 · 3 s ago', rows: null, empty: COPY.firstSweepPending },
+  appendix: { eyebrow: COPY.appendixEyebrow, heading: COPY.appendixTitle, meta: 'sweep #6 · 3 s ago', rows: null, empty: COPY.firstSweepPending },
   rows: { exhibits: false, stress: true, signature: true, monitoring: true },
   primary: null,
   flagsOnRecord: 4,
@@ -1280,25 +1303,140 @@ export const FX_FILE_UPLOAD_GATE: FileView = {
 };
 
 // =============================================================================
-// Ask
+// Thread notes and the raw step record (kit specimens)
 // =============================================================================
 
-/** The live Atlas gate: one local intercept, one engine answer. */
-export const FX_ASK: AskView = {
-  enabled: true,
-  placeholder: COPY.askPlaceholder,
-  disabledReason: null,
-  thread: [
-    { id: 'local_1', role: 'you', text: 'What if leverage was lower?', meta: null },
-    {
-      id: 'local_2',
-      role: 'answer',
-      text: 'Use the stress test in this file, below the exhibits. It re-runs the same decide rule the agent uses, and you can attach a scenario as an exhibit.',
-      meta: COPY.askMetaLocal,
-    },
-    { id: 'msg_31', role: 'you', text: 'Why escalate?', meta: null },
-    { id: 'msg_32', role: 'answer', text: `I recommended ESCALATE. ${ATLAS_SUMMARY}`, meta: COPY.askMetaEngine },
+/** Thread flag messages: a breach with "Amend term", a watch, a low-confidence note, the evidence check, a restructure and a signed-over note. */
+export const FX_NOTES: { breach: NoteView; watch: NoteView; low: NoteView; evidence: NoteView; restructure: NoteView; signedOver: NoteView } = {
+  breach: NOTE_ATLAS_BREACH,
+  watch: NOTE_ATLAS_FCC,
+  low: NOTE_UP_RISK,
+  evidence: NOTE_ATLAS_EVIDENCE,
+  restructure: NOTE_ATLAS_RESTRUCTURE,
+  signedOver: signedOver(NOTE_ATLAS_BREACH, true),
+};
+
+/** The Document Intelligence step record (args → / ← result) behind the Financials card's "Record" footer. */
+export const FX_STUB_EXTRACT: StubView = STUB_EXTRACT;
+
+// =============================================================================
+// The agent panel (THREE-PANE R2.1): command and control only, one line each
+// =============================================================================
+
+/** One panel line; a link points at a memo card ("Covenants →", 'signature' = "Decision →"). */
+const L = (id: string, kind: ThreadLine['kind'], glyph: ThreadLine['glyph'], text: string, to: FileAt | null = null): ThreadLine => ({
+  id,
+  kind,
+  glyph,
+  text,
+  link: to ? { label: sectionLinkLabel(to), target: to } : null,
+});
+const PANEL_COMPOSER: AgentPanelView['composer'] = { placeholder: COPY.composerPlaceholder, disabled: false, disabledReason: null };
+const ATLAS_RUN: ThreadLine[] = [
+  L('run', 'run', null, 'Drafting the memo for Project Atlas.'),
+  L('step:step_extract', 'step', 'done', 'Financials extracted', 'financials'),
+  L('step:step_risk', 'step', 'done', 'Risk scored', 'risk'),
+  L('step:step_peers', 'step', 'done', 'Peers benchmarked', 'peers'),
+  L('step:step_covenants', 'step', 'done', 'Covenants tested', 'covenants'),
+  L('flag:step_covenants', 'flag', 'breach', '1 covenant breached', 'covenants'),
+  L('step:step_package', 'step', 'done', 'Recommendation written', 'recommendation'),
+];
+
+/** Atlas, never run: one ready line; the composer takes "draft the memo" (⌘↵ also starts). */
+export const FX_PANEL_NOT_STARTED: AgentPanelView = {
+  title: 'Credit Analyst · Project Atlas',
+  lines: [L('ready', 'system', 'pending', 'Ready to draft Project Atlas.')],
+  plan: null,
+  start: { label: 'Draft memo', kbd: '⌘↵', disabled: false },
+  composer: PANEL_COMPOSER,
+};
+
+/** Atlas in plan review after typing "draft the memo": the plan prompt above the composer, the countdown running. */
+export const FX_PANEL_PLAN_REVIEW: AgentPanelView = {
+  ...FX_PANEL_NOT_STARTED,
+  start: null,
+  lines: [L('e1', 'you', null, 'You · draft the memo')],
+  plan: {
+    text: "I'll draft 5 steps. Peer benchmarks is optional.",
+    start: { label: COPY.startDrafting, kbd: '⌘↵', disabled: false },
+    optional: { stepId: 'step_peers', label: 'Skip peers', included: true },
+    cancelLabel: COPY.cancel,
+    countdown: { text: 'Starts in 6 s', holdLabel: COPY.hold },
+  },
+};
+
+/** Atlas drafting step 4: the running step line carries the static working glyph. */
+export const FX_PANEL_RUNNING: AgentPanelView = {
+  ...FX_PANEL_NOT_STARTED,
+  start: null,
+  lines: [...ATLAS_RUN.slice(0, 4), L('step:step_covenants', 'step', 'drafting', 'Testing covenants', 'covenants')],
+};
+
+/** Atlas at the rev 1 gate: one gate line pointing at the memo's Decision card (no token in the panel). */
+export const FX_PANEL_ATLAS_GATE: AgentPanelView = {
+  ...FX_PANEL_NOT_STARTED,
+  start: null,
+  lines: [...ATLAS_RUN, L('gate:1', 'gate', 'awaiting', COPY.gateLine, 'signature')],
+};
+
+/** Atlas at the rev 2 gate after Q&A at rev 1: a refusal pointing at the Decision card, a short answer, the return and the cure. */
+export const FX_PANEL_ATLAS_REV2: AgentPanelView = {
+  ...FX_PANEL_NOT_STARTED,
+  start: null,
+  lines: [
+    ...ATLAS_RUN,
+    L('e2', 'you', null, 'You · countersign'),
+    L('e3', 'answer', 'info', COPY.reply.decisionGate, 'signature'),
+    L('e4', 'you', null, 'You · why escalate?'),
+    L('e5', 'answer', null, `I recommended ESCALATE. ${ATLAS_SUMMARY}`, 'recommendation'),
+    L('returned:2', 'revision', 'returned', 'Returned for revision · rev 2', 'revision-2'),
+    L('step:step_rework_2', 'revision', 'done', 'Proposed a $6.0M sponsor equity cure', 'revision-2'),
+    L('gate:2', 'gate', 'awaiting', COPY.gateLine, 'signature'),
   ],
+};
+
+/** Meridian at its clean gate with the policy armed: the countdown is one line. */
+export const FX_PANEL_MERIDIAN_COUNTDOWN: AgentPanelView = {
+  title: 'Credit Analyst · Project Meridian',
+  lines: [
+    L('run', 'run', null, 'Drafting the memo for Project Meridian.'),
+    L('step:step_extract', 'step', 'done', 'Financials extracted', 'financials'),
+    L('step:step_risk', 'step', 'done', 'Risk scored', 'risk'),
+    L('step:step_peers', 'step', 'done', 'Peers benchmarked', 'peers'),
+    L('step:step_covenants', 'step', 'done', 'Covenants tested', 'covenants'),
+    L('step:step_package', 'step', 'done', 'Recommendation written', 'recommendation'),
+    L('gate:1', 'gate', 'awaiting', 'Auto-countersigning in 4 s', 'signature'),
+  ],
+  plan: null,
+  start: null,
+  composer: PANEL_COMPOSER,
+};
+
+/** Atlas countersigned at rev 1 (ESCALATE): the decided line links to the record on the Decision card. */
+export const FX_PANEL_SEALED: AgentPanelView = {
+  ...FX_PANEL_NOT_STARTED,
+  start: null,
+  lines: [...ATLAS_RUN, { id: 'decided', kind: 'decided', glyph: 'signed', text: 'You countersigned ESCALATE · 14:03', link: { label: COPY.recordLink, target: 'signature' } }],
+};
+
+/** Cobalt rejected at rev 2 after a send-back found no cure. */
+export const FX_PANEL_COBALT_REJECTED: AgentPanelView = {
+  title: 'Credit Analyst · Project Cobalt',
+  lines: [
+    L('run', 'run', null, 'Drafting the memo for Project Cobalt.'),
+    L('step:step_extract', 'step', 'done', 'Financials extracted', 'financials'),
+    L('step:step_risk', 'step', 'done', 'Risk scored', 'risk'),
+    L('step:step_peers', 'step', 'done', 'Peers benchmarked', 'peers'),
+    L('step:step_covenants', 'step', 'done', 'Covenants tested', 'covenants'),
+    L('flag:step_covenants', 'flag', 'breach', '4 covenants breached', 'covenants'),
+    L('step:step_package', 'step', 'done', 'Recommendation written', 'recommendation'),
+    L('returned:2', 'revision', 'returned', 'Returned for revision · rev 2', 'revision-2'),
+    L('step:step_rework_2', 'revision', 'watch', 'No restructure within policy', 'revision-2'),
+    { id: 'decided', kind: 'decided', glyph: 'rejected', text: 'You rejected the memo · 14:22', link: { label: COPY.recordLink, target: 'signature' } },
+  ],
+  plan: null,
+  start: null,
+  composer: PANEL_COMPOSER,
 };
 
 // =============================================================================
@@ -1334,10 +1472,10 @@ const VERBS = (primary: string, notes: NonNullable<SignatureView['verbs']>['note
   kbd: { sign: 'A', ret: 'S', rej: 'R' },
   notes,
 });
+/** The Decision card's open reviewer line at the gate: a record awaiting ink, never a control. */
 const REVIEWER_OPEN: SignatureView['reviewer'] = {
   sigState: 'open',
-  caption: COPY.countersignHere,
-  kbd: 'A',
+  caption: STATUS_WORD.awaiting,
   ink: 'none',
   autoText: null,
   rejectedWord: null,
@@ -1352,6 +1490,8 @@ const SIGNED_OVER_ATLAS: SignatureView['signedOver'] = [
     text: 'Max Total Leverage 4.26x breaches the ≤ 4.00x covenant',
     cleared: false,
     opened: false,
+    target: { section: 'covenants', anchorId: 'cov:Max Total Leverage' },
+    linkLabel: COPY.showRow,
   },
   {
     flagId: ATLAS_FLAG_FCC,
@@ -1360,14 +1500,18 @@ const SIGNED_OVER_ATLAS: SignatureView['signedOver'] = [
     text: 'Fixed-charge coverage 1.18x leaves only thin headroom over the 1.10x floor',
     cleared: false,
     opened: false,
+    target: { section: 'covenants', anchorId: 'cov:Min Fixed-Charge Coverage' },
+    linkLabel: COPY.showRow,
   },
 ];
 
 /** Atlas rev 1 gate, policy off. */
 export const FX_SIG_ATLAS_GATE: SignatureView = {
   state: 'gate',
-  heading: COPY.countersignature,
+  eyebrow: 'Your countersignature · CAM-2026-0417 · rev 1',
+  heading: COPY.decision,
   pendingLine: null,
+  record: null,
   returned: [],
   signedOver: SIGNED_OVER_ATLAS,
   signedOverLabel: 'Signed over · you opened 0 of 2',
@@ -1387,7 +1531,14 @@ export const FX_SIG_ATLAS_GATE: SignatureView = {
 export const FX_SIG_ATLAS_AMENDED: SignatureView = {
   ...FX_SIG_ATLAS_GATE,
   signedOver: [{ ...SIGNED_OVER_ATLAS[0], cleared: true }, SIGNED_OVER_ATLAS[1]],
-  amendment: { text: 'Amended terms · Max Total Leverage ≤ 4.00x → ≤ 4.30x · as amended', token: APPROVE, revertLabel: COPY.revert },
+  amendment: {
+    text: 'Amended terms · Max Total Leverage ≤ 4.00x → ≤ 4.30x · as amended',
+    token: APPROVE,
+    revertLabel: COPY.revert,
+    editLabel: COPY.editInMemo,
+    editKind: 'leverage',
+    editTarget: { section: 'covenants', anchorId: 'cov:Max Total Leverage' },
+  },
   attestation:
     'Countersigning as amended approves CAM-2026-0417 on your amended terms (Max Total Leverage ≤ 4.30x). Your amended term is recorded with your signature. Nothing routes onward: the amendment resolves the escalation.',
   // the token stays the AGENT's call (ESCALATE); the amended outcome is the reviewer's, stated in the reason
@@ -1398,6 +1549,7 @@ export const FX_SIG_ATLAS_AMENDED: SignatureView = {
 /** Atlas rev 2 gate on the revised structure; policy on and correctly not eligible. */
 export const FX_SIG_ATLAS_REV2: SignatureView = {
   ...FX_SIG_ATLAS_GATE,
+  eyebrow: 'Your countersignature · CAM-2026-0417 · rev 2',
   returned: [
     {
       rev: 1,
@@ -1430,8 +1582,10 @@ export const FX_SIG_ATLAS_REV2: SignatureView = {
 /** Meridian at its clean rev 1 gate with the policy armed: the line fills over 5 s. */
 export const FX_SIG_MERIDIAN_COUNTDOWN: SignatureView = {
   state: 'countdown',
-  heading: COPY.countersignature,
+  eyebrow: 'Your countersignature · CAM-2026-0418 · rev 1',
+  heading: COPY.decision,
   pendingLine: null,
+  record: null,
   returned: [],
   signedOver: [],
   signedOverLabel: 'Signed over · no notes',
@@ -1439,7 +1593,6 @@ export const FX_SIG_MERIDIAN_COUNTDOWN: SignatureView = {
   reviewer: {
     sigState: 'countdown',
     caption: 'Auto-countersign in 4 s · clean-approval policy',
-    kbd: null,
     ink: 'none',
     autoText: null,
     rejectedWord: null,
@@ -1455,19 +1608,33 @@ export const FX_SIG_MERIDIAN_COUNTDOWN: SignatureView = {
   sealed: null,
 };
 
+const covRow = (name: string) => ({ target: { section: 'covenants' as const, anchorId: `cov:${name}` }, linkLabel: COPY.showRow });
 const SIGNED_OVER_COBALT: SignatureView['signedOver'] = [
-  { flagId: 'flag_61', noteId: 'note:flag_61', state: 'breach', text: 'Max Total Leverage 5.66x breaches the ≤ 4.00x covenant', cleared: false, opened: false },
-  { flagId: 'flag_62', noteId: 'note:flag_62', state: 'breach', text: 'Min Interest Coverage 1.40x breaches the ≥ 2.00x covenant', cleared: false, opened: false },
-  { flagId: 'flag_63', noteId: 'note:flag_63', state: 'breach', text: 'Min Fixed-Charge Coverage 0.95x breaches the ≥ 1.10x covenant', cleared: false, opened: false },
-  { flagId: 'flag_64', noteId: 'note:flag_64', state: 'breach', text: 'Min Liquidity $6.5M breaches the ≥ $10.0M covenant', cleared: false, opened: false },
-  { flagId: 'flag_65', noteId: 'note:flag_65', state: 'watch', text: 'Earnings are highly sensitive to commodity prices', cleared: false, opened: false },
+  { flagId: 'flag_61', noteId: 'note:flag_61', state: 'breach', text: 'Max Total Leverage 5.66x breaches the ≤ 4.00x covenant', cleared: false, opened: false, ...covRow('Max Total Leverage') },
+  { flagId: 'flag_62', noteId: 'note:flag_62', state: 'breach', text: 'Min Interest Coverage 1.40x breaches the ≥ 2.00x covenant', cleared: false, opened: false, ...covRow('Min Interest Coverage') },
+  { flagId: 'flag_63', noteId: 'note:flag_63', state: 'breach', text: 'Min Fixed-Charge Coverage 0.95x breaches the ≥ 1.10x covenant', cleared: false, opened: false, ...covRow('Min Fixed-Charge Coverage') },
+  { flagId: 'flag_64', noteId: 'note:flag_64', state: 'breach', text: 'Min Liquidity $6.5M breaches the ≥ $10.0M covenant', cleared: false, opened: false, ...covRow('Min Liquidity') },
+  // no ratio keyword: no row of its own, so its link reads "Show in memo" and lands on its marked
+  // line at the foot of the Covenants card
+  {
+    flagId: 'flag_65',
+    noteId: 'note:flag_65',
+    state: 'watch',
+    text: 'Earnings are highly sensitive to commodity prices',
+    cleared: false,
+    opened: false,
+    target: { section: 'covenants', anchorId: 'flag:flag_65' },
+    linkLabel: COPY.showInMemo,
+  },
 ];
 
 /** Cobalt rev 1 gate: DECLINE, 5 counted notes. */
 export const FX_SIG_COBALT_GATE: SignatureView = {
   state: 'gate',
-  heading: COPY.countersignature,
+  eyebrow: 'Your countersignature · CAM-2026-0419 · rev 1',
+  heading: COPY.decision,
   pendingLine: null,
+  record: null,
   returned: [],
   signedOver: SIGNED_OVER_COBALT,
   signedOverLabel: 'Signed over · you opened 0 of 5',
@@ -1490,6 +1657,8 @@ export const FX_SIG_COBALT_GATE: SignatureView = {
 export const FX_SIG_SEALED: SignatureView = {
   ...FX_SIG_ATLAS_GATE,
   state: 'signed',
+  eyebrow: 'Countersignature record · CAM-2026-0417 · rev 1',
+  record: { state: 'signed', headline: 'The agent recommended ESCALATE. You countersigned.' },
   call: null,
   signedOver: [
     { ...SIGNED_OVER_ATLAS[0], state: 'signed-over', opened: true },
@@ -1499,7 +1668,6 @@ export const FX_SIG_SEALED: SignatureView = {
   reviewer: {
     sigState: 'signed',
     caption: 'Countersigned · concurs ESCALATE · Reviewer · 17 Oct 2026, 14:03',
-    kbd: null,
     ink: 'static',
     autoText: null,
     rejectedWord: null,
@@ -1524,11 +1692,12 @@ export const FX_SIG_SEALED: SignatureView = {
 export const FX_SIG_AUTO_SEALED: SignatureView = {
   ...FX_SIG_MERIDIAN_COUNTDOWN,
   state: 'signed-auto',
+  eyebrow: 'Countersignature record · CAM-2026-0418 · rev 1',
+  record: { state: 'signed-auto', headline: 'The agent recommended APPROVE. The policy countersigned.' },
   call: null,
   reviewer: {
     sigState: 'signed-auto',
     caption: 'Auto-countersigned · clean-approval policy · 17 Oct 2026, 14:12',
-    kbd: null,
     ink: 'none',
     autoText: COPY.autoSignature,
     rejectedWord: null,
@@ -1554,6 +1723,8 @@ export const FX_SIG_AUTO_SEALED: SignatureView = {
 export const FX_SIG_REJECTED: SignatureView = {
   ...FX_SIG_COBALT_GATE,
   state: 'rejected',
+  eyebrow: 'Countersignature record · CAM-2026-0419 · rev 2',
+  record: { state: 'rejected', headline: 'The agent recommended DECLINE. You rejected the memo.' },
   call: null,
   returned: [
     {
@@ -1570,6 +1741,8 @@ export const FX_SIG_REJECTED: SignatureView = {
       text: 'Structuring search exhausted policy limits (contribution ≤ 35% of debt)',
       cleared: false,
       opened: true,
+      target: { section: 'revision-2', anchorId: 'sec:revision-2' },
+      linkLabel: COPY.showInMemo,
     },
   ],
   signedOverLabel: 'Notes on the record · you opened 1 of 6',
@@ -1577,7 +1750,6 @@ export const FX_SIG_REJECTED: SignatureView = {
   reviewer: {
     sigState: 'rejected',
     caption: 'Rejected · Reviewer · 14:22',
-    kbd: null,
     ink: 'none',
     autoText: null,
     rejectedWord: 'REJECTED',
@@ -1691,7 +1863,7 @@ export const FX_STRESS_ATLAS: StressView = {
     key: 'ebitda=22.60|debt=90.40|rate=11.18|liquidity=14.20',
   },
   covenants: [
-    { ...COVENANTS_ATLAS[0], actual: '4.00x', cushion: { pct: 0, text: '+0.0%', tone: 'warn' }, status: 'pass', statusText: 'Pass' },
+    { ...COVENANTS_ATLAS[0], actual: '4.00x', actualTone: 'ink', cushion: { pct: 0, text: '+0.0%', tone: 'warn' }, status: 'pass', statusText: 'Pass' },
     { ...COVENANTS_ATLAS[1], actual: '2.24x', cushion: { pct: 12, text: '+12.0%', tone: 'neutral' } },
     { ...COVENANTS_ATLAS[2], actual: '1.22x', cushion: { pct: 10.9, text: '+10.9%', tone: 'neutral' } },
     COVENANTS_ATLAS[3],
@@ -2036,7 +2208,16 @@ export const FIXTURES = {
   FX_FILE_ATLAS_REV2,
   FX_FILE_SEALED,
   FX_FILE_UPLOAD_GATE,
-  FX_ASK,
+  FX_NOTES,
+  FX_STUB_EXTRACT,
+  FX_PANEL_NOT_STARTED,
+  FX_PANEL_PLAN_REVIEW,
+  FX_PANEL_RUNNING,
+  FX_PANEL_ATLAS_GATE,
+  FX_PANEL_ATLAS_REV2,
+  FX_PANEL_MERIDIAN_COUNTDOWN,
+  FX_PANEL_SEALED,
+  FX_PANEL_COBALT_REJECTED,
   FX_SIG_ATLAS_GATE,
   FX_SIG_ATLAS_AMENDED,
   FX_SIG_ATLAS_REV2,

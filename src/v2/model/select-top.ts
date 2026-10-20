@@ -8,7 +8,7 @@
 import type { Deal } from '../../agent/mockData';
 import type { ApprovalPackage } from '../../agent/types';
 import type { AuditHistoryEntry, RunRecord } from '../../hooks/useCreditAgent';
-import type { V2Store } from '../state/store';
+import type { V2Store } from '../state/contracts';
 import { fmtConf, fmtCountdown, fmtSpeed, plural } from './format';
 import type { PolicyView, TopBarView } from './types';
 import { AUTO_COUNTDOWN_MS, COPY, HOLD_CAPTION, POLICY_MIN_CONFIDENCE, tokenWord } from './vocab';
@@ -88,6 +88,18 @@ export function isRunLive(s: V2Store): boolean {
 export function onLiveFile(s: V2Store): boolean {
   const live = selectLiveDealId(s);
   return live !== null && s.route.name === 'file' && s.route.dealId === live;
+}
+
+/**
+ * The agent panel is on screen (THREE-PANE §1.5): the route is a known case file and, in
+ * column mode, the owner keeps it open or a transient reveal shows it; in drawer mode the
+ * drawer is open. Desk, Book, Ledger and unknown files never show the panel.
+ */
+export function chatShown(s: V2Store): boolean {
+  if (s.route.name !== 'file' || !dealOf(s, s.route.dealId)) return false;
+  const p = s.panes;
+  if (!p) return false;
+  return s.chatLayout === 'drawer' ? p.drawerOpen : p.chatOpen || p.revealed;
 }
 
 export const SPEED_STEPS = [0.5, 1, 2, 4];

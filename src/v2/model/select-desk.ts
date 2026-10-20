@@ -4,7 +4,7 @@
 // case file reads). The human's next obligation is the only possible primary.
 // ---------------------------------------------------------------------------
 
-import type { V2Store } from '../state/store';
+import type { V2Store } from '../state/contracts';
 import { covenantKind } from './flags';
 import { dotJoin, fmtElapsed, fmtX, plural } from './format';
 import { startConfirmCopy } from './select-commands';

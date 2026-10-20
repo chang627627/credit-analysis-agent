@@ -6,7 +6,7 @@
 // export, the memo and the Ledger cannot disagree.
 // ---------------------------------------------------------------------------
 
-import type { V2Store } from '../state/store';
+import type { V2Store } from '../state/contracts';
 import { fileFilename, fmtIso, sessionFilename } from './format';
 import { selectExhibits } from './select-decision';
 import { fileContext, runTiming, snapshotContext } from './select-file';

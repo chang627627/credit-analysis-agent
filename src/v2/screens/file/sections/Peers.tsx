@@ -1,13 +1,15 @@
 // ---------------------------------------------------------------------------
-// Case file · §3 Peer benchmarks (spec §7.2 "Section bodies"): the deal against
-// simulated sector comparables; "This deal" reads strong.
+// Case file · Step 3 Peer benchmarks (THREE-PANE.md §5.4, §5.6): one labelled
+// block, the deal against simulated sector comparables. "This deal" reads
+// strong (the section's one emphasis); numbers are right-aligned. The old
+// position sentence is now the card's takeaway. The table stacks under 480px
+// of its own width.
 // ---------------------------------------------------------------------------
 
 import type { ReactNode } from 'react';
 import { Table } from '../../../kit';
 import type { TableColumn, TableRow } from '../../../kit';
 import type { PeersBody } from '../../../model';
-import type { FileCtx } from '../FileScreen';
 
 const COLUMNS: TableColumn[] = [
   { key: 'cohort', label: 'Cohort', width: '1fr' },
@@ -16,8 +18,8 @@ const COLUMNS: TableColumn[] = [
   { key: 'margin', label: 'EBITDA margin', width: '112px', align: 'end' },
 ];
 
-export function Peers(props: { body: PeersBody; heading: string; ctx: FileCtx }) {
-  const { body: b, heading, ctx } = props;
+export function Peers(props: { body: PeersBody }) {
+  const { body: b } = props;
   const cell = (text: string, strong: boolean): ReactNode => <span className={strong ? 't-strong' : undefined}>{text}</span>;
   const rows: TableRow[] = b.rows.map((r) => ({
     key: r.cohort,
@@ -30,9 +32,9 @@ export function Peers(props: { body: PeersBody; heading: string; ctx: FileCtx })
     },
   }));
   return (
-    <>
-      <Table columns={COLUMNS} rows={rows} caption={heading} stackBelow={ctx.stackTables ? 760 : undefined} />
-      <p className="file-peers__position t-small">{b.position}</p>
-    </>
+    <div className="file-block">
+      <p className="file-block__label t-label">{b.label}</p>
+      <Table columns={COLUMNS} rows={rows} caption={b.label} stackBelow={480} />
+    </div>
   );
 }

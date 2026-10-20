@@ -6,6 +6,11 @@
 // The live file is always resolved from the current RunRecord through the
 // model's selectLiveDealId; nothing here reads selectedDealId to decide
 // liveness, and V2 never switches the engine's deal to browse.
+//
+// Each start sets that file's thread epoch (THREE-PANE.md §4.4): a re-run
+// opens a fresh thread, and a start that replaces a live run on another file
+// resets that file's epoch too, so no Q&A is left orphaned under "Last run
+// cancelled". A confirmed stop does the same for the stopped file.
 // ---------------------------------------------------------------------------
 
 import { useCallback, useState } from 'react';
@@ -14,9 +19,10 @@ import { getPlan } from '../../agent/runAgent';
 import type { Amendment, ApprovalPackage } from '../../agent/types';
 import type { RunDecision, RunStatus } from '../../hooks/useCreditAgent';
 import type { MonitorApi } from '../../hooks/useMonitor';
-import { buildFileExport, buildSessionExport, routesOnSign } from '../model';
+import { buildFileExport, buildSessionExport, routesOnSign, selectLiveDealId } from '../model';
 import type { CaseFileSnapshot, V2Actions, V2Internals, V2Store } from './store';
 import { holdAuto } from './gate';
+import { withToggle } from './plan';
 
 /** A run is live (and starting another would discard it). */
 export function isLiveStatus(status: RunStatus): boolean {
@@ -161,25 +167,53 @@ export function createFileActions(x: V2Internals): FileActions {
     }
   };
 
+  /** Hide every thread entry of these files written before now (a fresh thread). */
+  const resetEpochs = (dealIds: string[]) => {
+    if (dealIds.length === 0) return;
+    const now = Date.now();
+    x.setUi((u) => {
+      const threadEpoch = { ...u.threadEpoch };
+      for (const id of dealIds) threadEpoch[id] = now;
+      return { ...u, threadEpoch };
+    });
+  };
+
   const doStart = (dealId: string) => {
     const s = x.current();
     if (s.agent.parsing) return;
     if (!s.agent.dealsFull.some((d) => d.id === dealId)) return;
+    const prevStatus = s.agent.status;
+    const replaced = isLiveStatus(prevStatus) ? selectLiveDealId(s) : null;
     // a new run never inherits a strip written about the previous one (effects.ts also
     // closes any strip once a run stops being live; this covers a start in the same tick)
     x.setUi((u) => (u.confirm === null ? u : { ...u, confirm: null }));
     s.agent.start(dealId);
-    // a fresh plan review even when one was already open (plan_review to plan_review)
-    x.setPlan({ enabledIds: getPlan().map((p) => p.id), held: false, holdReason: null, deadline: null });
+    resetEpochs(replaced && replaced !== dealId ? [dealId, replaced] : [dealId]);
+    // a fresh plan review even when one was already open (plan_review to plan_review). A
+    // compound start's toggle is applied here, held; when the status will change, the
+    // plan-review entry effect (state/plan.ts) applies it again and clears it.
+    const plan = getPlan();
+    const ids = plan.map((p) => p.id);
+    const pending = x.pendingPlanToggle.current;
+    if (pending && pending.dealId === dealId) {
+      x.setPlan({ enabledIds: withToggle(plan, ids, pending), held: true, holdReason: 'manual', deadline: null });
+      if (prevStatus === 'plan_review') x.pendingPlanToggle.current = null;
+    } else {
+      x.pendingPlanToggle.current = null;
+      x.setPlan({ enabledIds: ids, held: false, holdReason: null, deadline: null });
+    }
     x.navigate({ name: 'file', dealId, at: null });
   };
 
   return {
-    // no start of any kind while extraction runs; never discard a live run silently
-    startFile: (dealId) => {
+    // no start of any kind while extraction runs; never discard a live run silently.
+    // The latest start request defines the plan toggle (none for a plain start).
+    startFile: (dealId, opts) => {
       const s = x.current();
       if (s.agent.parsing) return;
       if (!s.agent.dealsFull.some((d) => d.id === dealId)) return;
+      const toggle = opts && opts.toggle ? opts.toggle : null;
+      x.pendingPlanToggle.current = toggle ? { dealId, stepId: toggle.stepId, include: toggle.include } : null;
       if (isLiveStatus(s.agent.status)) {
         holdRunningCountdown();
         x.setUi((u) => ({ ...u, confirm: { kind: 'start', dealId } }));
@@ -198,13 +232,16 @@ export function createFileActions(x: V2Internals): FileActions {
       holdRunningCountdown();
       x.setUi((u) => ({ ...u, confirm: { kind: 'stop' } }));
     },
-    // the engine records "Run cancelled · reset before a decision"
+    // the engine records "Run cancelled · reset before a decision"; the stopped file's thread starts over
     confirmStop: () => {
       const conf = x.uiRef.current.confirm;
       if (!conf || conf.kind !== 'stop') return;
       x.setUi((u) => ({ ...u, confirm: null }));
       const s = x.current();
-      if (isLiveStatus(s.agent.status)) s.agent.reset();
+      if (!isLiveStatus(s.agent.status)) return;
+      const live = selectLiveDealId(s);
+      s.agent.reset();
+      if (live) resetEpochs([live]);
     },
     upload: (file) => {
       const s = x.current();

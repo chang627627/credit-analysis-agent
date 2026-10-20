@@ -1,20 +1,31 @@
 // ---------------------------------------------------------------------------
-// The keyboard map (spec §7.6), implemented once.
+// The keyboard map (spec §7.6 as replaced by THREE-PANE.md §6.4 and R2.3),
+// implemented once.
 //
 //   ⌘K / Ctrl K   toggle the palette (everywhere)
 //   ⌘↵ / Ctrl ↵   on the live file in plan review: approve its plan as edited;
 //                 on any other file: that file's own primary when it is Draft
 //                 memo (never while extraction runs), which opens the confirm
 //                 strip if a run is live. A plan is never approved from a route
-//                 where it is not on screen.
-//   A / S / R     live file at the gate only: sign (two-phase) / return / reject
-//   J / K         file route: next / previous counted note
+//                 where it is not the live file. The composer never submits on it.
+//   A             live file at the gate: requestSign('key'), relative to the
+//                 memo Decision card. Signs when the card's reviewer line is on
+//                 screen; otherwise the first press brings the verbs and the line
+//                 into view and focuses the primary, and the next press signs.
+//   S / R         live file at the gate: return / reject through the
+//                 note-required flow (an empty note focuses the card's note field)
+//   J / K         file route: next / previous flagged row in the memo
 //   [             file route: toggle the source pane
-//   Esc           palette, then open menus (kit), then the confirm strip,
-//                 then the source overlay, then the active cites
+//   ]             file route: toggle the agent panel (opening focuses the composer)
+//   Esc           palette, then open menus (kit), then the confirm strip, then
+//                 the drawer (drawer mode), then the source overlay, then the
+//                 active cites. Whenever it closes something it prevents the
+//                 default, so the agent panel's own Escape handler (for fields
+//                 inside the drawer) never acts on the same press.
 //
-// Single-key guards: no meta / ctrl / alt, not typing in a field, the palette
-// closed, and the gate not receding. The listener sits in the capture phase so
+// Single-key guards: no meta / ctrl / alt, not typing in a field (the reviewer
+// note and the composer are typing), the palette closed, no key repeat on the
+// verbs, and the gate not receding. The listener sits in the capture phase so
 // each press resolves to exactly one action before any component handler runs;
 // kit popovers (menus, dialogs) keep their own keys.
 // ---------------------------------------------------------------------------
@@ -22,7 +33,7 @@
 import { useEffect } from 'react';
 import { selectFile, selectLiveDealId } from '../model';
 import type { V2Internals } from './store';
-import { SOURCE_OVERLAY_MAX } from './ui';
+import { sourceIsOverlay } from './ui';
 
 /** Focus is in a field that consumes letters (input, textarea, select, contenteditable). */
 function isTyping(target: EventTarget | null): boolean {
@@ -81,6 +92,7 @@ export function useShortcuts(x: V2Internals): void {
 
       const r = s.route;
       const onFile = r.name === 'file';
+      const onKnownFile = r.name === 'file' && s.agent.dealsFull.some((d) => d.id === r.dealId);
       const live = selectLiveDealId(s);
       const atLiveGate = r.name === 'file' && r.dealId === live && s.agent.status === 'awaiting_approval';
 
@@ -120,17 +132,32 @@ export function useShortcuts(x: V2Internals): void {
           e.preventDefault();
           a.toggleSource();
           return;
+        case ']':
+          if (!onKnownFile || e.repeat) return;
+          e.preventDefault();
+          a.toggleChat();
+          return;
         case 'Escape': {
           if (e.defaultPrevented) return;
           if (s.ui.confirm) {
+            e.preventDefault();
             a.cancelConfirm();
             return;
           }
-          if (onFile && s.ui.sourceOpen && window.innerWidth <= SOURCE_OVERLAY_MAX) {
+          if (onFile && s.chatLayout === 'drawer' && s.panes.drawerOpen) {
+            e.preventDefault();
+            a.setChatOpen(false);
+            return;
+          }
+          if (onFile && s.ui.sourceOpen && sourceIsOverlay()) {
+            e.preventDefault();
             a.closeSource();
             return;
           }
-          if (s.ui.cites) a.clearCites();
+          if (s.ui.cites) {
+            e.preventDefault();
+            a.clearCites();
+          }
           return;
         }
       }

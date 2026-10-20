@@ -1,6 +1,7 @@
 // Sidebar collapse (P-21): the owner's choice persists across reloads. Browser storage lives
 // only in src/v2/state/ (guardrail C19); storage can throw in private windows, so every read
-// and write is guarded and the sidebar simply opens expanded.
+// and write is guarded and the sidebar simply opens expanded. The shell's forced rail (narrow
+// viewports, or beside an open agent panel) never writes this choice.
 import { useCallback, useEffect, useState } from 'react';
 
 const KEY = 'v2.navCollapsed';
@@ -26,16 +27,27 @@ export function useNavCollapsed(): [boolean, () => void] {
   return [collapsed, toggle];
 }
 
-/** True below 1100px, where the shell forces the icon rail (app.css). */
-export function useNarrowViewport(): boolean {
-  const query = '(max-width: 1099px)';
-  const [narrow, setNarrow] = useState(() => (typeof window !== 'undefined' ? window.matchMedia(query).matches : false));
+/**
+ * True while the viewport is at most `px` wide (live matchMedia). The shell
+ * uses it for the forced sidebar rail: always at 1099 and below, and at 1399
+ * and below beside an open agent panel (THREE-PANE.md §1.4).
+ */
+export function useViewportAtMost(px: number): boolean {
+  const query = `(max-width: ${px}px)`;
+  const [match, setMatch] = useState(() => {
+    try {
+      return typeof window.matchMedia === 'function' && window.matchMedia(query).matches;
+    } catch {
+      return false;
+    }
+  });
   useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
     const mq = window.matchMedia(query);
-    const on = () => setNarrow(mq.matches);
+    const on = () => setMatch(mq.matches);
     on();
     mq.addEventListener('change', on);
     return () => mq.removeEventListener('change', on);
-  }, []);
-  return narrow;
+  }, [query]);
+  return match;
 }

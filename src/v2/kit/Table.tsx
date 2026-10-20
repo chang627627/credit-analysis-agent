@@ -2,8 +2,9 @@
 // Every row is its own grid on the shared column template (fr tracks become minmax(0, fr) so
 // rows always align). Group rows, full-width span rows, indented rows, detail blocks, highlight,
 // flash, muted and activatable rows are all expressed through TableRow. `hideBelow` hides a column
-// below that viewport width; `stackBelow: 760` stacks each row's cells into one column once the
-// table itself is narrower than 760px (a container query, so a 360px frame stacks too).
+// below that viewport width; `stackBelow` (760, 640 or 480) stacks each row's cells into one column
+// once the table itself is narrower than that width (a container query on the table's own box, so a
+// table in a narrow memo card or a 360px frame stacks by its real width, whatever the viewport).
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { AnimationEvent, CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import { ChevronRight } from 'lucide-react';
@@ -30,7 +31,7 @@ export interface TableRow {
   muted?: boolean;
   detail?: ReactNode;                   // full-width block after the row (confirm strip, expansion)
 }
-export interface TableProps { columns: TableColumn[]; rows: TableRow[]; caption: string; header?: boolean; stackBelow?: 760 }
+export interface TableProps { columns: TableColumn[]; rows: TableRow[]; caption: string; header?: boolean; stackBelow?: 760 | 640 | 480 }
 
 const cx = (...c: (string | false | null | undefined)[]): string => c.filter(Boolean).join(' ');
 

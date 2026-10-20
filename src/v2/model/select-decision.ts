@@ -1,8 +1,12 @@
 // ---------------------------------------------------------------------------
 // Countersign V2 · decision blocks: signature, stress test, exhibits (spec
-// §7.3, §8, §10). Every label, attestation, caption and policy line of the
-// gate is composed here from the same file context the memo reads, so what
-// the reviewer signs and what the memo says cannot disagree.
+// §7.3, §8, §10; THREE-PANE.md R2.2). Every label, attestation, caption and
+// policy line of the gate is composed here from the same file context the memo
+// reads, so what the reviewer signs and what the memo says cannot disagree.
+// One SignatureView feeds the memo's Decision card in full (R2: the agent
+// panel holds no decision): signed over, note, amendment, the call directly
+// above the verbs, the verbs, attestation, policy, the signature lines and,
+// once decided, the sealed record. The open reviewer line is never a control.
 // ---------------------------------------------------------------------------
 
 import type { Deal } from '../../agent/mockData';
@@ -10,8 +14,8 @@ import { DECLINE_SCORE } from '../../agent/rating';
 import type { Amendment, ApprovalPackage } from '../../agent/types';
 import { amendedOutcome, baselineScenario, driversFor, evaluate } from '../../agent/whatif';
 import type { DriverKey, Scenario } from '../../agent/whatif';
-import type { V2Store } from '../state/store';
-import { flagClause, overridesFromAmendments } from './flags';
+import type { V2Store } from '../state/contracts';
+import { covenantKind, flagClause, isRowAnchor, memoTargetOfAnchor, overridesFromAmendments } from './flags';
 import { baseFidelity, changedDrivers, filedBase, fmtDriverDelta, fmtDriverValue, parseStressLabel, scenarioKey, stressRecord, stressZones } from './flip';
 import { fmtHM, fmtM, fmtStamp, listJoin, plural } from './format';
 import { policyChecks, selectPolicy, verbsDead } from './select-top';
@@ -29,6 +33,7 @@ import {
   returnedRecord,
   reworkN,
   routesOnSign,
+  sealHeadline,
   signedVerdict,
 } from './select-file';
 import type { FileCtx } from './select-file';
@@ -41,6 +46,7 @@ import {
   NOTE_CHIP,
   PRIMARY_LABEL,
   REJECTED_WORD,
+  STATUS_WORD,
   provenanceShort,
   provenanceText,
   tokenOf,
@@ -201,7 +207,12 @@ function primaryLabel(pkg: ApprovalPackage, amendments: Amendment[]): string {
 
 export function selectSignature(s: V2Store, dealId: string): SignatureView | null {
   const ctx = fileContext(s, dealId);
-  if (!ctx) return null;
+  return ctx ? signatureOf(ctx) : null;
+}
+
+/** The signature view of one resolved file context (the memo's Decision card). */
+export function signatureOf(ctx: FileCtx): SignatureView | null {
+  const s = ctx.s;
   if (ctx.mode !== 'running' && ctx.mode !== 'gate' && ctx.mode !== 'sealed') return null;
   const pkg = ctx.pkg;
   const g = s.gate;
@@ -254,6 +265,8 @@ export function selectSignature(s: V2Store, dealId: string): SignatureView | nul
       text: flagClause(nt.text),
       cleared: nt.flagId !== null && clearedIds.has(nt.flagId),
       opened: nt.opened,
+      target: nt.target,
+      linkLabel: isRowAnchor(nt.anchorId) ? COPY.showRow : COPY.showInMemo,
     }));
   const total = signedOver.length;
   const openedCount =
@@ -291,17 +304,17 @@ export function selectSignature(s: V2Store, dealId: string): SignatureView | nul
   const js = g.justSigned;
   const animate =
     !!sealed && sealed.outcome === 'approve' && !sealed.auto && !!js && js.runId === ctx.runId && js.verb === 'approve' && !js.auto && s.now - js.at < INK_REPLAY_WINDOW_MS;
-  const reviewerBase = { kbd: null, ink: 'none' as const, autoText: null, rejectedWord: null, fillMs: AUTO_COUNTDOWN_MS, reviewLabel: null };
+  const reviewerBase = { ink: 'none' as const, autoText: null, rejectedWord: null, fillMs: AUTO_COUNTDOWN_MS, reviewLabel: null };
   let reviewer: SignatureView['reviewer'];
   switch (state) {
     case 'countdown':
       reviewer = { ...reviewerBase, sigState: 'countdown', caption: policy.line, reviewLabel: COPY.reviewManually };
       break;
     case 'held':
-      reviewer = { ...reviewerBase, sigState: 'held', caption: policy.holdLabel ?? COPY.countersignHere, kbd: 'A' };
+      reviewer = { ...reviewerBase, sigState: 'held', caption: policy.holdLabel ?? COPY.countersignHere };
       break;
     case 'leaving':
-      reviewer = { ...reviewerBase, sigState: 'open', caption: 'Returning for revision' };
+      reviewer = { ...reviewerBase, sigState: 'open', caption: COPY.returningForRevision };
       break;
     case 'signed':
       reviewer = { ...reviewerBase, sigState: 'signed', caption: sealedCaption, ink: animate ? 'animate' : 'static' };
@@ -316,7 +329,7 @@ export function selectSignature(s: V2Store, dealId: string): SignatureView | nul
       reviewer = { ...reviewerBase, sigState: 'open', caption: COPY.signaturePending };
       break;
     default:
-      reviewer = { ...reviewerBase, sigState: 'open', caption: COPY.countersignHere, kbd: 'A' };
+      reviewer = { ...reviewerBase, sigState: 'open', caption: STATUS_WORD.awaiting };
   }
 
   // the reviewer's draft (gate only)
@@ -339,10 +352,16 @@ export function selectSignature(s: V2Store, dealId: string): SignatureView | nul
   let amendment: SignatureView['amendment'] = null;
   if (atGate && amendments.length > 0) {
     const terms = amendments.map((a) => `${amendmentName(a)} ${a.from} → ${a.to}`).join(' · ');
+    // "Edit in memo" returns to the first amended covenant row (amending stays on the row, P-05)
+    const editKind: 'leverage' | 'liquidity' = covenantKind(amendments[0].label) === 'liquidity' ? 'liquidity' : 'leverage';
+    const amended = ctx.deal.covenants.find((c) => `${c.name} covenant` === amendments[0].label);
     amendment = {
       text: `Amended terms · ${terms} · as amended`,
       token: tokenOf(amendedOutcome(ctx.deal, overridesFromAmendments(amendments)).recommendation),
       revertLabel: COPY.revert,
+      editLabel: COPY.editInMemo,
+      editKind,
+      editTarget: memoTargetOfAnchor(amended ? `cov:${amended.name}` : 'sec:covenants'),
     };
   }
 
@@ -376,10 +395,19 @@ export function selectSignature(s: V2Store, dealId: string): SignatureView | nul
     };
   }
 
+  const pendingLine = pending ? (pkg ? `The signature opens when revision ${nextRev} is assembled.` : COPY.signaturePending) : null;
+
+  const headline = sealHeadline(ctx);
+  const record: SignatureView['record'] =
+    headline && (state === 'signed' || state === 'signed-auto' || state === 'rejected') ? { state, headline: headline.full } : null;
+
+  const sealedState = state === 'signed' || state === 'signed-auto' || state === 'rejected';
   return {
     state,
-    heading: COPY.countersignature,
-    pendingLine: pending ? (pkg ? `The signature opens when revision ${nextRev} is assembled.` : COPY.signaturePending) : null,
+    eyebrow: `${sealedState ? COPY.recordEyebrow : COPY.decisionEyebrow} · ${pkg?.memoId ?? ctx.deal.memoId} · rev ${pending ? nextRev : rev}`,
+    heading: COPY.decision,
+    pendingLine,
+    record,
     returned,
     signedOver,
     signedOverLabel,

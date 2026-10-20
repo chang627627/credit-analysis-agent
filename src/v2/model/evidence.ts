@@ -6,7 +6,7 @@
 // and distance (signed, one shared scale).
 // ---------------------------------------------------------------------------
 
-import type { Deal } from '../../agent/mockData';
+import type { Deal, ExtractedFinancials } from '../../agent/mockData';
 import { fmtM, fmtPct, fmtSigned, fmtX } from './format';
 import type { CushionView, EvidenceView, FigureId } from './types';
 
@@ -38,7 +38,11 @@ export const FIGURES: { id: FigureId; label: string }[] = [
 
 /** The figure's value on the deal's filed financials. */
 export function figureValue(deal: Deal, fig: FigureId): number {
-  const f = deal.financials;
+  return financialValue(deal.financials, fig);
+}
+
+/** The figure's value on a set of extracted financials (a step result or the deal's own). */
+export function financialValue(f: ExtractedFinancials, fig: FigureId): number {
   switch (fig) {
     case 'revenue':
       return f.revenueTtm;

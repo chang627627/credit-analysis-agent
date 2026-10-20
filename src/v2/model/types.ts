@@ -1,16 +1,19 @@
 // ---------------------------------------------------------------------------
-// Countersign V2 · model view types (spec §9.4). Screens render these verbatim:
-// every label, number and sentence a screen shows arrives already composed in
-// one of these objects. Pure types: no runtime code lives here.
+// Countersign V2 · model view types (spec §9.4, THREE-PANE.md §7.1 and R2.4).
+// Screens render these verbatim: every label, number and sentence a screen
+// shows arrives already composed in one of these objects. Pure types: no
+// runtime code lives here. R2: the agent panel is AgentPanelView (one-line
+// status lines with links, the plan prompt, the composer); everything shown,
+// and the whole decision (SignatureView), lives in the memo pane.
 // ---------------------------------------------------------------------------
 
 import type { MeaningTone, StatusKey } from '../kit/types';
 import type { SigState } from '../kit/SignatureLine';
 import type { DriverKey } from '../../agent/whatif';
-import type { Route } from '../state/route';
-import type { LedgerChip, Policy } from '../state/store';
+import type { FileAt, Route } from '../state/route';
+import type { LedgerChip, Policy } from '../state/contracts';
 
-export type { MeaningTone, StatusKey, SigState, DriverKey, Route, LedgerChip, Policy };
+export type { MeaningTone, StatusKey, SigState, DriverKey, FileAt, Route, LedgerChip, Policy };
 
 // ---- shared vocabulary types (declared here once; vocab.ts and flags.ts use them)
 
@@ -23,9 +26,9 @@ export type Actor = 'Credit Analyst' | 'Reviewer' | 'Policy' | 'Portfolio Monito
 /** What an engine flag means on the page (`classifyFlag`). */
 export type FlagKind = 'breach' | 'watch' | 'low-confidence' | 'send-back' | 'restructure' | 'no-cure' | 'info';
 
-/** A palette command's effect; `state/commands.ts` maps it onto `V2Actions`. */
+/** A palette command's effect; `state/commands.ts` maps it onto `V2Actions`. The palette never signs (THREE-PANE §6.5): 'go-signature' is "Go to decision" → requestSign('button'). */
 export type CommandAction =
-  | { kind: 'sign' } | { kind: 'go-signature' } | { kind: 'approve-plan' } | { kind: 'cancel-plan' }
+  | { kind: 'go-signature' } | { kind: 'approve-plan' } | { kind: 'cancel-plan' }
   | { kind: 'stop' } | { kind: 'open-file'; dealId: string } | { kind: 'start-file'; dealId: string }
   | { kind: 'route'; route: Route } | { kind: 'export-file'; dealId: string } | { kind: 'export-session' }
   | { kind: 'sweep' } | { kind: 'speed'; value: number } | { kind: 'policy'; value: Policy } | { kind: 'href'; href: string };
@@ -48,6 +51,40 @@ export type EvidenceView =
   | { cls: 'derived'; text: 'Derived'; formula: string; operands: { text: string; markId: string | null; citeIndex: number | null }[] }
   | { cls: 'unquoted'; text: 'Unquoted · extracted' }
   | { cls: 'model'; text: string };
+
+// ---- memo targets and section heads (THREE-PANE §2.6, §5.3, §5.5)
+
+/** A memo card: every FileAt plus the page header. */
+export type MemoSection = FileAt | 'header';
+/** Where a link lands in the memo: 'fig:leverage' | 'cov:Max Total Leverage' | 'rev2:debt' | 'sec:risk' | null (the card head). */
+export interface MemoTarget { section: MemoSection; anchorId: string | null }
+
+/** The one-line takeaway under a set section's title (model/takeaways.ts). `token` / `prior` only on the recommendation. */
+export interface TakeawayView { state: StatusKey; text: string; token: TokenView | null; prior: TokenView | null; basis: string | null }
+/**
+ * Right of the section eyebrow: a status label while the card is drafting, excluded or stopped.
+ * A set card has no aside: its tool, confidence and duration sit in the card footer (R2.2).
+ */
+export type SectionAside =
+  | { kind: 'status'; state: StatusKey; text: string };
+/**
+ * The set card's footer (THREE-PANE R2.2): ONE quiet line, "Document Intelligence · 94% · 1.1 s",
+ * with a "Record" disclosure, collapsed by default, holding the tool's args in, data out and the
+ * reasoning (`record`). The confidence span takes `confTone` (ink-3 at 90% and above, warn 75 to
+ * 89%, bad below the 75% floor); `text` is the whole line for assistive text.
+ */
+export interface SectionFooter {
+  tool: string; conf: string; confTone: 'ink-3' | 'warn' | 'bad'; duration: string;
+  text: string; recordLabel: string; record: StubView;
+}
+/**
+ * A flag with no row of its own, marked as one line at the foot of its card (R2.2): for example
+ * "Earnings are highly sensitive to commodity prices" (watch, Covenants) or "Risk Engine returned
+ * 70% confidence (floor 75%)" (watch, Risk). Row flags are marked on their row instead
+ * (FigureRow.mark, CovenantRow.actualTone); the Financials card also carries the evidence check
+ * here when a figure is not quoted in the CIM. `anchorId` is the line's own scroll and cue target.
+ */
+export interface SectionFlagLine { id: string; flagId: string | null; state: StatusKey; text: string; anchorId: string }
 
 export interface TopBarView {
   tabs: { id: 'desk' | 'book' | 'ledger'; label: string; count: string | null; countTone: 'accent' | 'warn' | 'ink-3' }[];
@@ -85,28 +122,45 @@ export interface NoteView {
   tone: 'breach' | 'watch' | 'info' | 'returned' | 'signed-over'; status: StatusKey;
   heading: string; text: string; meta: string;
   anchorId: string; counted: boolean; opened: boolean;
-  actions: { kind: 'show' | 'trace' | 'amend'; label: string }[]; traceStepId: string | null; amendKind: 'leverage' | 'liquidity' | null;
+  /** where "Show row" / "Show in memo" / "Amend term" land in the memo */
+  target: MemoTarget;
+  /** labels: 'Show row' (row anchors) | 'Show in memo' (section anchors) | 'Amend term' */
+  actions: { kind: 'show' | 'memo' | 'amend'; label: string }[]; amendKind: 'leverage' | 'liquidity' | null;
 }
-export interface FigureRow { id: FigureId; anchorId: string; label: string; value: string; evidence: EvidenceView }
+export interface FigureRow { id: FigureId; anchorId: string; label: string; value: string; evidence: EvidenceView; group: 'size' | 'tested'; valueTone: 'ink' | 'bad'; mark: 'breach' | null }
 export interface CovenantRow {
   anchorId: string; name: string; threshold: string; amended: { from: string; to: string } | null;
-  actual: string; cushion: { pct: number; text: string; tone: 'neutral' | 'warn' | 'bad' };
+  actual: string; actualTone: 'ink' | 'bad'; cushion: { pct: number; text: string; tone: 'neutral' | 'warn' | 'bad' };
   status: 'pass' | 'breach'; statusText: string;
   amend: { kind: 'leverage' | 'liquidity'; value: number; step: number; min: number; max: number; prefix: string; suffix: string } | null;
 }
-export interface KeyFigureView { label: string; value: string; sub: string | null; caption: string | null; tone: 'ink' | 'warn' | 'bad'; dot: MeaningTone | null; evidenceText: string; traceStepId: string; anchorId: string; ariaLabel: string }
-export interface RecommendationBody { basis: string; prior: TokenView | null; token: TokenView; sentence: string; summary: string; keyFigures: KeyFigureView[]; aidLabel: string; nearestFlip: string; stressLinkLabel: string; reworkLine: string | null }
-export interface RiskBody { scoreText: string; outOf: string; rating: string; tone: MeaningTone; value: number; tick: number; tickCaption: string; evidence: EvidenceView; drivers: { factor: string; impact: string; tone: 'good' | 'warn' | 'bad' | 'ink-2' }[] }
-export interface PeersBody { rows: { cohort: string; leverage: string; interest: string; margin: string; isDeal: boolean }[]; position: string }
-export interface RevisionBody { n: number; returned: { quote: string; attribution: string } | null; viable: boolean; summary: string | null; redline: { label: string; from: string; to: string; unchanged: boolean; anchorId: string }[]; noCure: string | null }
+export interface KeyFigureView { label: string; value: string; sub: string | null; caption: string | null; tone: 'ink' | 'warn' | 'bad'; dot: MeaningTone | null; evidenceText: string; anchorId: string; ariaLabel: string; target: MemoTarget }
+/** basis, prior, token and sentence are kept for the exports; the card shows them through `takeaway`. */
+export interface RecommendationBody { basis: string; prior: TokenView | null; token: TokenView; sentence: string; summary: string; keyFigures: KeyFigureView[]; aidLabel: string; nearestFlip: string; stressLinkLabel: string; reworkLine: string | null; summaryLabel: string; keyFiguresLabel: string }
+export interface RiskBody { scoreText: string; outOf: string; rating: string; tone: MeaningTone; value: number; tick: number; tickCaption: string; evidence: EvidenceView; drivers: { factor: string; impact: string; tone: 'good' | 'warn' | 'bad' | 'ink-2' }[]; scoreLabel: string; driversLabel: string }
+export interface PeersBody { label: string; rows: { cohort: string; leverage: string; interest: string; margin: string; isDeal: boolean }[] }
+/** proposalLabel: 'Proposed revision' | 'Outcome' */
+export interface RevisionBody { n: number; returned: { quote: string; attribution: string } | null; viable: boolean; summary: string | null; redline: { label: string; from: string; to: string; unchanged: boolean; anchorId: string }[]; noCure: string | null; noteLabel: string; proposalLabel: string }
 export type SectionPhase = 'pending' | 'drafting' | 'set' | 'excluded' | 'stopped';
-interface SectionBase { id: SectionId; anchorId: string; ordinal: string; heading: string; suffix: string | null; phase: SectionPhase; status: StatusKey; statusLabel: string; pendingLine: string; drafting: { text: string; callLine: string | null; caret: boolean } | null; stub: StubView | null; notes: NoteView[] }
+interface SectionBase {
+  id: SectionId; anchorId: string;                      // 'sec:<id>'
+  eyebrow: string; heading: string;
+  phase: SectionPhase; status: StatusKey; statusLabel: string;
+  aside: SectionAside | null;                           // drafting / excluded / stopped only
+  takeaway: TakeawayView | null;                        // only when phase === 'set'; facts only before step 5
+  phaseLine: string | null;                             // pending / excluded copy; null when set, drafting or stopped
+  drafting: { line: string; caret: boolean } | null;
+  /** set cards (the step returned): the one quiet record line and its collapsed "Record" (R2.2) */
+  footer: SectionFooter | null;
+  /** row-less flags of this card, one marked line each, in emission order (R2.2); empty when none */
+  flagLines: SectionFlagLine[];
+}                                                       // removed: ordinal, suffix, pendingLine, stub, notes
 export type SectionView =
   | (SectionBase & { kind: 'recommendation'; body: RecommendationBody | null })
-  | (SectionBase & { kind: 'financials'; body: FigureRow[] | null })
+  | (SectionBase & { kind: 'financials'; body: FigureRow[] | null; blockLabels: { size: string; tested: string } })
   | (SectionBase & { kind: 'risk'; body: RiskBody | null })
   | (SectionBase & { kind: 'peers'; body: PeersBody | null })
-  | (SectionBase & { kind: 'covenants'; body: CovenantRow[] | null })
+  | (SectionBase & { kind: 'covenants'; body: CovenantRow[] | null; testsLabel: string })
   | (SectionBase & { kind: 'revision'; body: RevisionBody | null });
 export interface DocBarView {
   fileName: string; files: { dealId: string; label: string; meta: string }[];
@@ -114,20 +168,17 @@ export interface DocBarView {
   extraction: { text: string; tone: 'ink-3' | 'warn' | 'bad' } | null;   // shown when extraction confidence < 90%
   policySuffix: string | null;
   countdown: { reviewLabel: string } | null;        // the status already carries the countdown text
-  stepper: { label: string; count: number } | null;
-  goToSignature: boolean; goToDrafting: boolean;
+  goToDecision: boolean; goToDrafting: boolean;
+  /** the "Agent panel" toggle: set whenever the panel is hidden ("Go to decision" scrolls the memo, it never opens the panel) */
+  chatToggle: { label: string } | null;
   actions: { kind: 'stop' | 'export' | 'rerun' | 'ledger'; label: string; variant: 'secondary' | 'ghost'; disabled: boolean }[];
   confirm: ConfirmView | null;
 }
 export interface HeaderView {
   eyebrow: string; borrower: string; meta: string; prepared: string; uploaded: boolean;
   cancelled: { text: string; linkLabel: string } | null;
+  /** headline is the who-clause only ("You countersigned."); the agent's call is stated at the foot (THREE-PANE §5.11) */
   seal: { state: StatusKey; headline: string; receipt: string } | null;
-}
-export interface ContentsView {
-  mode: 'not-started' | 'plan-review';
-  rows: { stepId: string; ordinal: string; title: string; describe: string; tool: string; required: boolean; included: boolean; tag: string }[];
-  sourceLine: string; countdown: string | null; held: boolean; holdLabel: string; unattendedNote: string | null;
 }
 export interface SourceView {
   open: boolean; heading: string; title: string; borrower: string; facility: string; simulated: boolean;
@@ -138,12 +189,12 @@ export interface SourceView {
   /** the doc bar's horizontal source toggle: 'Source CIM · 4 quoted' / 'Hide source' */
   toggleLabel: string;
 }
-export interface AppendixView { heading: string; meta: string; rows: { name: string; threshold: string; actual: string; cushion: { pct: number; text: string; tone: 'neutral' | 'warn' | 'bad' }; status: StatusText }[] | null; empty: string | null }
+export interface AppendixView { eyebrow: string; heading: string; meta: string; rows: { name: string; threshold: string; actual: string; cushion: { pct: number; text: string; tone: 'neutral' | 'warn' | 'bad' }; status: StatusText }[] | null; empty: string | null }
 export interface FileView {
   dealId: string; mode: FileMode; live: boolean; source: 'live' | 'snapshot' | 'deal';
   runId: number | null; revision: number; restructured: boolean;
-  docBar: DocBarView; header: HeaderView; contents: ContentsView | null; sections: SectionView[];
-  headerMargin: { showReasoning: boolean; reasoningLabel: string; evidenceCheck: NoteView | null };
+  docBar: DocBarView; header: HeaderView; sections: SectionView[];
+  /** counted, non-superseded notes in emission order; J/K walk them and each note's target is its memo row or card */
   toReview: NoteView[]; sourceView: SourceView; appendix: AppendixView | null;
   rows: { exhibits: boolean; stress: boolean; signature: boolean; monitoring: boolean };
   primary: { label: string; kbd: string; action: 'draft' | 'start-drafting'; disabled: boolean; disabledReason: string | null } | null;
@@ -151,18 +202,33 @@ export interface FileView {
 }
 
 export type SignatureState = 'pending' | 'gate' | 'countdown' | 'held' | 'leaving' | 'signed' | 'signed-auto' | 'rejected';
+/**
+ * The memo's Decision card (THREE-PANE R2.2), the ONE place to decide, after step 5 and before the
+ * stress test. Rendered in full: signed over list, reviewer note, amendment summary, the call
+ * directly above the verbs, the verb row with a consequence under each, the attestation and policy
+ * line, then the signature lines, which become the sealed record after the decision.
+ */
 export interface SignatureView {
-  state: SignatureState; heading: string; pendingLine: string | null;
+  state: SignatureState;
+  /** 'Your countersignature · CAM-2026-0417 · rev 1' while open; 'Countersignature record · …' once sealed */
+  eyebrow: string;
+  /** 'Decision' (the panel's "Decision →" lands here) */
+  heading: string; pendingLine: string | null;
   returned: { rev: number; text: string }[];
-  signedOver: { flagId: string; noteId: string; state: StatusKey; text: string; cleared: boolean; opened: boolean }[];
+  /** linkLabel: 'Show row' (row anchors) | 'Show in memo' (section anchors) */
+  signedOver: { flagId: string; noteId: string; state: StatusKey; text: string; cleared: boolean; opened: boolean; target: MemoTarget; linkLabel: string }[];
   signedOverLabel: string;
   agent: { text: string; caption: string };
-  reviewer: { sigState: SigState; caption: string; kbd: string | null; ink: 'none' | 'animate' | 'static'; autoText: string | null; rejectedWord: string | null; fillMs: number; reviewLabel: string | null };
+  /** the open line is a record, not a control (the primary verb signs) */
+  reviewer: { sigState: SigState; caption: string; ink: 'none' | 'animate' | 'static'; autoText: string | null; rejectedWord: string | null; fillMs: number; reviewLabel: string | null };
   policy: PolicyView;
+  /** sealed only: 'The agent recommended ESCALATE. You countersigned.' */
+  record: { state: StatusKey; headline: string } | null;
   note: { value: string; label: string; placeholder: string; draftLabel: string; draftDisabled: boolean; chip: string | null; hint: string | null } | null;
-  amendment: { text: string; token: TokenView; revertLabel: string } | null;
+  /** editTarget: the first amended covenant's row in the memo ("Edit in memo" lands there, then focusAmend(editKind)) */
+  amendment: { text: string; token: TokenView; revertLabel: string; editLabel: string; editKind: 'leverage' | 'liquidity'; editTarget: MemoTarget } | null;
   attestation: string | null;
-  /** The agent's overall recommendation, stated beside the verbs so the reviewer never scrolls back up to find what they are deciding. */
+  /** The agent's overall recommendation, stated directly above the verbs: lead + token (always the agent's own call) + question + one-sentence reason. */
   call: { lead: string; token: TokenView; title: string; why: string } | null;
   verbs: { primary: string; returnLabel: string; rejectLabel: string; disabled: boolean; kbd: { sign: string; ret: string; rej: string }; notes: { sign: string; ret: string; rej: string } } | null;
   sealed: { caption: string; quote: string | null; provenance: string | null; amendments: { label: string; from: string; to: string }[]; routed: string | null; routedLinkLabel: string | null; checks: { ok: boolean; text: string }[] | null } | null;
@@ -189,4 +255,61 @@ export interface LedgerView {
   files: { key: string; heading: string; runs: LedgerRun[] }[];
   monitor: { heading: string; rows: LedgerRow[] } | null;
 }
-export interface AskView { enabled: boolean; placeholder: string; disabledReason: string | null; thread: { id: string; role: 'you' | 'answer'; text: string; meta: string | null }[] }
+
+// ---- the agent panel (THREE-PANE R2.1, R2.4) ---------------------------------
+// The middle pane is command and control only: one-line status from the agent, the
+// plan prompt, the reviewer's questions and short answers, the composer. It never
+// displays data and holds no decision: every number, list, record and the whole
+// decision live in the memo pane, and a panel line only POINTS at them with a link.
+
+/** A link a composer reply carries (stored on ThreadEntry). selectAgentPanel maps it onto a ThreadLine link: memo → its card, decision → the Decision card ('signature'), stress → the stress test; source and ledger carry no memo card and render no link. */
+export type ThreadAction =
+  | { kind: 'memo'; label: string; target: MemoTarget }
+  | { kind: 'decision'; label: string }
+  | { kind: 'stress'; label: string }
+  | { kind: 'source'; label: string }
+  | { kind: 'ledger'; label: string };
+
+export type ThreadLineKind = 'run' | 'step' | 'flag' | 'revision' | 'gate' | 'you' | 'answer' | 'system' | 'decided';
+export interface ThreadLine {
+  id: string;
+  kind: ThreadLineKind;
+  glyph: StatusKey | null;
+  text: string;                                    // one line, plain (an answer may clip to 2 lines)
+  link: { label: string; target: FileAt } | null;  // memo card to scroll to ('signature' = the Decision card)
+}
+export interface PlanPromptView {
+  text: string;
+  start: { label: string; kbd: string; disabled: boolean };
+  optional: { stepId: string; label: string; included: boolean } | null; // 'Skip peers' / 'Include peers'
+  cancelLabel: string;
+  countdown: { text: string; holdLabel: string | null } | null;
+}
+export interface AgentPanelView {
+  title: string;
+  lines: ThreadLine[];
+  plan: PlanPromptView | null;
+  /** not-started file: the visible way to start (the panel is where work starts) */
+  start: { label: string; kbd: string; disabled: boolean } | null;
+  composer: { placeholder: string; disabled: boolean; disabledReason: string | null };
+}
+
+// ---- the composer (THREE-PANE §4) ------------------------------------------
+
+export interface ComposerContext {
+  dealId: string; dealName: string; mode: FileMode; live: boolean; otherLiveName: string | null;
+  parsing: string | null; askEnabled: boolean; askDisabledReason: string | null;
+  plan: { stepId: string; heading: string; optional: boolean; included: boolean }[];
+  planCountdown: boolean; policyCountdown: boolean; policyEligible: boolean;
+  amendable: boolean; stressAvailable: boolean; atGate: boolean;
+}
+export type ComposerToggle = { stepId: string; include: boolean };
+export type ComposerIntent =
+  | { kind: 'start'; toggle: ComposerToggle | null } | { kind: 'start-plan'; toggle: ComposerToggle } | { kind: 'approve-plan' }
+  | { kind: 'toggle-step'; stepId: string; include: boolean }
+  | { kind: 'hold'; target: 'plan' | 'policy' } | { kind: 'stop' } | { kind: 'open-stress' }
+  | { kind: 'question'; text: string; stress: boolean }
+  | { kind: 'refuse'; reason: 'decision' | 'amend' | 'note' | 'required-step' | 'ambiguous' | 'no-plan' | 'plan-fixed' | 'already-live'
+      | 'parsing' | 'question-closed' | 'nothing-to-hold' | 'nothing-running' | 'no-stress' | 'unknown'; stepId?: string };
+export type ComposerOutcome = 'done' | 'already' | 'confirm-opened' | 'refused';
+export interface ComposerReply { tone: 'answer' | 'done' | 'refusal'; text: string; meta: string | null; action: ThreadAction | null }

@@ -1,12 +1,15 @@
 // ---------------------------------------------------------------------------
 // Palette commands: the model decides WHICH actions exist right now
-// (selectCommands; never reject or return, since a reason must be typed at the
-// gate), this file maps each CommandAction onto the store's actions.
+// (selectCommands), this file maps each CommandAction onto the store's actions.
+// The palette never signs, returns or rejects (THREE-PANE.md §6.5): the
+// decision lives on the Decision card in the memo (R2.2). "Go to decision"
+// only brings that card's verbs into view and focuses its primary
+// (requestSign('button')).
 //
-// A palette start or countersign on a file navigates to that file first, so
-// any confirm strip or signature line appears where the user is looking. The
-// action runs on the next task, after the palette has closed and handed focus
-// back, so a focus move it makes (the signature line) is not taken away.
+// A palette start on a file navigates to that file first, so any confirm strip
+// appears where the user is looking. The action runs on the next task, after
+// the palette has closed and handed focus back, so a focus move it makes (the
+// card's primary) is not taken away.
 // ---------------------------------------------------------------------------
 
 import { selectCommands, selectLiveDealId } from '../model';
@@ -25,9 +28,6 @@ export interface PaletteCommand {
 export function runCommand(s: V2Store, action: CommandAction): void {
   const a = s.actions;
   switch (action.kind) {
-    case 'sign':
-      a.requestSign('palette');
-      return;
     case 'go-signature':
       a.requestSign('button');
       return;

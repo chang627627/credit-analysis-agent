@@ -1,20 +1,27 @@
 // ---------------------------------------------------------------------------
-// Case file · §1 Financials (spec §7.2 "Section bodies", §1 pillar 1). Eight
-// figures, each with exactly one evidence class: Quoted ¶NN (a cite that opens
-// the source on that span), Derived (the formula, every operand its own cite),
-// Unquoted · extracted, or Model output. `Evidence` is shared with §2 Risk.
+// Case file · Step 1 Financials (THREE-PANE.md §5.4, §5.6). Two labelled
+// blocks on one column template: "Size" (revenue, Adj. EBITDA, margin, total
+// debt) and "Tested by covenants" (leverage, interest and fixed-charge
+// coverage, liquidity; no header band of its own). Each figure carries
+// exactly one evidence class in the Source column: Quoted (a cite that opens
+// the source on that span), Derived (the formula, every operand its own
+// cite), Unquoted · extracted, or Model output. A tested figure that breaches
+// its filed covenant is the section's one emphasis: the breach glyph before
+// its label and the value in bad-ink, both decided by the model. The table
+// stacks under 480px of its own width. `Evidence` is shared with Risk.
 // ---------------------------------------------------------------------------
 
 import type { ReactNode } from 'react';
-import { Cite, EvidenceTag, Table } from '../../../kit';
+import { Cite, EvidenceTag, StatusGlyph, Table } from '../../../kit';
 import type { TableColumn, TableRow } from '../../../kit';
+import { STATUS_WORD } from '../../../model';
 import type { EvidenceView, FigureRow } from '../../../model';
 import type { FileCtx } from '../FileScreen';
 
 const COLUMNS: TableColumn[] = [
   { key: 'figure', label: 'Figure', width: '1fr' },
   { key: 'value', label: 'Value', width: '120px', align: 'end' },
-  { key: 'evidence', label: 'Evidence', width: '240px' },
+  { key: 'evidence', label: 'Source', width: '200px' },
 ];
 
 /** One evidence class, rendered with its cites (never inside a button). */
@@ -71,19 +78,50 @@ export function Evidence(props: { ev: EvidenceView; subject: string; ctx: FileCt
   }
 }
 
-export function Financials(props: { rows: FigureRow[]; heading: string; ctx: FileCtx }) {
-  const { rows, heading, ctx } = props;
-  const tableRows: TableRow[] = rows.map((r) => ({
+function figureRow(r: FigureRow, ctx: FileCtx): TableRow {
+  return {
     key: r.id,
     anchorId: r.anchorId,
     height: 36,
     highlighted: ctx.isHighlighted(r.anchorId),
     flashKey: ctx.flashKeyOf(r.anchorId),
     cells: {
-      figure: <span className="t-body">{r.label}</span>,
-      value: r.value,
+      figure: (
+        <span className="file-figure">
+          {r.mark ? <StatusGlyph state={r.mark} srLabel={STATUS_WORD[r.mark]} /> : null}
+          <span className="t-body">{r.label}</span>
+        </span>
+      ),
+      value: <span className={r.valueTone === 'bad' ? 'file-tone-bad' : undefined}>{r.value}</span>,
       evidence: <Evidence ev={r.evidence} subject={`${r.label} ${r.value}`} ctx={ctx} />,
     },
-  }));
-  return <Table columns={COLUMNS} rows={tableRows} caption={heading} stackBelow={ctx.stackTables ? 760 : undefined} />;
+  };
+}
+
+export function Financials(props: { rows: FigureRow[]; labels: { size: string; tested: string }; ctx: FileCtx }) {
+  const { rows, labels, ctx } = props;
+  const size = rows.filter((r) => r.group === 'size');
+  const tested = rows.filter((r) => r.group === 'tested');
+  return (
+    <>
+      {size.length > 0 ? (
+        <div className="file-block">
+          <p className="file-block__label t-label">{labels.size}</p>
+          <Table columns={COLUMNS} rows={size.map((r) => figureRow(r, ctx))} caption={labels.size} stackBelow={480} />
+        </div>
+      ) : null}
+      {tested.length > 0 ? (
+        <div className="file-block">
+          <p className="file-block__label t-label">{labels.tested}</p>
+          <Table
+            columns={COLUMNS}
+            rows={tested.map((r) => figureRow(r, ctx))}
+            caption={labels.tested}
+            header={false}
+            stackBelow={480}
+          />
+        </div>
+      ) : null}
+    </>
+  );
 }

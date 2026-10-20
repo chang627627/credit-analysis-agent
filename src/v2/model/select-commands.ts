@@ -1,9 +1,11 @@
 // ---------------------------------------------------------------------------
 // Countersign V2 · palette commands, confirm copy and live-region sentences.
 // The palette never offers reject or return: a reason must be typed at the gate.
+// It never signs either (THREE-PANE §6.5): signing happens only on the decision
+// card; "Go to decision" brings the card into view and focuses its primary.
 // ---------------------------------------------------------------------------
 
-import type { V2Store } from '../state/store';
+import type { AnnounceKind, V2Store } from '../state/contracts';
 import { classifyFlag, isCounted } from './flags';
 import { fmtHM, fmtSpeed, plural } from './format';
 import { SPEED_STEPS, isRunLive, selectLiveDealId } from './select-top';
@@ -29,8 +31,7 @@ export function selectCommands(s: V2Store): CommandView[] {
   const signed = s.gate.justSigned !== null && s.gate.justSigned.runId === a.runId;
   if (live && a.status === 'awaiting_approval' && a.approvalPackage && !s.gate.leaving && !signed) {
     const rev = a.approvalPackage.revision;
-    out.push({ id: 'sign', label: 'Countersign', section: 'Live file', hint: `${liveName} · rev ${rev}`, kbd: 'A', action: { kind: 'sign' } });
-    out.push({ id: 'go-signature', label: COPY.goToSignature, section: 'Live file', hint: liveName, action: { kind: 'go-signature' } });
+    out.push({ id: 'go-signature', label: COPY.goToDecision, section: 'Live file', hint: `${liveName} · rev ${rev}`, kbd: 'A', action: { kind: 'go-signature' } });
   }
   if (live && (a.status === 'running' || a.status === 'awaiting_approval')) {
     out.push({ id: 'stop', label: 'Stop the live run', section: 'Live file', hint: liveName, action: { kind: 'stop' } });
@@ -136,7 +137,7 @@ export function stopConfirmCopy(s: V2Store): ConfirmView {
 }
 
 /** The live region's sentence for a moment (§7.2, §8). */
-export function announceFor(kind: 'gate' | 'signed' | 'auto' | 'rejected' | 'returned' | 'attached' | 'held', s: V2Store): string {
+export function announceFor(kind: AnnounceKind, s: V2Store): string {
   const a = s.agent;
   const at = fmtHM(a.decidedAt ?? s.now);
   switch (kind) {
@@ -161,5 +162,7 @@ export function announceFor(kind: 'gate' | 'signed' | 'auto' | 'rejected' | 'ret
       const r = s.gate.holdReason;
       return r ? `Auto-countersign ${HOLD_CAPTION[r].replace(/^Held/, 'held')}.` : 'Auto-countersign held.';
     }
+    case 'sign-ready':
+      return COPY.signReady;
   }
 }

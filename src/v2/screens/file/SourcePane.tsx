@@ -1,16 +1,18 @@
 // ---------------------------------------------------------------------------
-// Case file · the source pane (spec §3 "Source pane", §7.2 "Source pane").
-// Closed: nothing (the doc bar carries a horizontal toggle). Open: the CIM with
-// numbered paragraphs and every quoted span marked; the active cite carries a
-// 2px ink outline and scrolls into view. At 1432px and up it pushes the canvas
-// (360px column); below it floats over the canvas under the doc bar, never
-// wider than the pane (file.css). Esc and `[` are handled once in
+// Case file · the source pane (THREE-PANE.md §1.7). Closed: nothing (the doc
+// bar carries the "Source CIM · n quoted" toggle at its right end). Open: the
+// CIM with numbered paragraphs and every quoted span marked; the active cite
+// carries a 2px ink outline and scrolls into view. It sits on the memo pane's
+// RIGHT edge, so the chain reads chat → memo → CIM: it pushes the canvas
+// (360px column) when the memo pane is 1064px or wider (@container viz) and
+// overlays the canvas's right edge under the doc bar below that, never wider
+// than the pane (file.css). Esc and `[` are handled once in
 // state/shortcuts.ts. Closing it while focus is inside (its close button, Esc,
 // `[`) hands focus back to the doc bar's Source toggle instead of dropping it.
 // ---------------------------------------------------------------------------
 
 import { useEffect, useLayoutEffect, useRef } from 'react';
-import { ArrowDown, ArrowUp, ChevronsLeft, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronsRight, X } from 'lucide-react';
 import { Chip, IconButton, LinkButton } from '../../kit';
 import { COPY } from '../../model';
 import type { SourceView } from '../../model';
@@ -81,7 +83,7 @@ export function SourcePane(props: { source: SourceView; dealId: string; actions:
         <div className="file-source__head">
           <span className="file-source__heading t-label">{v.heading}</span>
           {v.simulated ? <Chip>{COPY.simulatedExtraction}</Chip> : null}
-          <IconButton icon={ChevronsLeft} label={CLOSE_SOURCE} size="xs" onClick={() => a.closeSource()} />
+          <IconButton icon={ChevronsRight} label={CLOSE_SOURCE} size="xs" onClick={() => a.closeSource()} />
         </div>
         <div className="file-source__tools">
           <LinkButton

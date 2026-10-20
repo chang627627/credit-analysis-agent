@@ -1,24 +1,22 @@
 // ---------------------------------------------------------------------------
-// Case file · the page header row (spec §7.2 "Page header row"): eyebrow,
-// borrower, meta and prepared lines, the cancelled note and the seal row; and
-// its margin cell: "Show all reasoning", Ask about this file (live file only,
-// one merged thread) and the deterministic evidence-check note.
+// Case file · the page header (THREE-PANE.md §5.2, §5.11, R2.2), on the canvas
+// with no card: eyebrow, borrower (the page's one display line), the meta line
+// (facility and amount, CAM id, revision), the prepared line (prepared by,
+// when, the CIM and its paragraphs), the cancelled note and the seal row. The
+// file's details live here, not in the agent panel. Never a recommendation:
+// the seal states only who signed ("You countersigned.") and the receipt; the
+// agent's call is stated at the foot, in step 5 and the Decision card.
 // ---------------------------------------------------------------------------
 
-import { useState } from 'react';
-import { MessageSquare } from 'lucide-react';
-import { Chip, LinkButton, StatusLabel, Switch, TextInput } from '../../kit';
+import { Chip, LinkButton, StatusLabel } from '../../kit';
 import { COPY } from '../../model';
-import type { AskView, FileView, HeaderView } from '../../model';
+import type { HeaderView } from '../../model';
 import type { FileCtx } from './FileScreen';
-import { Notes } from './Margin';
-
-const YOU = 'You';
 
 export function PageHeader(props: { header: HeaderView; ctx: FileCtx }) {
   const { header: h, ctx } = props;
   return (
-    <header className="file-header">
+    <header className="file-header" data-section="header">
       <p className="file-header__eyebrow t-eyebrow">{h.eyebrow}</p>
       <h1 className="file-header__borrower t-display">{h.borrower}</h1>
       <p className="file-header__meta t-small">
@@ -43,61 +41,5 @@ export function PageHeader(props: { header: HeaderView; ctx: FileCtx }) {
         </div>
       ) : null}
     </header>
-  );
-}
-
-export function HeaderMargin(props: { view: FileView; ask: AskView; ctx: FileCtx }) {
-  const { view, ask, ctx } = props;
-  const a = ctx.actions;
-  const m = view.headerMargin;
-  const [question, setQuestion] = useState('');
-
-  const submit = () => {
-    const q = question.trim();
-    if (!q || !ask.enabled) return;
-    a.ask(ctx.dealId, q);
-    setQuestion('');
-  };
-
-  return (
-    <>
-      <label className="file-reasoning">
-        <Switch checked={m.showReasoning} onChange={(v) => a.setShowReasoning(v)} ariaLabel={m.reasoningLabel} />
-        <span className="t-label" aria-hidden="true">
-          {m.reasoningLabel}
-        </span>
-      </label>
-
-      <div className="file-ask">
-        <TextInput
-          value={question}
-          onChange={setQuestion}
-          onSubmit={submit}
-          placeholder={ask.placeholder}
-          ariaLabel={ask.placeholder}
-          icon={MessageSquare}
-          disabled={!ask.enabled}
-        />
-        {!ask.enabled && ask.disabledReason ? <p className="file-ask__reason t-meta">{ask.disabledReason}</p> : null}
-        {ask.thread.length > 0 ? (
-          <ol className="file-thread" aria-label={ask.placeholder}>
-            {ask.thread.map((entry) =>
-              entry.role === 'you' ? (
-                <li key={entry.id} className="file-thread__you t-small">
-                  <span className="file-thread__who t-label">{YOU}</span> {entry.text}
-                </li>
-              ) : (
-                <li key={entry.id} className="file-thread__answer">
-                  <p className="t-small">{entry.text}</p>
-                  {entry.meta ? <p className="file-thread__meta t-meta">{entry.meta}</p> : null}
-                </li>
-              ),
-            )}
-          </ol>
-        ) : null}
-      </div>
-
-      {m.evidenceCheck ? <Notes notes={[m.evidenceCheck]} ctx={ctx} /> : null}
-    </>
   );
 }

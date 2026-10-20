@@ -1,16 +1,24 @@
 // ---------------------------------------------------------------------------
-// Case file · the doc bar (spec §7.2 "Doc bar"). 44px, sticky inside the
-// canvas, three zones: breadcrumb · status sentence · reader controls. It sits
-// in the data-docbar wrapper together with any open ConfirmStrip (stop/start).
-// The doc bar never holds a primary. It folds on its OWN width (file.css
-// container queries, so the sidebar and a pushed source count): below 940 the
-// horizontal Source toggle drops to its icon (same name, shown as a tip), below
-// 800 the reader controls and actions fold into "More", and below 680 the note
-// stepper and the Desk crumb fold too (J/K still step). The status sentence
-// keeps a floor and ellipsizes rather than being cut mid-word.
+// Case file · the doc bar (THREE-PANE.md §5.10, R2.1). 44px, sticky inside the
+// memo scroller, on the header line shared with the agent head and the source
+// head. Three zones:
+//   left    the "Agent panel" toggle (whenever the panel is hidden), the Desk
+//           crumb and the file switcher;
+//   centre  the status sentence, elapsed, extraction, policy suffix;
+//   right   Review manually, Go to decision (brings the memo's Decision card
+//           into view and focuses its primary; it never signs and never opens
+//           the panel) or Go to drafting, the actions, and the "Source CIM ·
+//           n quoted" toggle at the right end.
+// It sits in the data-docbar wrapper with any open ConfirmStrip (stop/start)
+// and never holds a primary. It folds on its OWN width (container
+// file-docbar, file.css): <= 999 the Agent panel label drops to its icon,
+// <= 939 the actions fold into More, <= 759 the Source label drops to its
+// icon, <= 659 Go to decision / Go to drafting, Review manually, the Desk
+// crumb and the policy suffix fold too. The status keeps a floor and
+// ellipsizes rather than being cut mid-word.
 // ---------------------------------------------------------------------------
 
-import { ArrowDown, ArrowUp, FileText } from 'lucide-react';
+import { ArrowDown, FileText, MessageSquare, PenLine } from 'lucide-react';
 import { Button, ConfirmStrip, IconButton, LinkButton, Menu, StatusLabel } from '../../kit';
 import type { MenuItem } from '../../kit';
 import { COPY } from '../../model';
@@ -18,8 +26,6 @@ import type { DocBarView, SourceView } from '../../model';
 import type { V2Actions } from '../../state/store';
 
 const FILES_MENU_LABEL = 'Switch file';
-const PREV_NOTE = 'Previous note (K)';
-const NEXT_NOTE = 'Next note (J)';
 
 const EXTRACTION_CLASS: Record<NonNullable<DocBarView['extraction']>['tone'], string> = {
   'ink-3': 'file-tone-ink3',
@@ -49,25 +55,21 @@ export function DocBar(props: { docBar: DocBarView; source: SourceView; dealId: 
     }
   };
 
-  const goToSignature = () => a.requestSign('button');
-  const toggleSource = () => (source.open ? a.closeSource() : a.openSource());
+  // phase one only: brings the memo's Decision card into view and focuses its primary (never signs)
+  const goToDecision = () => a.requestSign('button');
+  const toggleSource = () => a.toggleSource();
+  const toggleChat = () => a.toggleChat();
 
-  // the same controls, as menu rows. Below 800 (the bar's own width) the reader controls fold into
-  // "More" so the status sentence keeps its room (the stepper stays visible); below 680 it folds too.
-  const actionItems: MenuItem[] = [];
-  if (d.countdown) actionItems.push({ id: 'review', label: d.countdown.reviewLabel, onSelect: () => a.reviewManually() });
-  if (d.goToSignature) actionItems.push({ id: 'signature', label: COPY.goToSignature, onSelect: goToSignature });
-  if (d.goToDrafting) actionItems.push({ id: 'drafting', label: COPY.goToDrafting, onSelect: onGoToDrafting });
-  for (const act of d.actions) {
-    if (!act.disabled) actionItems.push({ id: act.kind, label: act.label, onSelect: () => runAction(act.kind) });
-  }
-  const moreItems: MenuItem[] = d.stepper
-    ? [
-        { id: 'note-prev', label: PREV_NOTE, meta: d.stepper.label, onSelect: () => a.focusNote(-1) },
-        { id: 'note-next', label: NEXT_NOTE, meta: d.stepper.label, onSelect: () => a.focusNote(1) },
-        ...actionItems,
-      ]
-    : actionItems;
+  // the folded forms, as menu rows: <= 939 the actions; <= 659 the reader controls and the crumb too
+  const actionItems: MenuItem[] = d.actions
+    .filter((act) => !act.disabled)
+    .map((act) => ({ id: act.kind, label: act.label, onSelect: () => runAction(act.kind) }));
+  const narrowItems: MenuItem[] = [];
+  if (d.countdown) narrowItems.push({ id: 'review', label: d.countdown.reviewLabel, onSelect: () => a.reviewManually() });
+  if (d.goToDecision) narrowItems.push({ id: 'decision', label: COPY.goToDecision, onSelect: goToDecision });
+  if (d.goToDrafting) narrowItems.push({ id: 'drafting', label: COPY.goToDrafting, onSelect: onGoToDrafting });
+  narrowItems.push({ id: 'desk', label: COPY.tabDesk, onSelect: () => a.navigate({ name: 'desk' }) });
+  narrowItems.push(...actionItems);
 
   const confirm = d.confirm;
 
@@ -75,6 +77,22 @@ export function DocBar(props: { docBar: DocBarView; source: SourceView; dealId: 
     <div className="file-docbarwrap" data-docbar="" data-confirm={confirm ? '' : undefined}>
       <div className="file-docbar">
         <div className="file-docbar__left">
+          {/* one toggle, two widths: the labelled button, or (tight bar) its icon with the same name
+              as a tip. CSS shows exactly one; data-chat-toggle lets the shell hand focus back here
+              when the panel or the drawer closes with focus inside it (the panel is then hidden,
+              so this toggle is always present to receive it). */}
+          {d.chatToggle ? (
+            <>
+              <span className="file-docbar__agent" data-chat-toggle="">
+                <Button variant="ghost" size="sm" icon={MessageSquare} onClick={toggleChat}>
+                  {d.chatToggle.label}
+                </Button>
+              </span>
+              <span className="file-docbar__agent-icon" data-chat-toggle="">
+                <IconButton icon={MessageSquare} label={d.chatToggle.label} onClick={toggleChat} />
+              </span>
+            </>
+          ) : null}
           <span className="file-docbar__crumb">
             <LinkButton role="label" onClick={() => a.navigate({ name: 'desk' })}>
               {COPY.tabDesk}
@@ -94,17 +112,6 @@ export function DocBar(props: { docBar: DocBarView; source: SourceView; dealId: 
               onSelect: () => a.navigate({ name: 'file', dealId: f.dealId, at: null }),
             }))}
           />
-          {/* one toggle, two widths: the labelled button, or (tight bar) its icon with the same
-              name as a tip. CSS shows exactly one; data-source-toggle lets the source pane hand
-              focus back here when it closes from inside. */}
-          <span className="file-docbar__source" data-source-toggle="">
-            <Button variant="ghost" size="sm" icon={FileText} onClick={toggleSource}>
-              {source.toggleLabel}
-            </Button>
-          </span>
-          <span className="file-docbar__source-icon" data-source-toggle="">
-            <IconButton icon={FileText} label={source.toggleLabel} onClick={toggleSource} />
-          </span>
         </div>
 
         <div className="file-docbar__center">
@@ -114,50 +121,58 @@ export function DocBar(props: { docBar: DocBarView; source: SourceView; dealId: 
             </StatusLabel>
           </span>
           {d.elapsed ? <span className="file-docbar__elapsed t-figure">{d.elapsed}</span> : null}
-          {d.extraction ? <span className={`t-meta ${EXTRACTION_CLASS[d.extraction.tone]}`}>{d.extraction.text}</span> : null}
+          {d.extraction ? <span className={`file-docbar__extraction t-meta ${EXTRACTION_CLASS[d.extraction.tone]}`}>{d.extraction.text}</span> : null}
           {d.policySuffix ? <span className="file-docbar__suffix t-meta">{d.policySuffix}</span> : null}
         </div>
 
         <div className="file-docbar__right">
-          {d.stepper ? (
-            <span className="file-docbar__stepper">
-              <IconButton icon={ArrowUp} label={PREV_NOTE} size="xs" onClick={() => a.focusNote(-1)} />
-              <span className="file-docbar__count t-label">{d.stepper.label}</span>
-              <IconButton icon={ArrowDown} label={NEXT_NOTE} size="xs" onClick={() => a.focusNote(1)} />
-            </span>
-          ) : null}
-          <span className="file-docbar__full">
-            {d.countdown ? (
+          {d.countdown ? (
+            <span className="file-docbar__review">
               <LinkButton role="label" onClick={() => a.reviewManually()}>
                 {d.countdown.reviewLabel}
               </LinkButton>
-            ) : null}
-            {d.goToSignature ? (
-              <Button variant="ghost" size="sm" icon={ArrowDown} onClick={goToSignature}>
-                {COPY.goToSignature}
+            </span>
+          ) : null}
+          {d.goToDecision ? (
+            <span className="file-docbar__goto">
+              <Button variant="ghost" size="sm" icon={PenLine} onClick={goToDecision}>
+                {COPY.goToDecision}
               </Button>
-            ) : null}
-            {d.goToDrafting ? (
+            </span>
+          ) : null}
+          {d.goToDrafting ? (
+            <span className="file-docbar__goto">
               <Button variant="ghost" size="sm" icon={ArrowDown} onClick={onGoToDrafting}>
                 {COPY.goToDrafting}
               </Button>
-            ) : null}
-            {d.actions.map((act) => (
-              <Button key={act.kind} variant={act.variant} size="sm" disabled={act.disabled} onClick={() => runAction(act.kind)}>
-                {act.label}
-              </Button>
-            ))}
-          </span>
+            </span>
+          ) : null}
+          {d.actions.length > 0 ? (
+            <span className="file-docbar__actions">
+              {d.actions.map((act) => (
+                <Button key={act.kind} variant={act.variant} size="sm" disabled={act.disabled} onClick={() => runAction(act.kind)}>
+                  {act.label}
+                </Button>
+              ))}
+            </span>
+          ) : null}
           {actionItems.length > 0 ? (
             <span className="file-docbar__more file-docbar__more--mid">
               <Menu label={COPY.more} trigger={{ text: COPY.more, variant: 'ghost' }} items={actionItems} />
             </span>
           ) : null}
-          {moreItems.length > 0 ? (
-            <span className="file-docbar__more file-docbar__more--narrow">
-              <Menu label={COPY.more} trigger={{ text: COPY.more, variant: 'ghost' }} items={moreItems} />
-            </span>
-          ) : null}
+          <span className="file-docbar__more file-docbar__more--narrow">
+            <Menu label={COPY.more} trigger={{ text: COPY.more, variant: 'ghost' }} items={narrowItems} />
+          </span>
+          {/* data-source-toggle lets the source pane hand focus back here when it closes from inside */}
+          <span className="file-docbar__source" data-source-toggle="">
+            <Button variant="ghost" size="sm" icon={FileText} onClick={toggleSource}>
+              {source.toggleLabel}
+            </Button>
+          </span>
+          <span className="file-docbar__source-icon" data-source-toggle="">
+            <IconButton icon={FileText} label={source.toggleLabel} onClick={toggleSource} />
+          </span>
         </div>
       </div>
       {confirm ? (

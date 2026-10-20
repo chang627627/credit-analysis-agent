@@ -1,5 +1,7 @@
-/* Countersign V2 · decision blocks (spec §7.3, §8): the signature, the stress test, the exhibits.
-   Tokens only. Kit primitives keep their own styling; this file lays out its own elements. */
+/* Countersign V2 · decision blocks (spec §7.3, §8; THREE-PANE.md R2.2, §5.2): the memo Decision card
+   (inside the signature MemoCard body), the stress test (scratch, no card) and the exhibits (inside
+   their MemoCard body). Tokens and role classes only. Kit primitives keep their own styling (no kit
+   class is styled here; the decorative Kbd chip is reached as button > span[aria-hidden="true"]). */
 
 /* ---- shared text tones ---- */
 .decision-ink2 { color: var(--ink-2); }
@@ -8,33 +10,28 @@
 .decision-bad { color: var(--bad-ink); }
 .decision-struck { color: var(--ink-3); text-decoration: line-through; }
 
-/* one-shot entry on mount (rows, the sealed record) */
+/* one-shot entry on mount (exhibit rows) */
 .decision-enter { animation: v2-enter var(--dur-2) var(--ease-out) backwards; }
 
-/* ==== signature block: a 1px line, 32 above the heading; content width 624 ==== */
-.decision-sig {
+/* ==== the Decision card: everything under the card head, 24px between blocks (the memo card's
+   block rhythm). Its own container, so the verbs and the panel size by the card's real width. ==== */
+.decision {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  width: 100%;
-  max-width: 624px;
+  gap: 24px;
   min-width: 0;
-  padding-top: 32px;
-  border-top: 1px solid var(--line);
   transition: opacity var(--dur-2) var(--ease-out);
-  /* the verbs size against the block's own width (the sidebar and the source change it) */
-  container: decision-sig / inline-size;
+  container: decision / inline-size;
 }
-/* return for revision: the whole block recedes while the loop waits out --dur-2 */
-.decision-sig--leaving { opacity: 0.4; }
+/* return for revision: the card recedes while the loop waits out --dur-2 */
+.decision--leaving { opacity: 0.4; }
 
-.decision-sig__head { display: flex; flex-direction: column; gap: 8px; }
-.decision-sig__returned { display: flex; flex-direction: column; gap: 4px; list-style: none; }
+.decision__returned { display: flex; flex-direction: column; gap: 4px; list-style: none; }
 
-/* Signed over: label, then 28px rows on 1px rules */
-.decision-sig__over { display: flex; flex-direction: column; gap: 4px; }
-.decision-sig__overlist { list-style: none; border-top: 1px solid var(--line); }
-.decision-sig__overrow {
+/* 1 · Signed over (gate and record): a label, then 28px rows on 1px rules */
+.decision__over { display: flex; flex-direction: column; gap: 8px; }
+.decision__overlist { list-style: none; border-top: 1px solid var(--line); }
+.decision__overrow {
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr) auto;
   column-gap: 8px;
@@ -43,36 +40,21 @@
   padding: 4px 0;
   border-bottom: 1px solid var(--line);
 }
-.decision-sig__overtext { min-width: 0; overflow-wrap: anywhere; }
+.decision__overtext { min-width: 0; overflow-wrap: anywhere; }
 
-/* the two lines: agent 248 | 24 | reviewer 1fr (24 below the Signed over list) */
-.decision-sig__lines {
-  display: grid;
-  grid-template-columns: 248px minmax(0, 1fr);
-  column-gap: 24px;
-  row-gap: 24px;
-  margin-top: 8px;
-  min-width: 0;
-}
+/* 2 · the reviewer note */
+.decision__note { display: flex; flex-direction: column; gap: 8px; }
+.decision__notehead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.decision__notetools { display: flex; align-items: center; gap: 8px; }
+.decision__hint { color: var(--bad-ink); }
 
-/* the reviewer caption: swaps in after the ink on the signing transition (--dur-3 delay) */
-.decision-caption { display: inline-block; }
-.decision-caption--after-ink { animation: v2-enter var(--dur-1) var(--ease-out) var(--dur-3) backwards; }
+/* 3 · the amendment summary */
+.decision__amend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--ink-2); }
+.decision__amendlinks { display: inline-flex; align-items: center; gap: 8px; }
 
-.decision-sig__policy { display: flex; flex-direction: column; gap: 4px; }
-.decision-sig__checks { display: flex; flex-direction: column; gap: 4px; list-style: none; padding-top: 4px; }
-
-.decision-sig__note { display: flex; flex-direction: column; gap: 8px; }
-.decision-sig__notehead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
-.decision-sig__notetools { display: flex; align-items: center; gap: 8px; }
-.decision-sig__hint { color: var(--bad-ink); }
-
-.decision-sig__amend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--ink-2); }
-.decision-sig__attest { max-width: 64ch; color: var(--ink-2); }
-.decision-sig__verbs { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-
-/* the decision itself, stated beside the verbs: the agent's call, then each verb with what it does */
-.decision-sig__decide {
+/* 4 to 6 · the decision panel: an inset canvas panel on the paper card; the call over a rule,
+   then the verbs, then the attestation and the policy line */
+.decision__panel {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -81,63 +63,83 @@
   border: 1px solid var(--line);
   border-radius: var(--r-md);
 }
-.decision-sig__call { display: flex; flex-direction: column; gap: 4px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
-.decision-sig__calllead { display: flex; align-items: center; gap: 8px; }
-.decision-sig__why { max-width: 64ch; }
-.decision-sig__choices {
-  /* ONE horizontal row of verbs (owner decision): each verb is a unit, its button with the
-     consequence under it. Where the row does not fit, the next verb wraps sideways onto a new
-     line; it never turns into a one-column table and never squeezes a label into an ellipsis. */
+.decision__call { display: flex; flex-direction: column; gap: 4px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.decision__lead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.decision__why { max-width: 64ch; }
+
+/* 5 · the verbs: ONE horizontal row (owner decision). Each verb is a unit, its button with the
+   consequence under it; the units share the row. A unit's minimum is its button (the label never
+   wraps or ellipsizes) and a caption takes its unit's width without widening it. Where the row does
+   not fit, the next verb wraps sideways onto a second line; it is never a one-column list. */
+.decision__choices {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
   gap: 12px 16px;
   list-style: none;
 }
-.decision-sig__choice {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  max-width: 100%;
-}
-/* the caption takes its button's width without widening the unit */
-.decision-sig__choice > span { width: 0; min-width: 100%; }
-.decision-sig__decide .decision-sig__attest { max-width: none; color: var(--ink-3); }
-/* A phone-width block (under 288, below about a 426 viewport beside the rail): the panel goes
-   flat (rules above and below, no side padding or frame) and the verbs drop their decorative,
-   aria-hidden Kbd chips (A/S/R still work), so the longest verb, "Countersign revised structure"
-   (about 212 without its chip, 238 with it), stays whole down to a 360 viewport (222 block). */
-@container decision-sig (max-width: 287px) {
-  .decision-sig__decide {
+.decision__choice { display: flex; flex: 1 1 0; flex-direction: column; align-items: flex-start; gap: 8px; }
+.decision__primary { display: flex; }
+.decision__caption { width: 0; min-width: 100%; }
+
+/* 6 · the attestation and the policy line, small, under the verbs */
+.decision__foot { display: flex; flex-direction: column; gap: 8px; }
+.decision__policy { display: flex; flex-direction: column; gap: 4px; }
+.decision__checks { display: flex; flex-direction: column; gap: 4px; list-style: none; padding-top: 4px; }
+
+/* A phone-width card (under 360, the memo pane at a 390 viewport): the panel goes flat (rules above
+   and below, no frame or side padding), the verbs close up to 12px and drop their decorative,
+   aria-hidden Kbd chips (A, S and R still work), so Return and Reject (about 148 and 96 without
+   chips, 256 with the gap) still share the line under the primary: two lines, never three. */
+@container decision (max-width: 359px) {
+  .decision__panel {
     padding: 16px 0;
     border-width: 1px 0;
     border-radius: 0;
     background: transparent;
   }
-  .decision-sig__choice button > span[aria-hidden="true"] { display: none; }
+  .decision__choices { column-gap: 12px; }
+  .decision__choice button > span[aria-hidden="true"] { display: none; }
 }
 
+/* 7 · the signature lines: agent 248 | 24 | reviewer 1fr; one column under a 560px card. Focusable
+   (tabIndex -1) so focus lands here after a decision removes the verbs. */
+.decision__lines {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  column-gap: 24px;
+  row-gap: 24px;
+  min-width: 0;
+  border-radius: var(--r-sm);
+}
+@container k-memocard (max-width: 559px) {
+  .decision__lines { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* the reviewer caption: swaps in after the ink on the signing transition (--dur-3 delay) */
+.decision-caption { display: inline-block; }
+.decision-caption--after-ink { animation: v2-enter var(--dur-1) var(--ease-out) var(--dur-3) backwards; }
+
 /* the sealed record enters; on the signing transition it waits for the ink (--dur-3) */
-.decision-sig__sealed {
+.decision__sealed {
   display: flex;
   flex-direction: column;
   gap: 8px;
   animation: v2-enter var(--dur-2) var(--ease-out) backwards;
 }
-.decision-sig__sealed--after-ink { animation-delay: var(--dur-3); }
-.decision-sig__quote { display: flex; flex-direction: column; gap: 4px; margin: 0; }
-.decision-sig__amendments { display: flex; flex-direction: column; gap: 4px; list-style: none; }
-.decision-sig__amendrow { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.decision__sealed--after-ink { animation-delay: var(--dur-3); }
+.decision__quote { display: flex; flex-direction: column; gap: 4px; margin: 0; }
+.decision__amendments { display: flex; flex-direction: column; gap: 4px; list-style: none; }
+.decision__amendrow { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
 
-/* ==== stress test: scratch in a provisional frame ==== */
+/* ==== stress test: scratch in a provisional frame (no memo card), its own container ==== */
 .decision-stress {
   min-width: 0;
   border: var(--line-provisional);
   border-radius: var(--r-md);
+  container: decision-stress / inline-size;
 }
-.decision-stress--collapsed {
+.decision-stress__collapsed {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -145,7 +147,7 @@
   min-height: 48px;
   padding: 0 16px;
 }
-.decision-stress--open {
+.decision-stress__open {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -176,20 +178,20 @@
   animation: v2-enter var(--dur-2) var(--ease-out) backwards;
 }
 
+/* the cushion cell, right-aligned like the memo's covenant table */
 .decision-cushion { display: inline-flex; align-items: center; gap: 8px; }
+.decision-cushion__text { min-width: 48px; text-align: right; }
 
-/* ==== exhibits ==== */
-.decision-exhibits { display: flex; flex-direction: column; gap: 16px; }
+/* a frame under 560px: the collapsed line wraps, drivers put the label above the slider */
+@container decision-stress (max-width: 559px) {
+  .decision-stress__collapsed { flex-wrap: wrap; padding: 8px 16px; }
+  .decision-stress__open { padding: 16px; }
+  .decision-stress__driver { grid-template-columns: minmax(0, 1fr) 96px; row-gap: 4px; }
+  .decision-stress__label { grid-column: 1 / -1; }
+}
+
+/* ==== exhibits (inside the MemoCard body) ==== */
 .decision-exhibit__letter { display: inline-block; }
 .decision-exhibit { display: flex; flex-direction: column; min-width: 0; }
 .decision-exhibit__line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .decision-exhibit__result { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-
-/* ==== narrow (< 760): lines stack, drivers put the label above the slider ==== */
-@media (max-width: 759px) {
-  .decision-sig__lines { grid-template-columns: minmax(0, 1fr); }
-  .decision-stress--collapsed { padding: 8px 16px; flex-wrap: wrap; }
-  .decision-stress--open { padding: 16px; }
-  .decision-stress__driver { grid-template-columns: minmax(0, 1fr) 96px; row-gap: 4px; }
-  .decision-stress__label { grid-column: 1 / -1; }
-}

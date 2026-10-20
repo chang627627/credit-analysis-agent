@@ -1,19 +1,24 @@
 // ---------------------------------------------------------------------------
-// UI state (spec §9.1 UiState): source pane, cites, trace/flash/note cues,
-// stress scratch, ledger view state, the local Ask thread, confirms and the
-// palette. Also the small environment hooks the provider needs and cssMs(),
-// the one bridge from JS waits to the CSS motion tokens.
+// UI state (spec §9.1 UiState, THREE-PANE.md §6.1 as revised by R2): source
+// pane, cites, the memo cue (the agent panel's links, J / K, Show row, Edit in
+// memo and the stress test all scroll the memo; nothing scrolls the panel),
+// stress scratch, ledger view state, confirms and the palette. The composer's
+// thread entries live here too (state/composer.ts writes them). Also the small
+// environment hooks the provider needs and cssMs(), the one bridge from JS
+// waits to the CSS motion tokens.
 // ---------------------------------------------------------------------------
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { baselineScenario } from '../../agent/whatif';
 import type { Deal } from '../../agent/mockData';
 import type { Scenario } from '../../agent/whatif';
-import { askRoute, fmtX, selectAsk, selectFile, selectLedger, selectLiveDealId, stressRecord } from '../model';
-import type { NoteView } from '../model';
+import { selectFile, selectLedger, selectLiveDealId, selectSignature, stressRecord } from '../model';
+import type { MemoTarget } from '../model';
 import type { Route } from './route';
 import type { Box, UiState, V2Actions, V2Internals, V2Store } from './store';
-import { markOpenedIn, pkgKeyOf } from './gate';
+import { bringDecisionIn, canDecide, markOpenedIn, onLiveFile, pkgKeyOf } from './gate';
+import { closeDrawerIn, resetPanesForFile } from './panes';
+import { cssEscape, onFrames, rendered } from './reveal';
 
 // ---- the motion-token bridge -------------------------------------------------
 
@@ -102,36 +107,13 @@ export function useTabVisible(): [boolean, Box<boolean>] {
   return [visible, ref];
 }
 
-// ---- persistence (v2.showReasoning) -----------------------------------------
-
-const SHOW_REASONING_KEY = 'v2.showReasoning';
-
-function readShowReasoning(): boolean {
-  try {
-    return localStorage.getItem(SHOW_REASONING_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeShowReasoning(v: boolean): void {
-  try {
-    localStorage.setItem(SHOW_REASONING_KEY, v ? '1' : '0');
-  } catch {
-    /* storage unavailable: the toggle still works for this session */
-  }
-}
-
 export function initialUi(): UiState {
   return {
     sourceOpen: false,
     cites: null,
-    trace: null,
-    flash: null,
-    noteFocus: null,
+    memoCue: null,
     noteCursor: -1,
     amendFocus: null,
-    showReasoning: readShowReasoning(),
     confirm: null,
     paletteOpen: false,
     ledgerOpen: {},
@@ -139,13 +121,15 @@ export function initialUi(): UiState {
     stress: {},
     attached: {},
     thread: [],
+    threadEpoch: {},
+    composerDraft: {},
     parsingSince: null,
     pendingUploadOpen: false,
     announce: null,
   };
 }
 
-// ---- route hygiene (spec §9.2 #7) -------------------------------------------
+// ---- route hygiene (spec §9.2 #7, THREE-PANE.md §6.3) -----------------------
 
 /** The file a route is about; non-file routes keep the last file (browsing the Book is not a deal change). */
 export function fileKeyOf(route: Route, last: string | null): string | null {
@@ -164,29 +148,42 @@ export function placeKeyOf(route: Route): string {
   }
 }
 
-/** Clear everything that belongs to one file's reading session. */
+/**
+ * Clear everything that belongs to one file's reading session. The composer
+ * thread is NOT cleared: each file's entries are hidden by its epoch instead
+ * (THREE-PANE.md §4.4), so a sealed file keeps its Q&A.
+ */
 export function clearReading(x: V2Internals): void {
   x.setUi((u) =>
-    u.cites === null && u.trace === null && u.noteCursor === -1 && u.confirm === null && u.thread.length === 0
+    u.cites === null && u.memoCue === null && u.noteCursor === -1 && u.confirm === null
       ? u
-      : { ...u, cites: null, trace: null, noteCursor: -1, confirm: null, thread: [] },
+      : { ...u, cites: null, memoCue: null, noteCursor: -1, confirm: null },
   );
 }
 
-/** Below 1432px the open source is an overlay over the case file's left edge (file.css). */
-export const SOURCE_OVERLAY_MAX = 1431;
+/** At this memo pane width and up the source pushes the canvas; below it overlays (file.css, @container viz). */
+export const VIZ_SOURCE_PUSH_MIN = 1064;
 
-function sourceIsOverlay(): boolean {
-  return typeof window !== 'undefined' && window.innerWidth <= SOURCE_OVERLAY_MAX;
+/** True when an open source overlays the memo. Before a case file mounts (navigating from the
+    Desk, Book or Ledger) there is no [data-viz]: treat that as overlay, so the next file never
+    opens already covered. Never throws. */
+export function sourceIsOverlay(): boolean {
+  try {
+    const el = document.querySelector('[data-viz]');
+    return !(el instanceof HTMLElement) || el.clientWidth < VIZ_SOURCE_PUSH_MIN;
+  } catch {
+    return true;
+  }
 }
 
 /**
  * Apply route hygiene for a route the app is moving to. Called synchronously
  * by navigate() (so a palette "navigate, then open a confirm" sequence keeps
  * its confirm) and from an effect for hash changes that bypass navigate().
- * Opening another file also closes an overlaid source, so the next file never
- * opens already covered (at 1432px and up the pushed column is a reading
- * preference and stays open).
+ * Opening another file also closes an overlaid source (so the next file never
+ * opens already covered; a pushed source is a reading preference and stays
+ * open), ends a transient panel reveal and closes the drawer. Any other place
+ * change closes the confirm strip and the drawer.
  */
 export function routeHygiene(x: V2Internals, to: Route): void {
   const h = x.hygiene.current;
@@ -196,15 +193,24 @@ export function routeHygiene(x: V2Internals, to: Route): void {
     x.hygiene.current = { file, place };
     clearReading(x);
     if (sourceIsOverlay()) x.setUi((u) => (u.sourceOpen ? { ...u, sourceOpen: false } : u));
+    resetPanesForFile(x);
     return;
   }
   if (place !== h.place) {
     x.hygiene.current = { file, place };
     x.setUi((u) => (u.confirm === null ? u : { ...u, confirm: null }));
+    closeDrawerIn(x);
   }
 }
 
 // ---- helpers -----------------------------------------------------------------
+
+/**
+ * One counter for every memo cue tick. It never resets, so a cue written after
+ * clearReading nulled the last one can never repeat the tick a mounted
+ * consumer already handled.
+ */
+let cueSeq = 0;
 
 function nextTick(prev: { tick: number } | null): number {
   return prev ? prev.tick + 1 : 1;
@@ -227,47 +233,69 @@ function isBase(deal: Deal, scenario: Scenario): boolean {
   return (Object.keys(base) as (keyof Scenario)[]).every((k) => Math.abs(base[k] - scenario[k]) < 1e-9);
 }
 
-let threadSeq = 0;
-
-// ---- the note stepper: focus, announce, then count -------------------------
-
-function cssEscape(v: string): string {
-  return typeof CSS !== 'undefined' && typeof CSS.escape === 'function' ? CSS.escape(v) : v.replace(/["\\]/g, '\\$&');
+/**
+ * Scroll the memo to a card (and row) and cue it (THREE-PANE.md §2.6): in
+ * drawer mode the drawer closes first (unless keepDrawer), then FileScreen
+ * scrolls to the card and flashes the row or head.
+ */
+export function cueMemoIn(x: V2Internals, target: MemoTarget, opts?: { instant?: boolean; keepDrawer?: boolean }): void {
+  if (!opts?.keepDrawer) closeDrawerIn(x);
+  cueSeq += 1;
+  const tick = cueSeq;
+  x.setUi((u) => ({
+    ...u,
+    memoCue: { section: target.section, anchorId: target.anchorId, instant: !!opts?.instant, tick, at: Date.now() },
+  }));
 }
 
-/** The rendered note element for a note id, or null when it is not on the page. */
-function noteElement(noteId: string): HTMLElement | null {
-  const el = document.querySelector(`[data-note="${cssEscape(noteId)}"]`);
-  if (!(el instanceof HTMLElement) || !el.isConnected || el.getClientRects().length === 0) return null;
-  return el;
+// ---- flagged rows: J / K and Signed over take the reviewer to the row in the memo ----
+
+/** A flagged memo row the reviewer is taken to: where it is, the flag it counts for, and how it is announced. */
+interface RowNote {
+  id: string;
+  flagId: string | null;
+  target: MemoTarget;
+  heading: string;
+  text: string;
 }
 
-/** The live-region sentence for a note the reviewer is taken to. */
-function noteAnnouncement(note: NoteView, position: { index: number; count: number } | null): string {
+/** The counted, non-superseded flags of a file, top to bottom (FileView.toReview). */
+function rowsToReview(s: V2Store, dealId: string): RowNote[] {
+  return safe(() => {
+    const view = selectFile(s, dealId);
+    return view ? view.toReview.map((n) => ({ id: n.id, flagId: n.flagId, target: n.target, heading: n.heading, text: n.text })) : [];
+  }, []);
+}
+
+/** A Signed over row of the Decision card, for a note that is not (or no longer) counted. */
+function signedOverRow(s: V2Store, dealId: string, noteId: string): RowNote | null {
+  return safe(() => {
+    const sig = selectSignature(s, dealId);
+    const o = sig ? sig.signedOver.find((r) => r.noteId === noteId) : undefined;
+    return o ? { id: o.noteId, flagId: o.flagId, target: o.target, heading: o.text, text: '' } : null;
+  }, null);
+}
+
+/** The live-region sentence for a row the reviewer is taken to. */
+function rowAnnouncement(note: RowNote, position: { index: number; count: number } | null): string {
   const heading = note.heading.replace(/[.\s]+$/, '');
   const lead = position ? `Note ${position.index + 1} of ${position.count} · ${heading}` : heading;
   return note.text.trim() ? `${lead}. ${note.text}` : `${lead}.`;
 }
 
-/**
- * Hand focus to the note the reviewer was taken to (J / K, the doc-bar
- * stepper, "Show note"), once it is on the page, and only then count it as
- * opened: a note is opened when it was actually shown, rendered and holding
- * focus (so it is in view and read out), at the same live gate it was asked
- * for. FileScreen scrolls it into view on the same noteFocus tick, so focus
- * never scrolls. markOpenedIn refuses any mark after the seal.
- */
-function presentNote(x: V2Internals, note: NoteView, countable: boolean): void {
-  const key = pkgKeyOf(x.current().agent);
-  window.requestAnimationFrame(() => {
-    const el = noteElement(note.id);
-    if (!el) return;
-    // the kit note sits outside the tab order; a programmatic focus target needs tabindex -1
-    if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
-    el.focus({ preventScroll: true });
-    if (document.activeElement !== el) return;
-    if (countable && note.flagId && key !== null && pkgKeyOf(x.current().agent) === key) markOpenedIn(x, note.flagId);
-  });
+/** The memo element a target lands on: the anchored row or head, else the card. */
+function memoElement(target: MemoTarget): HTMLElement | null {
+  try {
+    const root = document.querySelector('[data-viz]') ?? document;
+    if (target.anchorId) {
+      const row = root.querySelector(`[data-anchor="${cssEscape(target.anchorId)}"]`);
+      if (rendered(row)) return row;
+    }
+    const card = root.querySelector(`[data-section="${cssEscape(target.section)}"]`);
+    return rendered(card) ? card : null;
+  } catch {
+    return null;
+  }
 }
 
 // ---- actions -----------------------------------------------------------------
@@ -281,41 +309,64 @@ export type UiActions = Pick<
   | 'cite'
   | 'citeStep'
   | 'clearCites'
-  | 'trace'
-  | 'flashAnchor'
+  | 'cueMemo'
   | 'focusNote'
   | 'focusNoteById'
   | 'focusAmend'
-  | 'setShowReasoning'
   | 'openStress'
   | 'closeStress'
   | 'setDriver'
   | 'resetStress'
   | 'attachStress'
-  | 'ask'
   | 'setPaletteOpen'
   | 'toggleLedgerGroup'
   | 'setLedgerChip'
 >;
 
 export function createUiActions(x: V2Internals): UiActions {
-  /** The file on screen (its toReview list is the counted notes, in page order). */
-  const reviewNotes = (s: V2Store) => {
-    const r = s.route;
-    if (r.name !== 'file') return null;
-    return safe(() => selectFile(s, r.dealId), null);
+  /** The case file on screen, or null off the file route. */
+  const routeFile = (s: V2Store): string | null => (s.route.name === 'file' ? s.route.dealId : null);
+
+  /**
+   * Take the reviewer to a flagged row in the memo (the drawer steps aside), and
+   * count the flag as opened once that row is on the page, at the same live
+   * gate it was asked for (markOpenedIn refuses any mark after the seal).
+   */
+  const showRow = (s: V2Store, dealId: string, note: RowNote, cursor: number | null, announce: string) => {
+    x.setUi((u) => ({ ...u, noteCursor: cursor ?? u.noteCursor, announce }));
+    cueMemoIn(x, note.target);
+    const flagId = note.flagId;
+    if (!flagId || selectLiveDealId(s) !== dealId) return;
+    const key = pkgKeyOf(s.agent);
+    if (key === null) return;
+    onFrames(() => {
+      if (!memoElement(note.target)) return false;
+      if (pkgKeyOf(x.current().agent) === key) markOpenedIn(x, flagId);
+      return true;
+    });
   };
 
   return {
-    cancelConfirm: () => x.setUi((u) => (u.confirm === null ? u : { ...u, confirm: null })),
+    cancelConfirm: () => {
+      x.pendingPlanToggle.current = null;
+      x.setUi((u) => (u.confirm === null ? u : { ...u, confirm: null }));
+    },
 
-    openSource: () => x.setUi((u) => (u.sourceOpen ? u : { ...u, sourceOpen: true })),
+    // the drawer and an open source are mutually exclusive: opening the source closes the drawer
+    openSource: () => {
+      closeDrawerIn(x);
+      x.setUi((u) => (u.sourceOpen ? u : { ...u, sourceOpen: true }));
+    },
     closeSource: () => x.setUi((u) => (u.sourceOpen ? { ...u, sourceOpen: false } : u)),
-    toggleSource: () => x.setUi((u) => ({ ...u, sourceOpen: !u.sourceOpen })),
+    toggleSource: () => {
+      if (!x.uiRef.current.sourceOpen) closeDrawerIn(x);
+      x.setUi((u) => ({ ...u, sourceOpen: !u.sourceOpen }));
+    },
 
     cite: (dealId, markIds, startIndex) => {
       if (markIds.length === 0) return;
       const index = Math.min(markIds.length - 1, Math.max(0, Math.round(startIndex)));
+      closeDrawerIn(x);
       x.setUi((u) => ({ ...u, sourceOpen: true, cites: { dealId, markIds: [...markIds], index } }));
     },
     citeStep: (delta) =>
@@ -326,49 +377,45 @@ export function createUiActions(x: V2Internals): UiActions {
       }),
     clearCites: () => x.setUi((u) => (u.cites ? { ...u, cites: null } : u)),
 
-    trace: (stepId, anchorId) => x.setUi((u) => ({ ...u, trace: { stepId, anchorId, tick: nextTick(u.trace) } })),
-    flashAnchor: (anchorId) => x.setUi((u) => ({ ...u, flash: { anchorId, tick: nextTick(u.flash) } })),
+    // the Decision card at the live gate comes into view like "Go to decision" (verbs and the
+    // reviewer line, the primary or the note field focused); every other target is a memo cue
+    cueMemo: (target, opts) => {
+      const s = x.current();
+      if (target.section === 'signature' && onLiveFile(s) && canDecide(s)) {
+        bringDecisionIn(x, 'button');
+        return;
+      }
+      cueMemoIn(x, target, { instant: opts?.instant, keepDrawer: opts?.keepDrawer });
+    },
 
-    // move focus to the note and announce it; it counts as opened only once shown (presentNote)
+    // J / K: the counted flags of the file on screen, top to bottom; each lands on its memo row
     focusNote: (delta) => {
       const s = x.current();
-      const view = reviewNotes(s);
-      const notes = view ? view.toReview : [];
-      if (!view || notes.length === 0) return;
-      const n = notes.length;
+      const dealId = routeFile(s);
+      if (!dealId) return;
+      const list = rowsToReview(s, dealId);
+      if (list.length === 0) return;
+      const n = list.length;
       const cur = s.ui.noteCursor;
       const next = cur < 0 || cur >= n ? (delta === 1 ? 0 : n - 1) : (cur + delta + n) % n;
-      const note = notes[next];
-      const announce = noteAnnouncement(note, { index: next, count: n });
-      x.setUi((u) => ({ ...u, noteCursor: next, noteFocus: { noteId: note.id, tick: nextTick(u.noteFocus) }, announce }));
-      presentNote(x, note, view.live);
+      const note = list[next];
+      showRow(s, dealId, note, next, rowAnnouncement(note, { index: next, count: n }));
     },
+    // a Signed over "Show row": the counted flag when it is one, else the card's own row
     focusNoteById: (noteId) => {
       const s = x.current();
-      const view = reviewNotes(s);
-      const idx = view ? view.toReview.findIndex((n) => n.id === noteId) : -1;
-      const note =
-        view && idx >= 0
-          ? view.toReview[idx]
-          : view
-            ? view.sections.flatMap((sec) => sec.notes).find((n) => n.id === noteId) ?? null
-            : null;
-      const announce = note && view ? noteAnnouncement(note, idx >= 0 ? { index: idx, count: view.toReview.length } : null) : null;
-      x.setUi((u) => ({
-        ...u,
-        noteCursor: idx >= 0 ? idx : u.noteCursor,
-        noteFocus: { noteId, tick: nextTick(u.noteFocus) },
-        announce: announce ?? u.announce,
-      }));
-      if (note && view) presentNote(x, note, view.live);
+      const dealId = routeFile(s);
+      if (!dealId) return;
+      const list = rowsToReview(s, dealId);
+      const idx = list.findIndex((n) => n.id === noteId);
+      const note = idx >= 0 ? list[idx] : signedOverRow(s, dealId, noteId);
+      if (!note) return;
+      const position = idx >= 0 ? { index: idx, count: list.length } : null;
+      showRow(s, dealId, note, idx >= 0 ? idx : null, rowAnnouncement(note, position));
     },
     focusAmend: (kind) => x.setUi((u) => ({ ...u, amendFocus: { kind, tick: nextTick(u.amendFocus) } })),
 
-    setShowReasoning: (v) => {
-      writeShowReasoning(v);
-      x.setUi((u) => (u.showReasoning === v ? u : { ...u, showReasoning: v }));
-    },
-
+    // opening (or re-asking for) the stress test also brings it into view
     openStress: (dealId) => {
       const deal = dealOf(x.current(), dealId);
       if (!deal) return;
@@ -377,6 +424,7 @@ export function createUiActions(x: V2Internals): UiActions {
         if (cur && cur.open) return u;
         return { ...u, stress: { ...u.stress, [dealId]: { open: true, scenario: cur ? cur.scenario : baselineScenario(deal) } } };
       });
+      cueMemoIn(x, { section: 'stress', anchorId: null });
     },
     closeStress: (dealId) =>
       x.setUi((u) => {
@@ -417,45 +465,6 @@ export function createUiActions(x: V2Internals): UiActions {
       s.agent.logWhatIf(rec.label, rec.detail);
       x.setUi((u) => ({ ...u, attached: { ...u.attached, [runId]: [...(u.attached[runId] ?? []), rec.key] } }));
       x.announce('attached');
-    },
-
-    // Ask: the live file only, once its memo exists; local intercepts answer in
-    // place, everything else goes to the engine's rule-based responder
-    ask: (dealId, text) => {
-      const q = text.trim();
-      if (!q) return;
-      const s = x.current();
-      const view = safe(() => selectAsk(s, dealId), null);
-      if (!view || !view.enabled) return;
-      const deal = dealOf(s, dealId);
-      if (!deal) return;
-      const pkg = s.agent.approvalPackage;
-      const restructured = !!(pkg && pkg.restructure);
-      const revisedLeverage =
-        restructured && pkg ? pkg.keyMetrics.find((m) => /leverage/i.test(m.label))?.value ?? null : null;
-      const route = askRoute(q, {
-        restructured,
-        revision: pkg ? pkg.revision : 1,
-        rec: pkg ? pkg.recommendation : null,
-        summary: pkg ? pkg.summary : null,
-        filedLeverage: fmtX(deal.financials.leverageX),
-        revisedLeverage,
-      });
-      if (route.kind === 'engine') {
-        s.agent.sendMessage(q);
-        return;
-      }
-      const at = s.agent.messages.length;
-      const runId = s.agent.runId;
-      threadSeq += 2;
-      x.setUi((u) => ({
-        ...u,
-        thread: [
-          ...u.thread,
-          { id: `ask_${threadSeq - 1}`, runId, role: 'you', text: q, at },
-          { id: `ask_${threadSeq}`, runId, role: 'answer', text: route.text, at },
-        ],
-      }));
     },
 
     setPaletteOpen: (v) => x.setUi((u) => (u.paletteOpen === v ? u : { ...u, paletteOpen: v })),

@@ -1,5 +1,7 @@
 // The ⌘K palette (spec §3, §9.1): every route, file and live action the
-// model offers right now. Never reject or return: a reason is typed at the gate.
+// model offers right now. Never sign, reject or return (THREE-PANE.md §6.5): the
+// decision lives on the Decision card in the memo (R2.2); "Go to decision" only
+// brings its verbs into view and focuses the primary.
 import { useMemo, useRef } from 'react';
 import { Palette } from '../kit';
 import { COPY, paletteFooter } from '../model';

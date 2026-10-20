@@ -119,6 +119,7 @@ export function initialUi(): UiState {
     ledgerOpen: {},
     ledgerChip: 'all',
     stress: {},
+    planPreview: {},
     attached: {},
     thread: [],
     threadEpoch: {},

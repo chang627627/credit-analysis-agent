@@ -287,6 +287,8 @@ export interface PlanPromptView {
   start: { label: string; kbd: string; disabled: boolean };
   optional: { stepId: string; label: string; included: boolean } | null; // 'Skip peers' / 'Include peers'
   cancelLabel: string;
+  /** a not-started file's plan: Start drafting starts and approves at once; no Cancel, no countdown */
+  preview: boolean;
   countdown: { text: string; holdLabel: string | null } | null;
 }
 export interface AgentPanelView {

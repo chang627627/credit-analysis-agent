@@ -71,7 +71,7 @@ export function ChatPane({ dealId, layout }: ChatPaneProps) {
             </div>
           </div>
         ) : null}
-        {view.plan ? <PlanPrompt plan={view.plan} /> : null}
+        {view.plan ? <PlanPrompt plan={view.plan} dealId={dealId} /> : null}
         <Composer dealId={dealId} composer={view.composer} onSent={onSent} />
       </div>
     </aside>

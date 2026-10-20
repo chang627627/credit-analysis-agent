@@ -78,7 +78,11 @@ export function createComposerActions(x: V2Internals): ComposerActions {
       switch (intent.kind) {
         case 'start': {
           const before = x.uiRef.current.threadEpoch[dealId];
-          a.startFile(dealId, intent.toggle ? { toggle: intent.toggle } : undefined);
+          if (intent.toggle) {
+            const off = (x.uiRef.current.planPreview[dealId] ?? []).includes(intent.toggle.stepId);
+            if (off === intent.toggle.include) a.togglePreviewStep(dealId, intent.toggle.stepId);
+          }
+          a.draftFile(dealId);
           const conf = x.uiRef.current.confirm;
           if (conf && conf.kind === 'start' && conf.dealId === dealId) {
             closeDrawerForStrip(x);

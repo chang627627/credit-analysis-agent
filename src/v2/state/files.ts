@@ -148,7 +148,7 @@ export function useSnapshots(): {
 
 export type FileActions = Pick<
   V2Actions,
-  'startFile' | 'confirmStart' | 'requestStop' | 'confirmStop' | 'upload' | 'exportFile' | 'exportSession'
+  'startFile' | 'draftFile' | 'togglePreviewStep' | 'confirmStart' | 'requestStop' | 'confirmStop' | 'upload' | 'exportFile' | 'exportSession'
 >;
 
 export function createFileActions(x: V2Internals): FileActions {
@@ -220,6 +220,39 @@ export function createFileActions(x: V2Internals): FileActions {
         return;
       }
       doStart(dealId);
+    },
+    // a not-started file shows its plan at once; unticking an optional step there is remembered here
+    togglePreviewStep: (dealId, stepId) => {
+      const step = getPlan().find((p) => p.id === stepId);
+      if (!step || !step.optional) return; // required steps are locked
+      x.setUi((u) => {
+        const cur = u.planPreview[dealId] ?? [];
+        const next = cur.includes(stepId) ? cur.filter((id) => id !== stepId) : [...cur, stepId];
+        return { ...u, planPreview: { ...u.planPreview, [dealId]: next } };
+      });
+    },
+    // Start drafting on a not-started file: start AND approve the plan as shown in one click (the
+    // click is the reviewer's approval; the engine records "Plan approved by reviewer"). Replacing a
+    // live run still goes through the confirm strip (and then the plan review it opens).
+    draftFile: (dealId) => {
+      const s = x.current();
+      if (s.agent.parsing) return;
+      if (!s.agent.dealsFull.some((d) => d.id === dealId)) return;
+      const excluded = x.uiRef.current.planPreview[dealId] ?? [];
+      if (isLiveStatus(s.agent.status)) {
+        const skip = excluded[0];
+        x.pendingPlanToggle.current = skip ? { dealId, stepId: skip, include: false } : null;
+        holdRunningCountdown();
+        x.setUi((u) => ({ ...u, confirm: { kind: 'start', dealId } }));
+        return;
+      }
+      x.pendingPlanToggle.current = null;
+      doStart(dealId);
+      const ids = getPlan()
+        .filter((p) => !excluded.includes(p.id))
+        .map((p) => p.id);
+      x.setPlan({ enabledIds: ids, held: false, holdReason: null, deadline: null });
+      x.current().agent.approvePlan(ids);
     },
     confirmStart: () => {
       const conf = x.uiRef.current.confirm;

@@ -48,7 +48,7 @@ export function runCommand(s: V2Store, action: CommandAction): void {
       return;
     case 'start-file':
       a.navigate({ name: 'file', dealId: action.dealId, at: null });
-      a.startFile(action.dealId);
+      a.draftFile(action.dealId);
       return;
     case 'route':
       a.navigate(action.route);

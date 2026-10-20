@@ -17,9 +17,10 @@ import { focusComposerIfLost } from './focus';
 
 export interface PlanPromptProps {
   plan: PlanPromptView;
+  dealId: string;
 }
 
-export function PlanPrompt({ plan }: PlanPromptProps) {
+export function PlanPrompt({ plan, dealId }: PlanPromptProps) {
   const a = useV2().actions;
   const countdown = plan.countdown;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -41,7 +42,7 @@ export function PlanPrompt({ plan }: PlanPromptProps) {
         {plan.steps.map((st) => (
           <li key={st.id} className={st.included ? 'chat-plan__step' : 'chat-plan__step chat-plan__step--skipped'}>
             {st.optional ? (
-              <Checkbox checked={st.included} onChange={() => a.togglePlanStep(st.id)} ariaLabel={st.toggleLabel} />
+              <Checkbox checked={st.included} onChange={() => (plan.preview ? a.togglePreviewStep(dealId, st.id) : a.togglePlanStep(st.id))} ariaLabel={st.toggleLabel} />
             ) : (
               <Checkbox checked locked onChange={() => undefined} ariaLabel={st.title} />
             )}
@@ -52,12 +53,14 @@ export function PlanPrompt({ plan }: PlanPromptProps) {
         ))}
       </ol>
       <div className="chat-plan__actions">
-        <Button variant="primary" kbd={plan.start.kbd} disabled={plan.start.disabled} onClick={() => a.approvePlan()}>
+        <Button variant="primary" kbd={plan.start.kbd} disabled={plan.start.disabled} onClick={() => (plan.preview ? a.draftFile(dealId) : a.approvePlan())}>
           {plan.start.label}
         </Button>
-        <Button variant="ghost" onClick={() => a.cancelPlan()}>
-          {plan.cancelLabel}
-        </Button>
+        {plan.preview ? null : (
+          <Button variant="ghost" onClick={() => a.cancelPlan()}>
+            {plan.cancelLabel}
+          </Button>
+        )}
       </div>
       {countdown ? (
         <p className="chat-plan__countdown t-meta">

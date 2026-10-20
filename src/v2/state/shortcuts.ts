@@ -79,7 +79,7 @@ export function useShortcuts(x: V2Internals): void {
           const view = selectFile(s, r.dealId);
           if (view && view.primary && view.primary.action === 'draft' && !view.primary.disabled) {
             e.preventDefault();
-            a.startFile(r.dealId);
+            a.draftFile(r.dealId);
           }
         }
         return;

@@ -190,12 +190,43 @@ function planPrompt(s: V2Store, ctx: FileCtx): PlanPromptView {
         }
       : null,
     cancelLabel: COPY.cancel,
+    preview: false,
     // the countdown arms only with the panel on screen (state/plan): a plan that never armed shows none
     countdown: p.held
       ? { text: COPY.heldStartWhenReady, holdLabel: null }
       : p.deadline !== null
         ? { text: COPY.startsIn(fmtCountdown(p.deadline, s.now)), holdLabel: COPY.hold }
         : null,
+  };
+}
+
+/** A not-started file's plan, shown at once: Start drafting starts AND approves it (draftFile). */
+function planPreview(s: V2Store, ctx: FileCtx): PlanPromptView {
+  const runnable = ctx.plan.filter((p) => reworkN(p.id) === null);
+  const off = (s.ui.planPreview ?? {})[ctx.deal.id] ?? [];
+  const isIn = (p: PlanStep) => !p.optional || !off.includes(p.id);
+  const optional = runnable.filter((p) => p.optional);
+  return {
+    text: COPY.planPrompt(
+      runnable.filter(isIn).length,
+      runnable.length,
+      optional.map((x) => sectionHeading(sectionOfPlanStep(x))),
+      optional.every(isIn),
+    ),
+    steps: runnable.map((st, i) => ({
+      id: st.id,
+      n: i + 1,
+      title: sectionHeading(sectionOfPlanStep(st)),
+      tool: TOOL_LABEL[st.toolName],
+      optional: !!st.optional,
+      included: isIn(st),
+      toggleLabel: isIn(st) ? COPY.skipOptional(sectionHeading(sectionOfPlanStep(st))) : COPY.includeOptional(sectionHeading(sectionOfPlanStep(st))),
+    })),
+    start: { label: COPY.startDrafting, kbd: `${s.modKey}↵`, disabled: false },
+    optional: null,
+    cancelLabel: '',
+    preview: true,
+    countdown: null,
   };
 }
 
@@ -246,21 +277,19 @@ export function selectAgentPanel(s: V2Store, dealId: string): AgentPanelView {
   const deal = ctx.deal;
   const NEG = Number.NEGATIVE_INFINITY;
   const S: Placed[] = [];
-  let start: AgentPanelView['start'] = null;
+  const start: AgentPanelView['start'] = null;
+  let preview: PlanPromptView | null = null;
   const epoch = (s.ui.threadEpoch ?? {})[dealId];
 
   if (ctx.mode === 'not-started') {
     if (ctx.cancelled) {
       S.push({ t: NEG, line: { id: 'cancelled', kind: 'system', glyph: 'cancelled', text: `${COPY.runCancelled} · ${fmtHM(ctx.cancelled.at)}`, link: null } });
     }
+    // ready to draft: the plan itself is the panel's prompt (no separate "Draft memo" step); while a
+    // CIM is still extracting, one status line says so and no plan is offered yet
     const parsing = parsingReason(s);
-    start = { label: COPY.draftMemo, kbd: `${s.modKey}↵`, disabled: parsing !== null };
-    S.push({
-      t: NEG,
-      line: parsing
-        ? { id: 'ready', kind: 'system', glyph: 'drafting', text: parsing, link: null }
-        : { id: 'ready', kind: 'system', glyph: 'pending', text: COPY.readyLine(deal.name), link: null },
-    });
+    if (parsing) S.push({ t: NEG, line: { id: 'ready', kind: 'system', glyph: 'drafting', text: parsing, link: null } });
+    else preview = planPreview(s, ctx);
   } else if (ctx.runId !== null) {
     // the run: approved by the reviewer, or auto-started by the unattended countdown (never "approved")
     const approved = ctx.entries.find((e) => e.label === PLAN_APPROVED || e.label === PLAN_AUTO);
@@ -357,7 +386,7 @@ export function selectAgentPanel(s: V2Store, dealId: string): AgentPanelView {
   return {
     title: `${COPY.agentName} · ${deal.name}`,
     lines,
-    plan: ctx.live && ctx.mode === 'plan-review' ? planPrompt(s, ctx) : null,
+    plan: ctx.live && ctx.mode === 'plan-review' ? planPrompt(s, ctx) : preview,
     start,
     composer: COMPOSER,
   };

@@ -1368,6 +1368,7 @@ export const FX_PANEL_PLAN_REVIEW: AgentPanelView = {
     start: { label: COPY.startDrafting, kbd: '⌘↵', disabled: false },
     optional: { stepId: 'step_peers', label: 'Skip peers', included: true },
     cancelLabel: COPY.cancel,
+    preview: false,
     countdown: { text: 'Starts in 6 s', holdLabel: COPY.hold },
   },
 };

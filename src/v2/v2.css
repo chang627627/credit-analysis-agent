@@ -23,13 +23,13 @@
   --line: #d0d6df;                                /* 1.46:1 on paper: structure only, never a control edge */
   --line-provisional: 1px dashed #d0d6df;         /* not the record: stress frame, drop zone, amend trigger */
   --line-provisional-edge: 1px dashed #5f6b78;    /* not the record, on a control: the amend input */
-  --line-provisional-active: 1px dashed #2d5ed4;  /* drag-over, focused amend input */
+  --line-provisional-active: 1px dashed #2c4b86;  /* drag-over, focused amend input */
 
-  /* ONE accent: cobalt (owner, 2026-10-20: the teal sat too close to the approve green; cobalt chosen from the blue family) */
-  --accent: #2d5ed4;       /* fills + 2px state strokes; white on it 5.73:1 (AA); dE 27.2 from --good-mark */
-  --accent-hover: #1f4ec3; /* primary hover/pressed; white on it 7.15:1 */
-  --accent-ink: #1f4ec3;   /* accent TEXT: links, cites (7.15 paper · 6.55 canvas · 6.25 accent-wash) */
-  --accent-wash: #e9f0fe;  /* cited span, active menu/palette row, focus halo, flash */
+  /* ONE accent: steel blue (owner, 2026-10-20: the teal sat too close to the approve green; steel chosen as the institutional blue) */
+  --accent: #2c4b86;       /* fills + 2px state strokes; white on it 8.54:1; dE 24.0 from --good-mark */
+  --accent-hover: #1f3d77; /* primary hover/pressed; white on it 10.54:1 */
+  --accent-ink: #2c4b86;   /* accent TEXT: links, cites (8.54 paper · 7.82 canvas · 7.52 accent-wash) */
+  --accent-wash: #e9f1fe;  /* cited span, active menu/palette row, focus halo, flash */
   --on-accent: #ffffff;
 
   /* meaning: ink (text/glyph) · wash (tokens, open notes) · mark (data marks only) */
@@ -45,7 +45,7 @@
 
   /* elevation: exactly one float shadow, plus two field halos */
   --shadow-pop: 0 8px 24px rgba(15, 36, 54, 0.12), 0 0 0 1px #d0d6df;
-  --halo-focus: 0 0 0 3px #e9f0fe;
+  --halo-focus: 0 0 0 3px #e9f1fe;
   --halo-error: 0 0 0 3px #fbe9eb;
 
   /* motion: the ONLY source of visual durations (JS reads them, see cssMs) */

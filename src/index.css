@@ -453,16 +453,16 @@ textarea::placeholder {
   gap: 12px;
 }
 
+/* the Countersign mark (components/BrandMark): a signature on a line, on the teal tile */
+.brandmark { display: block; flex-shrink: 0; }
+.brandmark__tile { fill: var(--accent); }
+.brandmark__sig,
+.brandmark__line { fill: none; stroke: var(--on-accent); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.brandmark__line { opacity: 0.6; }
+
 .brand__mark {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-sm);
-  background: var(--accent-soft);
-  color: var(--accent-text);
-  font-size: 22px;
-  border: 1px solid var(--accent-soft);
+  width: 32px;
+  height: 32px;
 }
 
 .brand__text {
@@ -1512,9 +1512,9 @@ textarea::placeholder {
   padding: 40px 20px;
 }
 .empty__icon {
-  font-size: 40px;
-  color: var(--accent);
-  opacity: 0.85;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto;
 }
 .empty h2 {
   margin: 16px 0 10px;
@@ -2493,12 +2493,6 @@ textarea::placeholder {
 .msg__avatar {
   width: 24px;
   height: 24px;
-  border-radius: var(--radius-sm);
-  background: var(--accent-soft);
-  color: var(--accent-text);
-  display: grid;
-  place-items: center;
-  font-size: 12px;
   flex-shrink: 0;
 }
 .msg__bubble {

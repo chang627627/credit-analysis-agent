@@ -350,6 +350,19 @@ export const PENDING: PendingPattern[] = [
     status: 'awaiting',
     kitAnchor: '#board-agentpanel',
   },
+  {
+    id: 'P-28',
+    type: 'token',
+    name: 'Brand mark: a signature written on a line, on the teal tile',
+    description:
+      'The Countersign mark is a 20px tile in the accent with rounded corners (rx 5 of 20) carrying a short handwritten signature stroke above a fainter signature line, both in on-accent strokes at 1.5. It reads the product name literally: the second signature on the line. It replaces the Unicode half-filled square glyph, which rendered as a crude black box. Kit BrandMark (sidebar and kit page), the V1 header, empty state and agent avatar, the design-system page and the new favicon all use the same drawing. Identity, not an icon: Lucide stays the icon system.',
+    evidence: 'Owner feedback ("this icon is so ugly"); four options shown side by side, the owner chose option A',
+    proposedBy: OWNER,
+    proposedDate: ON_3P,
+    status: 'approved',
+    kitAnchor: null,
+    ownerNote: 'Chosen by the owner from four options (A, signature on a line).',
+  },
 ];
 
 export const REJECTED_BEFORE: { name: string; note: string }[] = [

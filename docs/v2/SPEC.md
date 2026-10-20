@@ -248,7 +248,7 @@ y=900 └───────┴───────────────�
 ### Top bar (48px, paper, 1px bottom line, padding 0 16, nowrap)
 
 **Left:**
-- Brand "◧" glyph (t-heading, ink) + "Countersign" (t-heading).
+- Brand: the kit `BrandMark` (a signature on a line on the teal tile, 20px; it replaced the "◧" glyph) + "Countersign" (t-heading).
 - 24px gap, then kit `Tabs`: "Desk", "Book", "Ledger" (t-control, ink-2). The active tab is ink with a **2px ink** underline drawn by `::after` at `bottom: -1px`. Tabs are 48 tall with padding 0 12.
 - Counts appear only when > 0 (t-label, tabular):
   - Desk = 1 when the live file is in `plan_review` or `awaiting_approval` (tone accent).
@@ -2159,7 +2159,7 @@ exit "$FAIL"
 The page imports the real kit (`./kit`), so parity holds by construction (V1's `/designsystem` copy drifted). It also imports `./model` for formatters, `tokenOf`, `contrastRatio` and the `FX_*` fixtures.
 
 **Layout:**
-- **Top bar (48):** "◧ Countersign V2 · Kit" + `LinkButton` "Open the app" (href "/") + `LinkButton` "Compare V1 ↗" (href "/?v=1", newTab) + `Switch` "Preview reduced motion". The switch toggles `data-reduce-motion` on `<html>`, in local state only; it zeroes the durations, stops the caret and hides the fill.
+- **Top bar (48):** `BrandMark` + "Countersign V2 · Kit" + `LinkButton` "Open the app" (href "/") + `LinkButton` "Compare V1 ↗" (href "/?v=1", newTab) + `Switch` "Preview reduced motion". The switch toggles `data-reduce-motion` on `<html>`, in local state only; it zeroes the durations, stops the caret and hides the fill.
 - **Body:**
   - A 200px sticky index of `LinkButton`s to the board anchors, hidden below 1100.
   - A boards column (max 1080, gap 24).

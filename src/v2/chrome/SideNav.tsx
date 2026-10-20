@@ -6,7 +6,7 @@
 // chevron, and never overwrites the stored choice. Labels stay the accessible names and show
 // as tips in the rail.
 import { Activity, ChevronsLeft, ChevronsRight, FileStack, ScrollText, Settings } from 'lucide-react';
-import { IconButton, NavItem, Tip } from '../kit';
+import { BrandMark, IconButton, NavItem, Tip } from '../kit';
 import { COPY, selectTopBar } from '../model';
 import type { Route } from '../state/route';
 import { useV2 } from '../state/store';
@@ -40,7 +40,7 @@ export function SideNav({
     <nav className="app-sidenav" aria-label={COPY.sectionsLabel}>
       <div className="app-sidenav__brand t-heading">
         <span className="app-sidenav__mark" aria-hidden="true">
-          ◧
+          <BrandMark />
         </span>
         <span className="app-sidenav__word">{COPY.brand}</span>
         {toggleVisible ? (

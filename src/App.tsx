@@ -25,6 +25,7 @@ import { Composer } from './components/Composer';
 import { CommandPalette } from './components/CommandPalette';
 import type { Command } from './components/CommandPalette';
 import { Toasts, useToasts } from './components/Toasts';
+import { BrandMark } from './components/BrandMark';
 
 interface DealOption {
   id: string;
@@ -45,7 +46,7 @@ function EmptyState({
   const LOOP = ['Plan', 'Act', 'Observe', 'Decide'];
   return (
     <div className="empty">
-      <div className="empty__icon">◧</div>
+      <BrandMark className="empty__icon" />
       <h2>Agentic credit analysis</h2>
       <p>
         Upload a CIM or pick a deal on the left, then run. The agent works through a visible loop —
@@ -87,7 +88,7 @@ function MessageThread({ messages }: { messages: ChatMessage[] }) {
     <div className="thread">
       {messages.map((m) => (
         <div key={m.id} className={`msg msg--${m.role}`}>
-          {m.role === 'agent' && <span className="msg__avatar">◧</span>}
+          {m.role === 'agent' && <BrandMark className="msg__avatar" />}
           <div className="msg__bubble">{m.text}</div>
         </div>
       ))}

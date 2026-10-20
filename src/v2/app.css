@@ -70,6 +70,7 @@
   color: var(--ink);
   white-space: nowrap;
 }
+.app-sidenav__mark { display: flex; flex: none; }
 .app-sidenav__word { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .app-sidenav__toggle { display: flex; flex: none; }
 /* collapsed by the owner: a 64px rail with the expand chevron where the brand was */
@@ -80,7 +81,7 @@
 /* forced by the shell (below 1100, or beside an open agent panel below 1400): the mark returns
    and the chevron goes; the owner's stored choice is untouched */
 .app-shell[data-nav-forced] .app-sidenav__toggle { display: none; }
-.app-shell[data-nav-forced] .app-sidenav__mark { display: inline; }
+.app-shell[data-nav-forced] .app-sidenav__mark { display: flex; }
 .app-sidenav__list {
   display: flex;
   flex-direction: column;
@@ -101,7 +102,7 @@
   .app-sidenav__brand { justify-content: center; padding: 0; }
   .app-sidenav__word,
   .app-sidenav__toggle { display: none; }
-  .app-shell[data-nav="collapsed"] .app-sidenav__mark { display: inline; }
+  .app-shell[data-nav="collapsed"] .app-sidenav__mark { display: flex; }
 }
 
 /* ---- top bar: 48px, paper, 1px bottom line, padding 0 16, nowrap ---- */

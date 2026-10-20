@@ -3,6 +3,7 @@ import './kit.css';
 
 export * from './types';
 
+export { BrandMark } from './BrandMark';
 export { Button } from './Button';
 export type { ButtonProps } from './Button';
 export { IconButton } from './IconButton';

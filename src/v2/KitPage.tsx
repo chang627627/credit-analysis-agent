@@ -17,6 +17,7 @@ import type { ReactNode } from 'react';
 import { Activity, ArrowDown, ArrowUp, ArrowUpRight, Copy, Download, FileStack, FileText, RotateCcw, ScrollText, Search, X } from 'lucide-react';
 import {
   AmendField,
+  BrandMark,
   Button,
   Caret,
   Checkbox,
@@ -2674,7 +2675,7 @@ export default function KitPage() {
     <div className="kp-shell">
       <header className="kp-top">
         <h1 className="kp-brand t-heading">
-          <span aria-hidden="true">◧</span>
+          <BrandMark />
           <span className="kp-brand__word">{`${COPY.brand} V2 · Kit`}</span>
         </h1>
         <div className="kp-top__right">

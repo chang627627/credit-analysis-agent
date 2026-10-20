@@ -54,6 +54,12 @@
 .v2 .k-btn:disabled, .v2 .k-btn:disabled[data-force] { color: var(--ink-3); background: var(--sunken); border-color: var(--line); cursor: not-allowed; }
 .v2 .k-btn:disabled .k-kbd { color: var(--ink-3); }
 
+/* ---- BrandMark: a signature on a line, on-accent strokes on the accent tile (identity, not an icon) ---- */
+.v2 .k-brand { display: block; flex: none; width: 20px; height: 20px; }
+.v2 .k-brand__tile { fill: var(--accent); }
+.v2 .k-brand__sig, .v2 .k-brand__line { fill: none; stroke: var(--on-accent); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.v2 .k-brand__line { opacity: 0.6; }
+
 /* ---- IconButton ---- */
 .v2 .k-iconbtn {
   display: inline-flex;

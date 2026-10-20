@@ -1,5 +1,6 @@
 import { Moon, ShieldCheck, Sun } from 'lucide-react';
 import type { RunStatus } from '../hooks/useCreditAgent';
+import { BrandMark } from './BrandMark';
 
 export type AutonomyMode = 'gate' | 'auto';
 
@@ -44,7 +45,7 @@ export function Header({
   return (
     <header className="topbar">
       <div className="brand">
-        <span className="brand__mark">◧</span>
+        <BrandMark className="brand__mark" />
         <div className="brand__text">
           <strong>Countersign</strong>
           <span>agentic credit analysis · the agent analyzes, you countersign</span>

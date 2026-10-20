@@ -142,7 +142,9 @@ of any specific product.
 - Type: **Inter** (loaded in `index.html`) with negative letter-spacing on headings.
 - Icons: **Lucide** stroke icons (`lucide-react`) — consistent grid + weight, `currentColor` so they
   inherit the tokens (active nav item turns teal, dark/light theming for free). Replaced the old
-  grab-bag of Unicode glyphs. The `◧` Countersign brandmark stays (identity, not an icon).
+  grab-bag of Unicode glyphs. The Countersign brandmark is identity, not an icon: since 2026-10-20 the
+  owner's pick (option A) — a signature written on a line, white on the teal tile (`BrandMark` in the V2
+  kit and `src/components/BrandMark.tsx` in V1, `public/favicon.svg`); it replaced the crude `◧` glyph.
 
 Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) were read as
 *references for principles only*. No product's literal palette is used.
@@ -241,7 +243,7 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       header (Moon·Sun), composer (Paperclip·ArrowUp), agent cards (match nav), Deals upload,
       Artifact (FileText memo · Link2 provenance + citemarks), OutcomeBanner (CheckCircle2·XCircle),
       AuditView row icons, Portfolio escalation icons. First runtime dependency; tree-shakes to ~2KB
-      gzip. The `◧` Countersign brandmark stays (identity). Sidebar collapse toggle uses
+      gzip. The Countersign brandmark stays (identity; now the signature-on-a-line tile). Sidebar collapse toggle uses
       **ChevronsLeft·Right** (`«`/`»`) — the earlier PanelLeft icons read as confusing.
 - [x] **Systemic dark-mode text fix**: the global `button {}` reset only inherited `font-family`,
       not `color`, so any unstyled `<button>` fell back to UA-default black → invisible on dark
@@ -544,7 +546,7 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   SPEC.md; the owner decisions below supersede all of them.
 - **Guardrails:** `npm run v2-check` (28 greps: tokens only, 400/500/600, 4px grid, one
   infinite animation, no hand-rolled controls outside the kit, V1 + engine hashes untouched, …).
-  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-27, rendered on `/?kit`) for
+  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-28, rendered on `/?kit`) for
   owner approval; every `data-pattern` id needs an entry there, every kit export a kit-page specimen.
 - **Storage** (only in `src/v2/state/`): `v2.navCollapsed`, `v2.chatOpen` (only `state/panes.ts`),
   `v2.autonomy`. (`v2.showReasoning` was retired with R2: reasoning lives in each card's Record.)

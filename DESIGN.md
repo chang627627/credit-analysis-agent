@@ -569,4 +569,5 @@ with a 2px `{colors.bg}` ring.
 - A visual catalog ships at **`/designsystem`** (source: `public/designsystem/index.html`; live at [credit-analysis-agent.vercel.app/designsystem](https://credit-analysis-agent.vercel.app/designsystem)): swatches, type scale, shapes, controls, and component specimens rendered explicitly in BOTH themes side by side. The running app is the living catalog.
 - Spacing is a working rhythm (4px base) rather than a strict enforced scale; some interiors use 9/11/13px optical values.
 - Print styles and mobile (<480px) layouts are not designed — this is a desktop demo product.
-- The `◧` Countersign brandmark is identity, not part of the icon system (Lucide everywhere else).
+- The Countersign brandmark (a signature written on a line, `--on-accent` strokes on an `--accent`
+  tile, rx 5 of 20; `public/favicon.svg`) is identity, not part of the icon system (Lucide everywhere else).

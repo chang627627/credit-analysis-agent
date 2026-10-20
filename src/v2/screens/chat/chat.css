@@ -135,10 +135,3 @@
 .chat-composer__reason { color: var(--ink-3); }
 .chat-composer__send { display: flex; flex: none; align-items: center; height: 36px; }
 
-/* ---- Desk: the first step, choosing the project ---- */
-.chat-pick { display: flex; flex-direction: column; gap: 12px; padding: 16px; overflow-y: auto; }
-.chat-pick__prompt { color: var(--ink); }
-.chat-pick__list { display: flex; flex-direction: column; gap: 12px; list-style: none; }
-.chat-pick__row { display: flex; flex-direction: column; gap: 4px; }
-.chat-pick__meta { color: var(--ink-3); }
-.chat-pick__hint { color: var(--ink-3); }

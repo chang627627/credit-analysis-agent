@@ -268,7 +268,7 @@ export const COPY = {
   more: 'More',
 
   // desk
-  deskTitle: 'Case files',
+  deskTitle: 'Select a project to analyze',
   deskInitialSummary: '3 sample files, chosen to end differently · none decided this session · extraction is simulated',
   extractionSimulated: 'extraction is simulated',
   dropLabel: 'Drop a CIM (PDF) to open a new file, or',
@@ -357,8 +357,6 @@ export const COPY = {
   // three-pane case file (THREE-PANE §5, R2)
   agentName: 'Credit Analyst',
   selectProject: 'Select a project to analyze.',
-  switchProject: 'Switch project',
-  uploadHintPanel: 'Or drop a CIM on the Desk to add a project.',
   agentPanel: 'Agent panel',
   hideAgentPanel: 'Hide agent panel (])',
   closeAgentPanel: 'Close agent panel (])',

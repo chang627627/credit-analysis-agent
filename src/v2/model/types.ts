@@ -289,17 +289,8 @@ export interface PlanPromptView {
   cancelLabel: string;
   countdown: { text: string; holdLabel: string | null } | null;
 }
-/** The panel's first step: which project to analyze (a command, so it lives in the agent panel). */
-export interface ProjectPickerView {
-  title: string;
-  prompt: string;
-  projects: { dealId: string; label: string; meta: string; status: StatusKey }[];
-  uploadHint: string;
-}
 export interface AgentPanelView {
   title: string;
-  /** the selected project, switchable from the panel head */
-  project: { label: string; menuLabel: string; options: { dealId: string; label: string; meta: string }[] };
   lines: ThreadLine[];
   plan: PlanPromptView | null;
   /** not-started file: the visible way to start (the panel is where work starts) */

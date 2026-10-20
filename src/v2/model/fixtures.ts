@@ -1344,8 +1344,7 @@ const ATLAS_RUN: ThreadLine[] = [
 
 /** Atlas, never run: one ready line; the composer takes "draft the memo" (⌘↵ also starts). */
 export const FX_PANEL_NOT_STARTED: AgentPanelView = {
-  project: { label: 'Project Atlas', menuLabel: 'Switch project', options: [{ dealId: 'atlas', label: 'Project Atlas', meta: 'Not started' }, { dealId: 'meridian', label: 'Project Meridian', meta: 'Not started' }, { dealId: 'cobalt', label: 'Project Cobalt', meta: 'Not started' }] },
-  title: 'Credit Analyst',
+  title: 'Credit Analyst · Project Atlas',
   lines: [L('ready', 'system', 'pending', 'Ready to draft Project Atlas.')],
   plan: null,
   start: { label: 'Draft memo', kbd: '⌘↵', disabled: false },
@@ -1405,8 +1404,7 @@ export const FX_PANEL_ATLAS_REV2: AgentPanelView = {
 
 /** Meridian at its clean gate with the policy armed: the countdown is one line. */
 export const FX_PANEL_MERIDIAN_COUNTDOWN: AgentPanelView = {
-  title: 'Credit Analyst',
-  project: { label: 'Project Meridian', menuLabel: 'Switch project', options: [{ dealId: 'atlas', label: 'Project Atlas', meta: 'Not started' }, { dealId: 'meridian', label: 'Project Meridian', meta: 'Not started' }, { dealId: 'cobalt', label: 'Project Cobalt', meta: 'Not started' }] },
+  title: 'Credit Analyst · Project Meridian',
   lines: [
     L('run', 'run', null, 'Drafting the memo for Project Meridian.'),
     L('step:step_extract', 'step', 'done', 'Financials extracted', 'financials'),
@@ -1430,8 +1428,7 @@ export const FX_PANEL_SEALED: AgentPanelView = {
 
 /** Cobalt rejected at rev 2 after a send-back found no cure. */
 export const FX_PANEL_COBALT_REJECTED: AgentPanelView = {
-  title: 'Credit Analyst',
-  project: { label: 'Project Cobalt', menuLabel: 'Switch project', options: [{ dealId: 'atlas', label: 'Project Atlas', meta: 'Not started' }, { dealId: 'meridian', label: 'Project Meridian', meta: 'Not started' }, { dealId: 'cobalt', label: 'Project Cobalt', meta: 'Not started' }] },
+  title: 'Credit Analyst · Project Cobalt',
   lines: [
     L('run', 'run', null, 'Drafting the memo for Project Cobalt.'),
     L('step:step_extract', 'step', 'done', 'Financials extracted', 'financials'),

@@ -35,8 +35,7 @@ import {
 } from './select-file';
 import type { FileCtx, FlagNote } from './select-file';
 import { selectPolicy } from './select-top';
-import type { AgentPanelView, FileAt, PlanPromptView, ProjectPickerView, SectionId, StatusKey, ThreadAction, ThreadLine } from './types';
-import { selectDesk } from './select-desk';
+import type { AgentPanelView, FileAt, PlanPromptView, SectionId, StatusKey, ThreadAction, ThreadLine } from './types';
 import {
   COPY,
   OPTIONAL_SHORT,
@@ -239,34 +238,11 @@ function decidedLine(ctx: FileCtx): ThreadLine | null {
   return { id: 'decided', kind: 'decided', glyph, text, link: { label: COPY.recordLink, target: 'signature' } };
 }
 
-/** Every project with its Desk stage, in Desk order (one source: selectDesk). */
-function projectRows(s: V2Store): ProjectPickerView['projects'] {
-  const desk = selectDesk(s);
-  const rows: ProjectPickerView['projects'] = [];
-  for (const g of desk.groups) for (const r of g.rows) rows.push({ dealId: r.dealId, label: r.name, meta: r.stage.text, status: r.stage.state });
-  return rows;
-}
-
-function projectSwitch(s: V2Store, dealId: string): AgentPanelView['project'] {
-  const rows = projectRows(s);
-  const cur = rows.find((r) => r.dealId === dealId);
-  return {
-    label: cur ? cur.label : (s.agent.dealsFull.find((d) => d.id === dealId)?.name ?? dealId),
-    menuLabel: COPY.switchProject,
-    options: rows.map((r) => ({ dealId: r.dealId, label: r.label, meta: r.meta })),
-  };
-}
-
-/** The agent panel on the Desk: step one, pick the project. */
-export function selectProjectPicker(s: V2Store): ProjectPickerView {
-  return { title: COPY.agentName, prompt: COPY.selectProject, projects: projectRows(s), uploadHint: COPY.uploadHintPanel };
-}
-
 const COMPOSER: AgentPanelView['composer'] = { placeholder: COPY.composerPlaceholder, disabled: false, disabledReason: null };
 
 export function selectAgentPanel(s: V2Store, dealId: string): AgentPanelView {
   const ctx = fileContext(s, dealId);
-  if (!ctx) return { title: COPY.agentName, project: projectSwitch(s, dealId), lines: [], plan: null, start: null, composer: COMPOSER };
+  if (!ctx) return { title: COPY.agentName, lines: [], plan: null, start: null, composer: COMPOSER };
   const deal = ctx.deal;
   const NEG = Number.NEGATIVE_INFINITY;
   const S: Placed[] = [];
@@ -379,8 +355,7 @@ export function selectAgentPanel(s: V2Store, dealId: string): AgentPanelView {
   lines.push(...tail);
 
   return {
-    title: COPY.agentName,
-    project: projectSwitch(s, dealId),
+    title: `${COPY.agentName} · ${deal.name}`,
     lines,
     plan: ctx.live && ctx.mode === 'plan-review' ? planPrompt(s, ctx) : null,
     start,

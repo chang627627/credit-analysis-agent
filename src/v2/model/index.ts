@@ -125,7 +125,7 @@ export {
 export { selectLiveDealId, isRunLive, onLiveFile, chatShown, SPEED_STEPS, selectTopBar, selectTabTitle, policyChecks, selectPolicy } from './select-top';
 export { selectDesk } from './select-desk';
 export { selectFile, askRoute, routesOnSign } from './select-file';
-export { selectAgentPanel, selectProjectPicker, memoTargetOfAnchor, newActivityLabel } from './select-thread';
+export { selectAgentPanel, memoTargetOfAnchor, newActivityLabel } from './select-thread';
 export { composerContext, parseComposer, composerReply, answerFor, sectionOfQuestion } from './composer';
 export {
   financialsTakeaway,

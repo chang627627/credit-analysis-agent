@@ -9,6 +9,7 @@
 //   #/book                  book
 //   #/ledger                ledger
 //   #/ledger?file=<dealId>  ledger filtered to one file
+//   #/settings              settings (sidebar bottom)
 //
 // Every navigate() bumps navSeq, so navigating to the same URL re-scrolls.
 // ---------------------------------------------------------------------------
@@ -22,7 +23,8 @@ export type Route =
   | { name: 'desk' }
   | { name: 'file'; dealId: string; at: FileAt | null }
   | { name: 'book' }
-  | { name: 'ledger'; file: string | null };
+  | { name: 'ledger'; file: string | null }
+  | { name: 'settings' };
 
 const FIXED_AT: readonly string[] = [
   'recommendation',
@@ -68,6 +70,7 @@ export function parseHash(hash: string): Route {
     return { name: 'file', dealId: parts[1], at: parseAt(query.get('at')) };
   }
   if (parts[0] === 'book' && parts.length === 1) return { name: 'book' };
+  if (parts[0] === 'settings' && parts.length === 1) return { name: 'settings' };
   if (parts[0] === 'ledger' && parts.length === 1) {
     const file = query.get('file');
     return { name: 'ledger', file: file ? file : null };
@@ -85,6 +88,8 @@ export function toHash(route: Route): string {
       return '#/book';
     case 'ledger':
       return `#/ledger${route.file ? `?file=${encodeURIComponent(route.file)}` : ''}`;
+    case 'settings':
+      return '#/settings';
   }
 }
 

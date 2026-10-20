@@ -88,6 +88,12 @@
   padding: 12px;
   list-style: none;
 }
+/* Settings sits at the bottom of the sidebar, apart from the three sections */
+.app-sidenav__foot {
+  margin-top: auto;
+  padding: 12px;
+  border-top: 1px solid var(--line);
+}
 /* below 1100 the rail is forced: no room for the expanded sidebar, so no toggle either
    (the no-JS fallback; it agrees with the shell's data-nav-forced) */
 @media (max-width: 1099px) {

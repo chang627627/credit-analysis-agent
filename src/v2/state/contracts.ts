@@ -131,7 +131,8 @@ export interface V2Actions {
   draftFile(dealId: string): void;
   requestRemove(dealId: string): void;         // opens the row's confirm (never for the live run's file)
   confirmRemove(): void;
-  cancelRemove(): void;             // start AND approve the plan as shown (one click; the confirm guard still applies)
+  cancelRemove(): void;
+  restoreRemoved(): void;                      // Settings: bring removed files back to the Desk             // start AND approve the plan as shown (one click; the confirm guard still applies)
   holdPlan(): void;
   approvePlan(): void;                         // agent.approvePlan(plan.enabledIds)
   cancelPlan(): void;                          // agent.cancelPlan()

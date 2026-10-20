@@ -88,10 +88,17 @@ export interface SectionFlagLine { id: string; flagId: string | null; state: Sta
 
 export interface TopBarView {
   tabs: { id: 'desk' | 'book' | 'ledger'; label: string; count: string | null; countTone: 'accent' | 'warn' | 'ink-3' }[];
-  active: 'desk' | 'book' | 'ledger'; policyOn: boolean; policyLabel: string; policyShort: string;
+  active: 'desk' | 'book' | 'ledger' | 'settings'; policyOn: boolean; policyLabel: string; policyShort: string;
   speedLabel: string; speeds: { value: number; label: string; checked: boolean }[]; searchKbd: string;
   /** the top bar's left side now that navigation lives in the sidebar */
   sectionTitle: string;
+}
+export interface SettingsView {
+  title: string;
+  intro: string;
+  policy: { label: string; help: string; on: boolean };
+  pace: { label: string; help: string; options: { id: string; label: string; count: string }[]; active: string };
+  removed: { text: string; restoreLabel: string } | null;
 }
 export interface PolicyView {
   on: boolean; eligible: boolean; armed: boolean; line: string;

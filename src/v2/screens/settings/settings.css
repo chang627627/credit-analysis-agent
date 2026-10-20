@@ -1,0 +1,38 @@
+/* Countersign V2 · Settings. Tokens only; prefix .settings. Same column as Book and Ledger. */
+.settings {
+  height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: var(--canvas);
+  color: var(--ink);
+}
+.settings__col {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 32px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.settings__head { display: flex; flex-direction: column; gap: 4px; }
+.settings__intro { color: var(--ink-2); }
+.settings__card {
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.settings__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 24px;
+}
+.settings__row + .settings__row { border-top: 1px solid var(--line); }
+.settings__text { display: flex; flex-direction: column; gap: 4px; min-width: 0; max-width: 64ch; }
+.settings__help { color: var(--ink-2); }
+@media (max-width: 759px) {
+  .settings__col { padding: 20px 16px; }
+  .settings__row { flex-direction: column; align-items: flex-start; }
+}

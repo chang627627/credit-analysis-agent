@@ -26,6 +26,7 @@ import { FileScreen } from './screens/file';
 import { ChatPane } from './screens/chat';
 import { BookScreen } from './screens/book';
 import { LedgerScreen } from './screens/ledger';
+import { SettingsScreen } from './screens/settings';
 import { DecisionCard, Exhibits, StressTest } from './screens/decision';
 
 function Shell() {
@@ -66,6 +67,7 @@ function Shell() {
         )}
         {r.name === 'book' && <BookScreen />}
         {r.name === 'ledger' && <LedgerScreen fileFilter={r.file} />}
+        {r.name === 'settings' && <SettingsScreen />}
       </main>
       <div className="app-overlays">
         <AppPalette />

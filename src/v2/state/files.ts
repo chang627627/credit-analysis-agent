@@ -148,7 +148,7 @@ export function useSnapshots(): {
 
 export type FileActions = Pick<
   V2Actions,
-  'startFile' | 'draftFile' | 'togglePreviewStep' | 'requestRemove' | 'confirmRemove' | 'cancelRemove' | 'confirmStart' | 'requestStop' | 'confirmStop' | 'upload' | 'exportFile' | 'exportSession'
+  'startFile' | 'draftFile' | 'togglePreviewStep' | 'requestRemove' | 'confirmRemove' | 'cancelRemove' | 'restoreRemoved' | 'confirmStart' | 'requestStop' | 'confirmStop' | 'upload' | 'exportFile' | 'exportSession'
 >;
 
 export function createFileActions(x: V2Internals): FileActions {
@@ -277,6 +277,7 @@ export function createFileActions(x: V2Internals): FileActions {
       if (s.route.name === 'file' && s.route.dealId === dealId) x.navigate({ name: 'desk' });
     },
     cancelRemove: () => x.setUi((u) => (u.removeConfirm === null ? u : { ...u, removeConfirm: null })),
+    restoreRemoved: () => x.setUi((u) => (u.removedFiles.length === 0 ? u : { ...u, removedFiles: [], removeConfirm: null })),
     confirmStart: () => {
       const conf = x.uiRef.current.confirm;
       if (!conf || conf.kind !== 'start') return;

@@ -5,7 +5,7 @@
 // and below and beside an open agent panel below 1400px. A forced rail shows the mark and no
 // chevron, and never overwrites the stored choice. Labels stay the accessible names and show
 // as tips in the rail.
-import { Activity, ChevronsLeft, ChevronsRight, FileStack, ScrollText } from 'lucide-react';
+import { Activity, ChevronsLeft, ChevronsRight, FileStack, ScrollText, Settings } from 'lucide-react';
 import { IconButton, NavItem, Tip } from '../kit';
 import { COPY, selectTopBar } from '../model';
 import type { Route } from '../state/route';
@@ -82,6 +82,15 @@ export function SideNav({
           </li>
         ))}
       </ul>
+      <div className="app-sidenav__foot">
+        {rail ? (
+          <Tip label={COPY.settings}>
+            <NavItem icon={Settings} label={COPY.settings} active={v.active === 'settings'} compact onClick={() => a.navigate({ name: 'settings' })} />
+          </Tip>
+        ) : (
+          <NavItem icon={Settings} label={COPY.settings} active={v.active === 'settings'} onClick={() => a.navigate({ name: 'settings' })} />
+        )}
+      </div>
     </nav>
   );
 }

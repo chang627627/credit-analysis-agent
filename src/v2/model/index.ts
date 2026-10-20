@@ -182,3 +182,4 @@ export {
   FIXTURES,
   FX_TOKENS,
 } from './fixtures';
+export { selectSettings } from './select-settings';

@@ -104,7 +104,7 @@ export const SPEED_STEPS = [0.5, 1, 2, 4];
 
 export function selectTopBar(s: V2Store): TopBarView {
   const r = s.route.name;
-  const active: TopBarView['active'] = r === 'book' ? 'book' : r === 'ledger' ? 'ledger' : 'desk';
+  const active: TopBarView['active'] = r === 'book' ? 'book' : r === 'ledger' ? 'ledger' : r === 'settings' ? 'settings' : 'desk';
   const st = s.agent.status;
   const deskCount = selectLiveDealId(s) !== null && (st === 'plan_review' || st === 'awaiting_approval') ? '1' : null;
   const open = s.monitor.escalations.filter((e) => e.status === 'open' && s.agent.dealsFull.some((d) => d.id === e.dealId)).length;
@@ -121,7 +121,7 @@ export function selectTopBar(s: V2Store): TopBarView {
     speedLabel: fmtSpeed(s.agent.speed),
     speeds: SPEED_STEPS.map((value) => ({ value, label: fmtSpeed(value), checked: value === s.agent.speed })),
     searchKbd: `${s.modKey}K`,
-    sectionTitle: active === 'book' ? COPY.tabBook : active === 'ledger' ? COPY.tabLedger : r === 'file' ? COPY.caseFile : COPY.tabDesk,
+    sectionTitle: active === 'book' ? COPY.tabBook : active === 'ledger' ? COPY.tabLedger : active === 'settings' ? COPY.settings : r === 'file' ? COPY.caseFile : COPY.tabDesk,
   };
 }
 

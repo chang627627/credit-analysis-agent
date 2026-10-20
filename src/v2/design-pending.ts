@@ -376,6 +376,19 @@ export const PENDING: PendingPattern[] = [
     kitAnchor: null,
     ownerNote: 'Chosen by the owner (option B, signature-ink blue).',
   },
+  {
+    id: 'P-30',
+    type: 'interaction',
+    name: 'Armed Return and Reject: a first press asks for the reason, the second decides',
+    description:
+      'On the memo\'s Decision card a first press of Return for revision or Reject memo (click, S or R) never acts. It arms that verb: the auto-countersign countdown holds, the card comes into view if it was off screen, focus moves to the reviewer note and any text already typed is selected so the reviewer reviews or replaces it. While armed the note label asks the verb\'s question ("Why reject it? · on the record", "What should the agent revise? · quoted in Revision 2"), the armed button reads its commit label ("Reject with this reason", "Return with this note") with the commit chord (Cmd or Ctrl Enter from the note, where S and R type), its consequence caption stays, and a quiet Cancel link joins the same verb row (still one horizontal row). A second press of the same verb commits when the note has text; on an empty note it stays armed, keeps the reviewer in the note and shows a calm one-line hint ("Write a reason first."), never a red alert. The other refusal verb re-arms to it; Cancel or Esc in the card disarms; clicking the primary still signs at once and the note goes on the record as the countersign note. Before, a note always armed both verbs silently: a stray R after an optional countersign note rejected the memo for good with that note as the reason, and pressing a verb before writing raised a red alert every time.',
+    evidence: 'Mobbin audit of destructive confirmations (inline two-step confirm on the control itself, reason field before a refusal); THREE-PANE.md R4',
+    proposedBy: OWNER,
+    proposedDate: ON_3P,
+    status: 'approved',
+    kitAnchor: '#board-decisioncard',
+    ownerNote: 'Owner asked for it (Mobbin audit fix 1)',
+  },
 ];
 
 export const REJECTED_BEFORE: { name: string; note: string }[] = [

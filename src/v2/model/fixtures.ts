@@ -11,7 +11,7 @@
 // are MarginNote specimens; the raw step record is FX_STUB_EXTRACT.
 // ---------------------------------------------------------------------------
 
-import { AUTO_NOTE, COPY, sectionLinkLabel, STATUS_WORD, tokenOf } from './vocab';
+import { AUTO_NOTE, COPY, IMPERATIVE, sectionLinkLabel, STATUS_WORD, tokenOf } from './vocab';
 import { EM, MINUS } from './format';
 import type {
   Actor,
@@ -1452,9 +1452,11 @@ const VERB_NOTES = (sign: string, _cure: boolean, nextRev = 2, rej = 'The credit
 });
 const VERBS = (primary: string, notes: NonNullable<SignatureView['verbs']>['notes'] = VERB_NOTES('Routes the memo to senior credit review.', true)): NonNullable<SignatureView['verbs']> => ({
   primary,
-  returnLabel: 'Return for revision',
-  rejectLabel: 'Reject memo',
+  returnLabel: IMPERATIVE.returnLabel,
+  rejectLabel: IMPERATIVE.rejectLabel,
   disabled: false,
+  armed: null,
+  cancelLabel: null,
   kbd: { sign: 'A', ret: 'S', rej: 'R' },
   notes,
 });
@@ -1657,6 +1659,30 @@ export const FX_SIG_COBALT_GATE: SignatureView = {
     VERB_NOTES('You agree with the analysis: the facility is recorded as declined.', true, 2, 'You disagree with the analysis: the memo is refused. Note required.'),
   ),
   sealed: null,
+};
+
+/**
+ * R4 (Mobbin audit fix 1) · Atlas rev 1 with Return armed: the first press only armed it. The note
+ * typed before the press is selected for review, the label asks the verb's question with the real
+ * next revision, the armed button reads its commit label with the commit chord, and a quiet Cancel
+ * shares the row. Nothing is decided until Return is pressed again.
+ */
+export const FX_SIG_ATLAS_ARMED_RETURN: SignatureView = {
+  ...FX_SIG_ATLAS_GATE,
+  note: { ...NOTE_EMPTY, value: ATLAS_RETURN_NOTE, label: COPY.armedReworkLabel(2) },
+  verbs: { ...VERBS('Countersign escalation'), returnLabel: IMPERATIVE.returnCommit, armed: 'rework', cancelLabel: COPY.cancelArmed, kbd: { sign: 'A', ret: '⌘↵', rej: 'R' } },
+};
+
+/**
+ * R4 · Cobalt rev 1 with Reject armed and pressed again on an empty note: it stays armed, the note
+ * keeps focus and the calm hint asks for the reason (a quiet line, never an alert).
+ */
+export const FX_SIG_COBALT_ARMED_REJECT: SignatureView = {
+  ...FX_SIG_COBALT_GATE,
+  note: { ...NOTE_EMPTY, label: COPY.armedRejectLabel, hint: COPY.reasonFirstReject },
+  verbs: FX_SIG_COBALT_GATE.verbs
+    ? { ...FX_SIG_COBALT_GATE.verbs, rejectLabel: IMPERATIVE.rejectCommit, armed: 'reject', cancelLabel: COPY.cancelArmed, kbd: { sign: 'A', ret: 'S', rej: '⌘↵' } }
+    : null,
 };
 
 /** Atlas countersigned at rev 1 (ESCALATE), routed to the Book. */
@@ -2238,6 +2264,8 @@ export const FIXTURES = {
   FX_SIG_ATLAS_REV2,
   FX_SIG_MERIDIAN_COUNTDOWN,
   FX_SIG_COBALT_GATE,
+  FX_SIG_ATLAS_ARMED_RETURN,
+  FX_SIG_COBALT_ARMED_REJECT,
   FX_SIG_SEALED,
   FX_SIG_AUTO_SEALED,
   FX_SIG_REJECTED,

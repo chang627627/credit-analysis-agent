@@ -23,7 +23,13 @@
 //   - A is two-phase unless the card's reviewer line is already on screen:
 //     the first press only brings the verbs and the line into view and focuses
 //     the primary; the next press signs. Activating the primary itself (click,
-//     Enter, Space) is the deliberate act and signs at once.
+//     Enter, Space) is the deliberate act and signs at once;
+//   - Return and Reject are armed, never immediate (R4, Mobbin audit fix 1): a
+//     first press (click, S, R) only arms the verb, puts the reviewer in the
+//     note with its text selected and asks the verb's question; a second press
+//     of the same verb commits, and only with a note. So a stray R after an
+//     optional countersign note can never reject the memo with that note as
+//     its reason.
 // ---------------------------------------------------------------------------
 
 import { useEffect } from 'react';
@@ -64,7 +70,8 @@ export function initialGate(): GateState {
     pkgKey: null,
     note: '',
     insertedDraft: null,
-    needNote: null,
+    armed: null,
+    reasonHint: false,
     levMax: null,
     liqMin: null,
     held: false,
@@ -72,7 +79,6 @@ export function initialGate(): GateState {
     autoDeadline: null,
     leaving: false,
     opened: [],
-    focusTick: 0,
     justSigned: null,
   };
 }
@@ -256,6 +262,13 @@ function reviewerLineOf(card: HTMLElement | null): HTMLElement | null {
   return rendered(record) ? record : null;
 }
 
+/** A refusal verb's button on the card ([data-verb="rework" | "reject"] button). */
+function verbButtonOf(card: HTMLElement | null, kind: 'reject' | 'rework'): HTMLElement | null {
+  if (!card) return null;
+  const el = card.querySelector(`[data-verb="${kind}"] button`);
+  return rendered(el) ? el : null;
+}
+
 /** The registered reviewer note field, when it is on the page. */
 function noteFieldOf(x: V2Internals): HTMLTextAreaElement | null {
   const f = x.noteFieldRef.current;
@@ -275,13 +288,13 @@ function clearMemoCovers(x: V2Internals): void {
 
 /**
  * Bring the card's verbs and reviewer line into view (centred, one scroll) and
- * focus a control: the note field when `noteFirst` and a note is required (an
- * S or R that found it empty), else the primary verb. Returns false when the
- * card has nothing to focus yet (not at the gate, or not laid out).
+ * focus a control: the note field when `noteFirst` and a refusal verb is armed
+ * (its reason is what the reviewer is writing), else the primary verb. Returns
+ * false when the card has nothing to focus yet (not at the gate, or not laid out).
  */
 function presentDecision(x: V2Internals, card: HTMLElement, noteFirst: boolean, behavior: ScrollBehavior): boolean {
   const field = noteFieldOf(x);
-  if (noteFirst && field && x.gateRef.current.needNote !== null) {
+  if (noteFirst && field && x.gateRef.current.armed !== null) {
     revealInBand([field], 'center', behavior);
     field.focus({ preventScroll: true });
     return true;
@@ -339,12 +352,19 @@ function focusPendingSoon(x: V2Internals, runId: number): void {
   }, SEAL_FRAMES);
 }
 
-/** Focus the reviewer note field, bringing it into view first (it sits mid-card). */
+/**
+ * Put the reviewer in the note for the armed verb: bring the note and that verb's button into view
+ * when either is off screen (one centred scroll; a union taller than the band keeps the note in
+ * view), focus the note and select its text, so words typed before the verb was pressed (an
+ * optional countersign note, an agent draft) are reviewed or replaced, never sent unseen.
+ */
 function focusNoteSoon(x: V2Internals, field: HTMLTextAreaElement): void {
   onFrames(() => {
     if (!field.isConnected || field.getClientRects().length === 0) return false;
-    revealInBand([field], 'center', behaviorOf(x));
+    const kind = x.gateRef.current.armed;
+    revealInBand([kind ? verbButtonOf(cardOf(x), kind) : null, field], 'center', behaviorOf(x));
     field.focus({ preventScroll: true });
+    field.select();
     return true;
   });
 }
@@ -356,22 +376,47 @@ export function composerEngaged(s: V2Store): boolean {
 }
 
 /**
- * S or R with an empty note: say a reason is needed and put the reviewer in
- * the note. A mounted field is focused through focusTick (the card's own
- * handler) and directly; an unmounted one is focused by registerNoteField when
- * it mounts within the window.
+ * Put the reviewer in the note (R4): a mounted field is focused (text selected) on the next frames;
+ * an unmounted one is focused by registerNoteField when it mounts within the window.
  */
-function askForNote(x: V2Internals, kind: 'reject' | 'rework'): void {
-  const g = x.gateRef.current;
+function presentNote(x: V2Internals): void {
   const field = noteFieldOf(x);
   if (field) {
     x.pendingNoteFocus.current = 0;
-    x.setGate({ ...g, needNote: kind, focusTick: g.focusTick + 1 });
     focusNoteSoon(x, field);
     return;
   }
   x.pendingNoteFocus.current = Date.now();
-  x.setGate({ ...g, needNote: kind });
+}
+
+/**
+ * Return (rework) or Reject, pressed by click, S / R, or ⌘↵ in the card while armed (R4, Mobbin
+ * audit fix 1). Every press is engagement: it holds the countdown and clears what covers the memo.
+ *   - the verb is not armed (a first press, or the other refusal verb while one is armed): arm it
+ *     and put the reviewer in the note with its text selected. Nothing is decided;
+ *   - the verb is armed and the note is empty: stay armed, show the calm hint, focus the note;
+ *   - the verb is armed and the note has text: commit, exactly as before (the note and its
+ *     provenance go on the record).
+ * Returns true only when it committed.
+ */
+function pressRefusal(x: V2Internals, kind: 'reject' | 'rework'): boolean {
+  const s = x.current();
+  if (!atGate(s) || verbsDead(s)) return false;
+  holdAuto(x, 'engaged');
+  if (onLiveFile(s)) clearMemoCovers(x);
+  const g = x.gateRef.current;
+  if (g.armed !== kind) {
+    x.setGate({ ...g, armed: kind, reasonHint: false });
+    presentNote(x);
+    return false;
+  }
+  if (!g.note.trim()) {
+    x.setGate({ ...g, reasonHint: true });
+    x.announce('need-reason');
+    presentNote(x);
+    return false;
+  }
+  return true;
 }
 
 /** Keep a registered element unless a stale one is being released (React may release after the next registers). */
@@ -424,6 +469,7 @@ export type GateActions = Pick<
   | 'requestSign'
   | 'tryReject'
   | 'tryRework'
+  | 'disarm'
   | 'reviewManually'
   | 'registerDecision'
   | 'registerNoteField'
@@ -446,7 +492,7 @@ export function createGateActions(x: V2Internals): GateActions {
       x.setGate({
         ...g,
         note: text,
-        needNote: cleared ? g.needNote : null,
+        reasonHint: cleared ? g.reasonHint : false,
         insertedDraft: cleared ? null : g.insertedDraft,
       });
     },
@@ -458,7 +504,7 @@ export function createGateActions(x: V2Internals): GateActions {
       if (!atGate(s) || !pkg || verbsDead(s)) return;
       holdAuto(x, 'engaged');
       const draft = draftNoteFor(pkg);
-      x.setGate({ ...x.gateRef.current, note: draft, insertedDraft: draft, needNote: null });
+      x.setGate({ ...x.gateRef.current, note: draft, insertedDraft: draft, reasonHint: false });
     },
 
     setThreshold: (kind, v) => {
@@ -501,10 +547,14 @@ export function createGateActions(x: V2Internals): GateActions {
       const amendments = deal ? amendmentsFor(deal, g.levMax, g.liqMin) : [];
       const provenance = provenanceOf(g);
       const presented = presentedFor(s, live);
-      // manual signing always wins over a countdown
+      // manual signing always wins over a countdown, and over an armed Return or Reject (the note
+      // goes on the record as the countersign note, exactly as typed)
       x.pendingSignFocus.current = 0;
+      x.pendingNoteFocus.current = 0;
       x.setGate({
         ...x.gateRef.current,
+        armed: null,
+        reasonHint: false,
         autoDeadline: null,
         justSigned: { runId: s.agent.runId, verb: 'approve', auto: false, at: Date.now(), presented },
       });
@@ -516,21 +566,16 @@ export function createGateActions(x: V2Internals): GateActions {
     },
 
     tryReject: () => {
+      if (!pressRefusal(x, 'reject')) return;
       const s = x.current();
-      if (!atGate(s) || verbsDead(s)) return;
-      holdAuto(x, 'engaged');
-      if (onLiveFile(s)) clearMemoCovers(x);
       const g = x.gateRef.current;
-      if (!g.note.trim()) {
-        askForNote(x, 'reject');
-        return;
-      }
       const live = selectLiveDealId(s);
       const presented = presentedFor(s, live ?? '');
       x.pendingNoteFocus.current = 0;
       x.setGate({
         ...g,
-        needNote: null,
+        armed: null,
+        reasonHint: false,
         justSigned: { runId: s.agent.runId, verb: 'reject', auto: false, at: Date.now(), presented },
       });
       s.agent.reject(g.note, provenanceOf(g));
@@ -538,19 +583,13 @@ export function createGateActions(x: V2Internals): GateActions {
     },
 
     tryRework: () => {
+      if (!pressRefusal(x, 'rework')) return;
       const s = x.current();
-      if (!atGate(s) || verbsDead(s)) return;
-      holdAuto(x, 'engaged');
-      if (onLiveFile(s)) clearMemoCovers(x);
       const g = x.gateRef.current;
-      if (!g.note.trim()) {
-        askForNote(x, 'rework');
-        return;
-      }
       const note = g.note;
       const provenance = provenanceOf(g);
       x.pendingNoteFocus.current = 0;
-      x.setGate({ ...g, needNote: null, leaving: true });
+      x.setGate({ ...g, armed: null, reasonHint: false, leaving: true });
       const runId = s.agent.runId;
       const resume = () => {
         x.current().agent.requestRework(note, provenance);
@@ -562,6 +601,24 @@ export function createGateActions(x: V2Internals): GateActions {
       const ms = cssMs('--dur-2');
       if (ms <= 0) resume();
       else window.setTimeout(resume, ms);
+    },
+
+    // Cancel or Esc in the card: nothing was decided, the note stays as typed. The Cancel link
+    // unmounts with the armed state, so focus that fell to the body returns to the verb it disarmed
+    // (Esc from the note keeps the note focused).
+    disarm: () => {
+      const g = x.gateRef.current;
+      const kind = g.armed;
+      if (kind === null) return;
+      x.pendingNoteFocus.current = 0;
+      x.setGate({ ...g, armed: null, reasonHint: false });
+      onFrames(() => {
+        if (!focusLost()) return true;
+        const btn = verbButtonOf(cardOf(x), kind);
+        if (!btn) return false;
+        btn.focus({ preventScroll: true });
+        return true;
+      });
     },
 
     reviewManually: () => holdAuto(x, 'manual'),
@@ -579,7 +636,8 @@ export function createGateActions(x: V2Internals): GateActions {
       presentDecisionSoon(x, false, 'auto');
     },
 
-    // the card's note field registers itself; an S or R made before it mounted focuses it now
+    // the card's note field registers itself; a Return or Reject armed before it mounted focuses it
+    // now (text selected)
     registerNoteField: (el) => {
       register(x.noteFieldRef, el);
       const since = x.pendingNoteFocus.current;

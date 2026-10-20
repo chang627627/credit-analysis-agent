@@ -235,13 +235,28 @@ export interface SignatureView {
   policy: PolicyView;
   /** sealed only: 'The agent recommended ESCALATE. You countersigned.' */
   record: { state: StatusKey; headline: string } | null;
+  /**
+   * label: 'Reviewer note · on the record', or the armed verb's question ('Why reject it? · on the
+   * record' / 'What should the agent revise? · quoted in Revision 2'). hint: the calm line after the
+   * armed verb is pressed again with an empty note ('Write a reason first.'); never an alert.
+   */
   note: { value: string; label: string; placeholder: string; draftLabel: string; draftDisabled: boolean; chip: string | null; hint: string | null } | null;
   /** editTarget: the first amended covenant's row in the memo ("Edit in memo" lands there, then focusAmend(editKind)) */
   amendment: { text: string; token: TokenView; revertLabel: string; editLabel: string; editKind: 'leverage' | 'liquidity'; editTarget: MemoTarget } | null;
   attestation: string | null;
   /** The agent's overall recommendation, stated directly above the verbs: lead + token (always the agent's own call) + question + one-sentence reason. */
   call: { lead: string; token: TokenView; title: string; why: string } | null;
-  verbs: { primary: string; returnLabel: string; rejectLabel: string; disabled: boolean; kbd: { sign: string; ret: string; rej: string }; notes: { sign: string; ret: string; rej: string } } | null;
+  /**
+   * R4 (Mobbin audit fix 1): a first press of Return or Reject arms it. armed: the armed refusal verb;
+   * its label is then the commit label ('Return with this note' / 'Reject with this reason') and its
+   * kbd the commit chord (⌘↵, from the note); cancelLabel ('Cancel', a quiet link in the same row)
+   * only while armed. The consequence captions (notes) never change.
+   */
+  verbs: {
+    primary: string; returnLabel: string; rejectLabel: string; disabled: boolean;
+    armed: 'reject' | 'rework' | null; cancelLabel: string | null;
+    kbd: { sign: string; ret: string; rej: string }; notes: { sign: string; ret: string; rej: string };
+  } | null;
   sealed: { caption: string; quote: string | null; provenance: string | null; amendments: { label: string; from: string; to: string }[]; routed: string | null; routedLinkLabel: string | null; checks: { ok: boolean; text: string }[] | null } | null;
 }
 export interface StressView {

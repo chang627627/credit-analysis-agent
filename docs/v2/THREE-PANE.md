@@ -134,6 +134,61 @@ composer.
   over stays where they are reading, with "Go to decision" in the doc bar. Reasoning is never
   streamed onto the page: it stays in each card's Record.
 
+## R4 · Owner revision (Mobbin audit fixes)
+
+**R4 wins over R3, R2 and everything else in this file where they conflict.** The owner asked for
+the fixes a Mobbin audit of the case file found; each subsection records one as built.
+
+### R4.1 Armed Return and Reject (Mobbin audit fix 1, P-30)
+
+**The problem (verified in the build).** `tryReject` / `tryRework` acted at once whenever the shared
+note had text, and S / R fired from anywhere on the live file at the gate. A reviewer who typed an
+optional countersign note and then pressed a stray R rejected the memo for good, with that note
+recorded as the rejection reason. Pressing Return or Reject before writing a note raised a red
+`role="alert"` every time ("A reason is required to reject…").
+
+**The rule.** A first press of Return for revision or Reject memo NEVER acts; it arms that verb. Only
+a second press of the same verb decides, and only with a note. This supersedes R2.2 item 2's "exactly
+as today", R2.3's "S / R run return / reject through the note-required flow", §3.1 item 3's
+`needNote` hint and §3.4's S / R row, and SPEC.md §8's need-note.
+
+- **State** (`state/contracts.ts`, `GateState`): `armed: 'reject' | 'rework' | null` replaces
+  `needNote`; `reasonHint: boolean` (the armed verb was pressed again on an empty note) shows the calm
+  hint; `focusTick` is gone (gate.ts focuses the registered note field directly, or through
+  `pendingNoteFocus` when it mounts within 3000 ms). A new package resets both; committing, signing
+  and Cancel clear them. `V2Actions.disarm()` is new; `AnnounceKind` gains `'need-reason'`.
+- **First press** (click, S, R; the palette has no refusal command): hold the countdown
+  (`holdAuto('engaged')`), clear the memo covers (drawer, overlaid source), arm the verb, bring the
+  note and that verb's button into view when either is off screen (one centred scroll; a union taller
+  than the band keeps the note in view), focus the note and **select** any text already typed, so an
+  optional countersign note or an agent draft is reviewed or replaced, never sent unseen.
+- **While armed** (`SignatureView`, model only): `note.label` is the verb's question, "Why reject it?
+  · on the record" or "What should the agent revise? · quoted in Revision N" (N = the package's
+  revision + 1, the Revision card that will quote the note); `verbs.armed` names the verb; its label
+  is the commit label, "Reject with this reason" / "Return with this note"; its `kbd` is the commit
+  chord `⌘↵` (`Ctrl↵` off Mac), since focus sits in the note where S and R type; its consequence
+  caption is unchanged; `verbs.cancelLabel` "Cancel" renders a quiet kit `LinkButton` as the last
+  item of the SAME verb row (still one horizontal row that may wrap, never a list). Typing in the
+  note works as before (provenance chip, holds the countdown); Draft from notes keeps the verb armed.
+- **Second press of the same verb** (click, the same key with focus outside a field, or `⌘↵` with
+  focus anywhere in the Decision card): with a note it commits exactly as before (Reject seals the
+  run, Return recedes and resumes the loop; the note and its provenance go on the record; exports
+  unchanged). With an empty note it stays armed, sets `reasonHint`, focuses the note and shows one
+  calm `t-small` ink-2 line under it, "Write a reason first." / "Write what the agent should revise
+  first." (described-by on the field and announced through the live region), never a red alert.
+  Any text clears the hint.
+- **The other refusal verb** while armed re-arms to it (same first-press behaviour, hint cleared).
+- **Disarm:** Cancel, or Esc while focus is in the Decision card or its note (handled first in the
+  capture-phase keyboard map, before the confirm strip / source / cites chain, which is unchanged
+  elsewhere). The note stays as typed; focus that fell to the body (the Cancel link unmounts) returns
+  to the verb it disarmed. The countdown hold stays (engagement holds until the package changes).
+- **The primary** still signs at once (owner rule) and clears `armed`; the note goes on the record as
+  the countersign note exactly as typed. A is unchanged (two-press unless the reviewer line is on
+  screen; never from inside the note, which is typing).
+- **Kit page:** the Decision card board adds two specimens, Return armed with a typed note (selected,
+  commit label, Cancel) and Reject armed after an empty second press (the calm hint). The TextArea
+  "invalid" specimen stays as the kit recipe only: no V2 field uses it now.
+
 ## 0. Owner decisions that survive (each is checked in §9)
 
 | Decision | Where it holds |

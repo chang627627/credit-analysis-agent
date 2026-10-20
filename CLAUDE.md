@@ -541,12 +541,13 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   Store and view types live in `state/contracts.ts` (re-exported by `state/store.tsx`),
   `model/types.ts` and `state/screens.ts`.
 - **Spec:** `docs/v2/SPEC.md` (the build spec) + `docs/v2/THREE-PANE.md` (the three-pane case file
-  and section hierarchy addendum). Its sections **"R3 · Owner revision"** (live drafting, the Claude
-  Code panel) and **"R2 · Owner revision"** win over the rest of that file (R3 over R2) and over
-  SPEC.md; the owner decisions below supersede all of them.
+  and section hierarchy addendum). Its sections **"R4 · Owner revision (Mobbin audit fixes)"**,
+  **"R3 · Owner revision"** (live drafting, the Claude Code panel) and **"R2 · Owner revision"** win
+  over the rest of that file (R4 over R3 over R2) and over SPEC.md; the owner decisions below
+  supersede all of them.
 - **Guardrails:** `npm run v2-check` (28 greps: tokens only, 400/500/600, 4px grid, one
   infinite animation, no hand-rolled controls outside the kit, V1 + engine hashes untouched, …).
-  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-29, rendered on `/?kit`) for
+  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-30, rendered on `/?kit`) for
   owner approval; every `data-pattern` id needs an entry there, every kit export a kit-page specimen.
 - **Storage** (only in `src/v2/state/`): `v2.navCollapsed`, `v2.chatOpen` (only `state/panes.ts`),
   `v2.autonomy`. (`v2.showReasoning` was retired with R2: reasoning lives in each card's Record.)
@@ -631,8 +632,18 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   record (ink / AUTO / REJECTED + quote + provenance + routed line; no verbs, no note field).
   Clicking the primary signs at once. A (no modifier, not typing) signs only while the card's
   reviewer line is on screen; otherwise the first A brings the card into view, focuses the primary
-  and announces "Countersign is focused. Press A again to sign." (P-02). S / R run return / reject
-  through the note-required flow (an empty note focuses the card's note field); after a return,
+  and announces "Countersign is focused. Press A again to sign." (P-02). **Return and Reject are
+  armed, never immediate** (P-30, THREE-PANE R4.1, Mobbin audit fix 1): a first press (click, S or R)
+  never acts. It arms that verb (`GateState.armed`), holds the countdown, clears the memo covers,
+  brings the note and the verb into view, focuses the note and SELECTS any text already typed; the
+  note label becomes the verb's question ("Why reject it? · on the record" / "What should the agent
+  revise? · quoted in Revision N"), the armed button reads "Reject with this reason" / "Return with
+  this note" with the commit chord ⌘↵ (from the note, where S and R type), its consequence stays, and
+  a quiet "Cancel" link joins the same verb row. A second press of the SAME verb commits only with a
+  note; on an empty note it stays armed with a calm t-small hint ("Write a reason first.", announced,
+  never a red alert). The other refusal verb re-arms; Cancel or Esc in the card disarms; the primary
+  still signs at once (the note goes on the record as the countersign note). So a stray R after an
+  optional note can no longer reject the memo with that note as its reason. After a return,
   focus that fell to the body lands on the card's pending line (the panel never takes focus). The panel's
   "Decision →", the doc bar's "Go to decision" and the composer's refusal link only scroll to the
   card; the palette has no sign command.

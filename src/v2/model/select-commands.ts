@@ -164,5 +164,7 @@ export function announceFor(kind: AnnounceKind, s: V2Store): string {
     }
     case 'sign-ready':
       return COPY.signReady;
+    case 'need-reason':
+      return s.gate.armed === 'rework' ? COPY.reasonFirstRework : COPY.reasonFirstReject;
   }
 }

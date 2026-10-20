@@ -369,7 +369,10 @@ export function signatureOf(ctx: FileCtx): SignatureView | null {
       reviewer = { ...reviewerBase, sigState: 'open', caption: STATUS_WORD.awaiting };
   }
 
-  // the reviewer's draft (gate only)
+  // the reviewer's draft (gate only). An armed Return / Reject (R4) turns the label into the verb's
+  // question; the hint is the calm line after a second press with an empty note.
+  const dead = verbsDead(s);
+  const armed = atGate && !dead ? g.armed : null;
   let note: SignatureView['note'] = null;
   if (atGate) {
     const trimmed = g.note.trim();
@@ -377,12 +380,12 @@ export function signatureOf(ctx: FileCtx): SignatureView | null {
       g.insertedDraft !== null && trimmed ? (trimmed === g.insertedDraft.trim() ? NOTE_CHIP.verbatim : NOTE_CHIP.edited) : null;
     note = {
       value: g.note,
-      label: COPY.noteLabel,
+      label: armed === 'reject' ? COPY.armedRejectLabel : armed === 'rework' ? COPY.armedReworkLabel(rev + 1) : COPY.noteLabel,
       placeholder: COPY.notePlaceholder,
       draftLabel: COPY.draftFromNotes,
-      draftDisabled: verbsDead(s),
+      draftDisabled: dead,
       chip,
-      hint: g.needNote === 'reject' ? COPY.needNoteReject : g.needNote === 'rework' ? COPY.needNoteRework : null,
+      hint: armed !== null && g.reasonHint && !trimmed ? (armed === 'reject' ? COPY.reasonFirstReject : COPY.reasonFirstRework) : null,
     };
   }
 
@@ -411,10 +414,13 @@ export function signatureOf(ctx: FileCtx): SignatureView | null {
     atGate && pkg && decided
       ? {
           primary: primaryLabel(pkg, amendments),
-          returnLabel: IMPERATIVE.returnLabel,
-          rejectLabel: IMPERATIVE.rejectLabel,
-          disabled: verbsDead(s),
-          kbd: { sign: 'A', ret: 'S', rej: 'R' },
+          returnLabel: armed === 'rework' ? IMPERATIVE.returnCommit : IMPERATIVE.returnLabel,
+          rejectLabel: armed === 'reject' ? IMPERATIVE.rejectCommit : IMPERATIVE.rejectLabel,
+          disabled: dead,
+          armed,
+          cancelLabel: armed !== null ? COPY.cancelArmed : null,
+          // the armed verb commits from its note (where S and R type) with the commit chord
+          kbd: { sign: 'A', ret: armed === 'rework' ? `${s.modKey}↵` : 'S', rej: armed === 'reject' ? `${s.modKey}↵` : 'R' },
           notes: decided.notes,
         }
       : null;

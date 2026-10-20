@@ -8,16 +8,25 @@
 //                 memo (never while extraction runs), which opens the confirm
 //                 strip if a run is live. A plan is never approved from a route
 //                 where it is not the live file. The composer never submits on it.
+//                 Live file at the gate with Return or Reject armed and focus in the
+//                 Decision card (its note, where arming puts it and where S and R
+//                 type): presses the armed verb (commits with a note; R4).
 //   A             live file at the gate: requestSign('key'), relative to the
 //                 memo Decision card. Signs when the card's reviewer line is on
 //                 screen; otherwise the first press brings the verbs and the line
 //                 into view and focuses the primary, and the next press signs.
-//   S / R         live file at the gate: return / reject through the
-//                 note-required flow (an empty note focuses the card's note field)
+//   S / R         live file at the gate: Return / Reject, armed (R4, Mobbin audit
+//                 fix 1). A first press never acts: it arms the verb and puts the
+//                 reviewer in the card's note with its text selected. The same key
+//                 again (focus outside a field; in the note, where S and R type,
+//                 ⌘↵) commits when the note has text (empty: a calm hint); the
+//                 other key re-arms to the other verb.
 //   J / K         file route: next / previous flagged row in the memo
 //   [             file route: toggle the source pane
 //   ]             file route: toggle the agent panel (opening focuses the composer)
-//   Esc           palette, then open menus (kit), then the confirm strip, then
+//   Esc           palette, then open menus (kit), then an armed Return / Reject
+//                 while focus is in the Decision card (its note included), then
+//                 the confirm strip, then
 //                 the drawer (drawer mode), then the source overlay, then the
 //                 active cites. Whenever it closes something it prevents the
 //                 default, so the agent panel's own Escape handler (for fields
@@ -41,6 +50,12 @@ function isTyping(target: EventTarget | null): boolean {
   if (target.isContentEditable) return true;
   const tag = target.tagName;
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+}
+
+/** Inside the registered memo Decision card (its note field included). */
+function inDecision(x: V2Internals, target: EventTarget | null): boolean {
+  const card = x.decisionRef.current;
+  return card !== null && card.isConnected && target instanceof Node && card.contains(target);
 }
 
 /** Inside a kit popover that owns its keyboard (menu, dialog). */
@@ -67,12 +82,30 @@ export function useShortcuts(x: V2Internals): void {
         return;
       }
 
+      // an armed Return / Reject disarms on Esc from inside the Decision card, before any other Esc
+      // target: the note field is typing, so the single-key chain below never sees it
+      if (e.key === 'Escape' && !e.defaultPrevented && s.gate.armed !== null && !inPopover(e.target) && inDecision(x, e.target)) {
+        e.preventDefault();
+        a.disarm();
+        return;
+      }
+
       if (mod && !e.altKey && e.key === 'Enter') {
         const r = s.route;
         // the plan the reviewer approves is the one on screen: the live file's route only
         if (s.agent.status === 'plan_review' && r.name === 'file' && r.dealId === selectLiveDealId(s)) {
           e.preventDefault();
           a.approvePlan();
+          return;
+        }
+        // the armed verb's commit chord, from inside the Decision card only (arming focuses its note,
+        // where S and R type): never from the composer, never a signature
+        const armed = s.gate.armed;
+        if (armed !== null && r.name === 'file' && r.dealId === selectLiveDealId(s) && s.agent.status === 'awaiting_approval' && inDecision(x, e.target)) {
+          e.preventDefault();
+          if (e.repeat || s.gate.leaving) return;
+          if (armed === 'reject') a.tryReject();
+          else a.tryRework();
           return;
         }
         if (r.name === 'file' && !s.agent.parsing) {

@@ -80,8 +80,10 @@ import {
   FX_PANEL_SEALED,
   FX_STUB_EXTRACT,
   FX_SIG_ATLAS_AMENDED,
+  FX_SIG_ATLAS_ARMED_RETURN,
   FX_SIG_ATLAS_GATE,
   FX_SIG_ATLAS_REV2,
+  FX_SIG_COBALT_ARMED_REJECT,
   FX_SIG_COBALT_GATE,
   FX_SIG_AUTO_SEALED,
   FX_SIG_MERIDIAN_COUNTDOWN,
@@ -1165,10 +1167,10 @@ function FieldsBoard() {
           <Cell caption="focus">
             <TextArea value="" onChange={noop} placeholder={COPY.notePlaceholder} ariaLabel={COPY.noteLabel} force="focus" />
           </Cell>
-          <Cell caption={`invalid · ${COPY.needNoteReject}`}>
+          <Cell caption="invalid · the kit's error recipe (the reviewer note never uses it: an armed Return or Reject asks calmly, see the Decision card)">
             <TextArea value="" onChange={noop} placeholder={COPY.notePlaceholder} ariaLabel={COPY.noteLabel} invalid describedBy="kp-hint-invalid" />
             <span id="kp-hint-invalid" className="v2-sr">
-              {COPY.needNoteReject}
+              {COPY.reasonFirstReject}
             </span>
           </Cell>
           <Cell caption="disabled">
@@ -2275,7 +2277,18 @@ function DecisionSpecimen({ v, anchor }: { v: SignatureView; anchor: string }) {
             </LinkButton>
             {v.note.chip ? <Chip>{v.note.chip}</Chip> : null}
           </div>
-          <TextArea value={note} onChange={setNote} placeholder={v.note.placeholder} ariaLabel={v.note.label} />
+          <TextArea
+            value={note}
+            onChange={setNote}
+            placeholder={v.note.placeholder}
+            ariaLabel={v.note.label}
+            describedBy={v.note.hint !== null ? `${anchor}-hint` : undefined}
+          />
+          {v.note.hint !== null ? (
+            <p id={`${anchor}-hint`} className="t-small kp-ink2">
+              {v.note.hint}
+            </p>
+          ) : null}
         </div>
       ) : null}
       {v.amendment ? (
@@ -2319,6 +2332,13 @@ function DecisionSpecimen({ v, anchor }: { v: SignatureView; anchor: string }) {
               </Button>
               <span className="t-small kp-ink2">{v.verbs.notes.rej}</span>
             </li>
+            {v.verbs.cancelLabel ? (
+              <li className="kp-verb kp-verb--cancel">
+                <LinkButton role="label" onClick={noop}>
+                  {v.verbs.cancelLabel}
+                </LinkButton>
+              </li>
+            ) : null}
           </ul>
           {v.attestation ? <p className="t-meta kp-ink3">{v.attestation}</p> : null}
           <div className="kp-row">
@@ -2381,6 +2401,8 @@ const DECISION_CASES: { key: string; v: SignatureView; caption: string }[] = [
   { key: 'amended', v: FX_SIG_ATLAS_AMENDED, caption: 'amended in place on the covenant row · the amendment summary with Revert and Edit in memo; the lead token still reads the agent’s ESCALATE' },
   { key: 'rev2', v: FX_SIG_ATLAS_REV2, caption: 'rev 2 on the revised structure · policy on, not eligible (Show checks)' },
   { key: 'cobalt', v: FX_SIG_COBALT_GATE, caption: 'Cobalt rev 1 · DECLINE, five notes to sign over' },
+  { key: 'armed-return', v: FX_SIG_ATLAS_ARMED_RETURN, caption: 'Return armed (P-30) · the first press only armed it: the note typed before is selected for review, the label asks what to revise (quoted in Revision 2), the button reads its commit label with ⌘↵, a quiet Cancel shares the row; Esc in the card also disarms' },
+  { key: 'armed-reject', v: FX_SIG_COBALT_ARMED_REJECT, caption: 'Reject armed, pressed again on an empty note (P-30) · it stays armed and a calm hint asks for the reason (t-small, never a red alert); the other refusal verb would re-arm to it; the primary still signs at once' },
   { key: 'sealed', v: FX_SIG_SEALED, caption: 'countersigned · the same card becomes the sealed record: no verbs, no note field; headline, ink, quote, provenance, routed line' },
 ];
 
@@ -2389,7 +2411,7 @@ function DecisionCardBoard() {
     <Board
       id={B.decision.id}
       name={B.decision.name}
-      spec="The Decision card is a MemoCard (data-section signature) right after step 5 Recommendation, before the stress test: the ONE place to decide (P-23). Order: Signed over (Show row) · reviewer note (Draft from notes + provenance chip; optional to countersign, required to return or reject) · amendment summary · the call (lead + Token + question + one-sentence reason) directly above the verbs · the verbs in one horizontal row that may wrap, never a vertical list, each with its one-line consequence · attestation and policy line · the signature lines, which become the sealed record. The agent panel only links here (Decision →)."
+      spec="The Decision card is a MemoCard (data-section signature) right after step 5 Recommendation, before the stress test: the ONE place to decide (P-23). Order: Signed over (Show row) · reviewer note (Draft from notes + provenance chip; optional to countersign, required to return or reject; Return and Reject are armed by a first press, P-30) · amendment summary · the call (lead + Token + question + one-sentence reason) directly above the verbs · the verbs in one horizontal row that may wrap, never a vertical list, each with its one-line consequence · attestation and policy line · the signature lines, which become the sealed record. The agent panel only links here (Decision →)."
     >
       <div className="kp-canvas">
         {DECISION_CASES.map(({ key, v, caption }) => (

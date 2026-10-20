@@ -89,6 +89,9 @@ export const VERB_WORD: Record<Verb, string> = {
 export const IMPERATIVE = {
   returnLabel: 'Return for revision',
   rejectLabel: 'Reject memo',
+  /** the armed verb's commit labels (R4, Mobbin audit fix 1): the second press decides */
+  returnCommit: 'Return with this note',
+  rejectCommit: 'Reject with this reason',
 } as const;
 
 /** Primary labels by what is being concurred with (§10). */
@@ -487,8 +490,13 @@ export const COPY = {
   noteLabel: 'Reviewer note · on the record',
   notePlaceholder: 'Optional to countersign. Required to return or reject.',
   draftFromNotes: 'Draft from notes',
-  needNoteReject: 'A reason is required to reject. It goes on the record.',
-  needNoteRework: 'A reason is required to return for revision. It goes on the record.',
+  // an armed Return / Reject (R4, Mobbin audit fix 1): the note label asks the verb's question, a
+  // second press with an empty note gets a calm hint (never an alert), Cancel disarms
+  armedRejectLabel: 'Why reject it? · on the record',
+  armedReworkLabel: (rev: number): string => `What should the agent revise? · quoted in Revision ${rev}`,
+  reasonFirstReject: 'Write a reason first.',
+  reasonFirstRework: 'Write what the agent should revise first.',
+  cancelArmed: 'Cancel',
   revert: 'Revert',
   clearedByAmendment: 'cleared by amendment',
   awaitingFirstReading: 'Not swept yet',

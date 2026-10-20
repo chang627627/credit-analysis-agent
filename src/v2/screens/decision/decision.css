@@ -46,7 +46,6 @@
 .decision__note { display: flex; flex-direction: column; gap: 8px; }
 .decision__notehead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
 .decision__notetools { display: flex; align-items: center; gap: 8px; }
-.decision__hint { color: var(--bad-ink); }
 
 /* 3 · the amendment summary */
 .decision__amend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--ink-2); }
@@ -81,6 +80,9 @@
 .decision__choice { display: flex; flex: 1 1 0; flex-direction: column; align-items: flex-start; gap: 8px; }
 .decision__primary { display: flex; }
 .decision__caption { width: 0; min-width: 100%; }
+/* an armed Return / Reject (R4): the quiet Cancel link shares the row, centred on the button line
+   (md buttons are 34 tall); it never takes a share of the row like a verb */
+.decision__cancel { display: flex; flex: 0 0 auto; align-items: center; min-height: 34px; }
 
 /* 6 · the attestation and the policy line, small, under the verbs */
 .decision__foot { display: flex; flex-direction: column; gap: 8px; }

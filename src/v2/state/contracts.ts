@@ -44,14 +44,22 @@ export interface GateState {
   pkgKey: string | null;           // `${runId}:${revision}` the draft belongs to
   note: string;
   insertedDraft: string | null;
-  needNote: 'reject' | 'rework' | null;
+  /**
+   * R4 (Mobbin audit fix 1): the refusal verb the reviewer armed. A first press of Return or Reject
+   * (click, S, R) never acts: it arms that verb, puts the reviewer in the note with its text
+   * selected, and the note label asks the verb's question. A second press of the SAME verb commits
+   * when the note has text; the other refusal verb re-arms to it; Cancel or Esc in the card disarms;
+   * signing clears it.
+   */
+  armed: 'reject' | 'rework' | null;
+  /** the armed verb was pressed again with an empty note: the calm inline hint shows (cleared by any text) */
+  reasonHint: boolean;
   levMax: number | null;           // amended Max Total Leverage ceiling (null = as filed)
   liqMin: number | null;           // amended Min Liquidity floor (null = as filed)
   held: boolean; holdReason: HoldReason | null;   // survives route changes until pkgKey changes
   autoDeadline: number | null;
   leaving: boolean;
   opened: string[];                // flag ids opened by explicit actions
-  focusTick: number;               // focus the note field
   justSigned: { runId: number; verb: 'approve' | 'reject'; auto: boolean; at: number; presented: PresentedAtSign } | null;
 }
 export interface PlanState {
@@ -136,8 +144,8 @@ export interface V2Actions {
   holdPlan(): void;
   approvePlan(): void;                         // agent.approvePlan(plan.enabledIds)
   cancelPlan(): void;                          // agent.cancelPlan()
-  setNote(text: string): void;                 // holdAuto('engaged'); clears needNote when non-empty; insertedDraft = null when cleared
-  insertDraft(): void;                         // note = draftNoteFor(pkg); insertedDraft = that; holdAuto('engaged')
+  setNote(text: string): void;                 // holdAuto('engaged'); clears reasonHint when non-empty; insertedDraft = null when cleared
+  insertDraft(): void;                         // note = draftNoteFor(pkg); insertedDraft = that; holdAuto('engaged'); clears reasonHint
   setThreshold(kind: 'leverage' | 'liquidity', v: number | null): void;  // holdAuto('engaged'); v equal to filed → null
   revertAmendments(): void;
   /**
@@ -148,14 +156,26 @@ export interface V2Actions {
    *  - 'button' "Go to decision" (doc bar, palette), the panel's "Decision →" and the composer's
    *             refusal link: phase one only, never signs.
    * Phase one: navigate to the live file if needed, close the drawer and an overlaid source, bring
-   * the verbs and the reviewer line into view, and focus the primary (or the note field when a note
-   * is required). After a signature (or a rejection) the reviewer line is brought into view so the
+   * the verbs and the reviewer line into view, and focus the primary (or, for 'button', the note
+   * field while a refusal verb is armed). After a signature (or a rejection) the reviewer line is brought into view so the
    * ink (or the stamp) lands in view, and focus that fell to the body goes to the card's
    * [data-record-focus] (tabIndex -1).
    */
   requestSign(source: 'key' | 'button' | 'card'): void;
-  tryReject(): void;                           // holds the countdown; empty note → needNote + focus the note field (pendingNoteFocus when unmounted)
-  tryRework(): void;                           // same; with a note: leaving, then the loop resumes after --dur-2 (focus lost to the body → the card's pending line)
+  /**
+   * R4 (Mobbin audit fix 1), Return (tryRework: click, S) and Reject (tryReject: click, R, or ⌘↵ in
+   * the card while armed). Every press holds the countdown and clears what covers the memo. A press
+   * of a verb that is not armed NEVER acts: it arms it (gate.armed), brings the note and that verb
+   * into view, focuses the note and selects its text (pendingNoteFocus when the field is unmounted).
+   * A press of the armed verb commits when the note has text; with an empty note it stays armed,
+   * focuses the note and shows the calm hint (reasonHint). Committing Reject seals the run;
+   * committing Return recedes (leaving), then the loop resumes after --dur-2 (focus lost to the
+   * body → the card's pending line).
+   */
+  tryReject(): void;
+  tryRework(): void;
+  /** Cancel (the link beside the verbs) or Esc in the card: disarm; focus lost to the body returns to the verb it disarmed */
+  disarm(): void;
   reviewManually(): void;                      // holdAuto('manual')
   registerDecision(el: HTMLElement | null): void;          // the memo Decision card root ([data-decision]); consumes pendingSignFocus
   registerNoteField(el: HTMLTextAreaElement | null): void; // the card's reviewer note field; consumes pendingNoteFocus
@@ -218,7 +238,7 @@ export interface Box<T> {
   current: T;
 }
 export type Setter<T> = (u: T | ((prev: T) => T)) => void;
-export type AnnounceKind = 'gate' | 'signed' | 'auto' | 'rejected' | 'returned' | 'attached' | 'held' | 'sign-ready';
+export type AnnounceKind = 'gate' | 'signed' | 'auto' | 'rejected' | 'returned' | 'attached' | 'held' | 'sign-ready' | 'need-reason';
 
 /**
  * What the state/ modules share. Ref-backed slices are readable synchronously
@@ -248,7 +268,7 @@ export interface V2Internals {
   noteFieldRef: Box<HTMLTextAreaElement | null>;
   /** when phase one asked for the card's primary before the card mounted (0 = none): registerDecision focuses it within 3000 ms */
   pendingSignFocus: Box<number>;
-  /** when S or R asked for the note field before it mounted (0 = none): registerNoteField focuses it within 3000 ms */
+  /** when arming Return or Reject asked for the note field before it mounted (0 = none): registerNoteField focuses it (text selected) within 3000 ms */
   pendingNoteFocus: Box<number>;
   /** a compound start's plan toggle, applied when that deal's plan review opens */
   pendingPlanToggle: Box<{ dealId: string; stepId: string; include: boolean } | null>;

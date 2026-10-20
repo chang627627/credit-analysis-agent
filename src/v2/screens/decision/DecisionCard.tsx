@@ -8,27 +8,31 @@
 //                 (the record's eyebrow once sealed), then the returned history, if any;
 //   1 Signed over the counted notes ("you opened n of N"), each with its own "Show row";
 //   2 note        the reviewer note with Draft from notes and the provenance chip (optional to
-//                 countersign, required to return or reject);
+//                 countersign, required to return or reject); while Return or Reject is armed its
+//                 label asks that verb's question, and a calm hint follows a second empty press;
 //   3 amendment   the summary with Revert and Edit in memo (amending stays on the covenant row);
 //   4 the call    an inset panel: "The agent recommends [TOKEN]" (always the agent's own call), the
 //                 question and the one-sentence reason, directly above
 //   5 the verbs   ONE horizontal row that may wrap sideways (never a vertical list), each verb with
-//                 its one-line consequence under it;
+//                 its one-line consequence under it; an armed Return or Reject reads its commit
+//                 label and a quiet Cancel link joins the same row;
 //   6             the attestation (small, under the verbs) and the policy line with its checks;
 //   7 lines       the agent's pre-signed line and the reviewer's line, which become the sealed
 //                 record after the decision (ink / AUTO / REJECTED, quote and provenance, amendment
 //                 redlines, the routed line). Sealed: no note field, no verbs.
 //
-// Renders selectSignature verbatim and calls only store actions. Every rule (two-press A, the policy
-// countdown and its holds, need-note, the leaving and justSigned guards, focus after a decision)
-// lives in state/gate.ts. Clicking the primary (or Enter, Space) is the deliberate act: it first
+// Renders selectSignature verbatim and calls only store actions. Every rule (two-press A, armed
+// Return / Reject, the policy countdown and its holds, the leaving and justSigned guards, focus
+// after a decision) lives in state/gate.ts; Esc in the card (disarm) and the armed verb's ⌘↵ live in
+// state/shortcuts.ts. Clicking the primary (or Enter, Space) is the deliberate act: it first
 // brings the reviewer line into view (instant, least distance, the verbs kept in view when both fit),
 // so the ink draws where the reviewer is looking, then signs (requestSign('card')). The A key signs
 // only while the reviewer line is on screen, which is why the root registers itself
-// (registerDecision: state finds [data-sign-primary] button and the reviewer line inside it) and the
-// note field registers too (registerNoteField: an S or R made before it mounted focuses it).
+// (registerDecision: state finds [data-sign-primary] button, the [data-verb] buttons and the reviewer
+// line inside it) and the note field registers too (registerNoteField: arming Return or Reject
+// focuses it and selects its text, also when it mounts after the press).
 // The open reviewer line is a record awaiting ink, never a control (no onActivate).
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useId, useRef, useState } from 'react';
 import {
   Button,
   Chip,
@@ -149,27 +153,9 @@ export function DecisionCard({ dealId }: DecisionBlockProps) {
   const primaryRef = useRef<HTMLSpanElement>(null);
   const linesRef = useRef<HTMLDivElement>(null);
 
-  // the note field registers too, and is kept here for the focusTick hand-off
-  const noteEl = useRef<HTMLTextAreaElement | null>(null);
+  // the note field registers too: arming Return or Reject focuses it and selects its text (state/gate.ts)
   const registerNoteField = a.registerNoteField;
-  const noteRef = useCallback(
-    (el: HTMLTextAreaElement | null) => {
-      noteEl.current = el;
-      registerNoteField(el);
-    },
-    [registerNoteField],
-  );
-
-  // S or R with an empty note bumps focusTick: focus the note (never on mount, never when the tick
-  // resets for a new package). state/gate.ts also focuses a mounted field directly; both are no-ops
-  // once it holds focus.
-  const focusTick = s.gate.focusTick;
-  const seenTick = useRef(focusTick);
-  useEffect(() => {
-    const prev = seenTick.current;
-    seenTick.current = focusTick;
-    if (focusTick > prev) noteEl.current?.focus();
-  }, [focusTick]);
+  const noteRef = useCallback((el: HTMLTextAreaElement | null) => registerNoteField(el), [registerNoteField]);
 
   if (!v) return null;
 
@@ -264,13 +250,14 @@ export function DecisionCard({ dealId }: DecisionBlockProps) {
                   onChange={a.setNote}
                   placeholder={v.note.placeholder}
                   ariaLabel={v.note.label}
-                  invalid={v.note.hint !== null}
                   describedBy={v.note.hint !== null ? hintId : undefined}
                   inputRef={noteRef}
                   disabled={dead}
                 />
+                {/* the calm hint after an armed verb is pressed again with an empty note (R4): a quiet
+                    line, never an alert; the live region announces it (need-reason) */}
                 {v.note.hint !== null ? (
-                  <p id={hintId} role="alert" className="decision__hint t-small">
+                  <p id={hintId} className="decision-ink2 t-small">
                     {v.note.hint}
                   </p>
                 ) : null}
@@ -311,9 +298,10 @@ export function DecisionCard({ dealId }: DecisionBlockProps) {
                   <p className="decision__why decision-ink2 t-small">{v.call.why}</p>
                 </div>
 
-                {/* one horizontal row that may wrap sideways; each verb with its consequence under it */}
+                {/* one horizontal row that may wrap sideways; each verb with its consequence under it.
+                    An armed Return or Reject reads its commit label; Cancel joins the same row. */}
                 <ul className="decision__choices">
-                  <li className="decision__choice">
+                  <li className="decision__choice" data-verb="sign">
                     <span ref={primaryRef} className="decision__primary" data-sign-primary="">
                       <Button variant="primary" kbd={v.verbs.kbd.sign} onClick={signFromPrimary} disabled={dead}>
                         {v.verbs.primary}
@@ -321,18 +309,25 @@ export function DecisionCard({ dealId }: DecisionBlockProps) {
                     </span>
                     <span className="decision__caption decision-ink3 t-meta">{v.verbs.notes.sign}</span>
                   </li>
-                  <li className="decision__choice">
+                  <li className="decision__choice" data-verb="rework">
                     <Button variant="secondary" kbd={v.verbs.kbd.ret} onClick={a.tryRework} disabled={dead}>
                       {v.verbs.returnLabel}
                     </Button>
                     <span className="decision__caption decision-ink3 t-meta">{v.verbs.notes.ret}</span>
                   </li>
-                  <li className="decision__choice">
+                  <li className="decision__choice" data-verb="reject">
                     <Button variant="danger" kbd={v.verbs.kbd.rej} onClick={a.tryReject} disabled={dead}>
                       {v.verbs.rejectLabel}
                     </Button>
                     <span className="decision__caption decision-ink3 t-meta">{v.verbs.notes.rej}</span>
                   </li>
+                  {v.verbs.cancelLabel ? (
+                    <li className="decision__cancel" data-pattern="P-30">
+                      <LinkButton role="label" onClick={a.disarm} disabled={dead}>
+                        {v.verbs.cancelLabel}
+                      </LinkButton>
+                    </li>
+                  ) : null}
                 </ul>
 
                 <div className="decision__foot">

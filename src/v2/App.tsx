@@ -23,7 +23,7 @@ import { V2Provider, useV2 } from './state/store';
 import { useNavCollapsed, useViewportAtMost } from './state/nav';
 import { DeskScreen } from './screens/desk';
 import { FileScreen } from './screens/file';
-import { ChatPane } from './screens/chat';
+import { ChatPane, ProjectPicker } from './screens/chat';
 import { BookScreen } from './screens/book';
 import { LedgerScreen } from './screens/ledger';
 import { DecisionCard, Exhibits, StressTest } from './screens/decision';
@@ -35,7 +35,7 @@ function Shell() {
   const le1099 = useViewportAtMost(1099);
   const le1399 = useViewportAtMost(1399);
   const shown = chatShown(s);
-  const forced = le1099 || (r.name === 'file' && s.chatLayout === 'column' && shown && le1399);
+  const forced = le1099 || ((r.name === 'file' || r.name === 'desk') && s.chatLayout === 'column' && shown && le1399);
   const navRail = navCollapsed || forced;
   const knownFile = r.name === 'file' && s.agent.dealsFull.some((d) => d.id === r.dealId);
   const split = s.chatLayout === 'drawer' ? 'drawer' : shown ? 'column' : 'none';
@@ -45,7 +45,14 @@ function Shell() {
       <SideNav rail={navRail} toggleVisible={!forced} collapsed={navCollapsed} onToggle={toggleNav} />
       <TopBar />
       <main className="app-main">
-        {r.name === 'desk' && <DeskScreen />}
+        {r.name === 'desk' && (
+          <div className="app-split" data-chat={shown ? 'column' : 'none'}>
+            {shown ? <ProjectPicker layout={s.chatLayout} /> : null}
+            <div className="app-viz" data-viz="">
+              <DeskScreen />
+            </div>
+          </div>
+        )}
         {r.name === 'file' && (
           <div className="app-split" data-chat={knownFile ? split : 'none'}>
             {knownFile && shown ? <ChatPane key={r.dealId} dealId={r.dealId} layout={s.chatLayout} /> : null}

@@ -59,7 +59,7 @@ export function ChatPane({ dealId, layout }: ChatPaneProps) {
       aria-label={COPY.agentPanel}
       onKeyDown={onKeyDown}
     >
-      <ChatHead heading={view.title} headingId={headingId} layout={layout} />
+      <ChatHead heading={view.title} headingId={headingId} layout={layout} project={{ ...view.project, current: dealId }} />
       <Thread dealId={dealId} lines={view.lines} labelledBy={headingId} sendSeq={sendSeq} />
       <div className="chat-foot">
         {view.start ? (

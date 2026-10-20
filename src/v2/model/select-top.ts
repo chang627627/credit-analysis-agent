@@ -96,9 +96,11 @@ export function onLiveFile(s: V2Store): boolean {
  * drawer is open. Desk, Book, Ledger and unknown files never show the panel.
  */
 export function chatShown(s: V2Store): boolean {
-  if (s.route.name !== 'file' || !dealOf(s, s.route.dealId)) return false;
   const p = s.panes;
   if (!p) return false;
+  // the Desk shows the panel's first step (pick a project) beside the list, as a column only
+  if (s.route.name === 'desk') return s.chatLayout === 'column' && (p.chatOpen || p.revealed);
+  if (s.route.name !== 'file' || !dealOf(s, s.route.dealId)) return false;
   return s.chatLayout === 'drawer' ? p.drawerOpen : p.chatOpen || p.revealed;
 }
 

@@ -356,6 +356,9 @@ export const COPY = {
 
   // three-pane case file (THREE-PANE §5, R2)
   agentName: 'Credit Analyst',
+  selectProject: 'Select a project to analyze.',
+  switchProject: 'Switch project',
+  uploadHintPanel: 'Or drop a CIM on the Desk to add a project.',
   agentPanel: 'Agent panel',
   hideAgentPanel: 'Hide agent panel (])',
   closeAgentPanel: 'Close agent panel (])',

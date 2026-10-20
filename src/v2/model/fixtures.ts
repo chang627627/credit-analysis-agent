@@ -674,7 +674,6 @@ const recTake = (body: RecommendationBody): TakeawayView => ({
 });
 
 const SET = { phase: 'set' as const, status: 'done' as const, statusLabel: 'Done', phaseLine: null, drafting: null, aside: null };
-const PENDING = { phase: 'pending' as const, status: 'pending' as const, statusLabel: 'Not started', aside: null, takeaway: null, drafting: null, footer: null, flagLines: [] };
 const BLOCKS = { size: COPY.figureGroupSize, tested: COPY.figureGroupTested };
 const EYEBROW = {
   financials: 'Step 1 of 5 · Document Intelligence',
@@ -755,34 +754,6 @@ const secRecommendation = (body: RecommendationBody, record = STUB_PACKAGE, flag
   flagLines,
   body,
 });
-
-/** Not started and plan review: the five skeleton cards (no controls in the memo). */
-const SKELETON: SectionView[] = [
-  { ...PENDING, kind: 'financials', id: 'financials', anchorId: 'sec:financials', eyebrow: EYEBROW.financials, heading: 'Financials', phaseLine: COPY.pendingSection, body: null, blockLabels: BLOCKS },
-  { ...PENDING, kind: 'risk', id: 'risk', anchorId: 'sec:risk', eyebrow: EYEBROW.risk, heading: 'Risk score and rating', phaseLine: COPY.pendingSection, body: null },
-  { ...PENDING, kind: 'peers', id: 'peers', anchorId: 'sec:peers', eyebrow: EYEBROW.peers, heading: 'Peer benchmarks', phaseLine: COPY.pendingSection, body: null },
-  {
-    ...PENDING,
-    kind: 'covenants',
-    id: 'covenants',
-    anchorId: 'sec:covenants',
-    eyebrow: EYEBROW.covenants,
-    heading: 'Covenant compliance',
-    phaseLine: COPY.pendingSection,
-    body: null,
-    testsLabel: COPY.testsFiled,
-  },
-  {
-    ...PENDING,
-    kind: 'recommendation',
-    id: 'recommendation',
-    anchorId: 'sec:recommendation',
-    eyebrow: EYEBROW.recommendation,
-    heading: 'Recommendation',
-    phaseLine: COPY.pendingRecommendation,
-    body: null,
-  },
-];
 
 // ---- header, source, appendix
 
@@ -885,7 +856,7 @@ const SEALED_ACTIONS: DocBarView['actions'] = [
 // Files
 // =============================================================================
 
-/** Atlas, never run: header + five skeleton cards; the panel shows one ready line (⌘↵ or "draft the memo" starts it). */
+/** Atlas, never run: the memo header alone (live drafting, no skeleton cards); the panel shows the plan (⌘↵ or "draft the memo" starts it). */
 export const FX_FILE_NOT_STARTED: FileView = {
   dealId: 'atlas',
   mode: 'not-started',
@@ -896,11 +867,11 @@ export const FX_FILE_NOT_STARTED: FileView = {
   restructured: false,
   docBar: { ...DOCBAR_BASE, files: FILES_INITIAL, status: { state: 'pending', text: 'Not started · CIM ready · 3 paragraphs' } },
   header: HEADER_ATLAS_NOT_DRAFTED,
-  sections: SKELETON,
+  sections: [], // live drafting (THREE-PANE R3): before Start drafting the memo is its header alone
   toReview: [],
   sourceView: SOURCE_ATLAS,
   appendix: APPENDIX_ATLAS,
-  rows: { exhibits: false, stress: false, signature: false, monitoring: true },
+  rows: { exhibits: false, stress: false, signature: false, monitoring: false },
   primary: { label: COPY.draftMemo, kbd: '⌘↵', action: 'draft', disabled: false, disabledReason: null },
   flagsOnRecord: 0,
   countedNotes: 0,
@@ -920,7 +891,7 @@ export const FX_FILE_PLAN_REVIEW: FileView = {
   primary: { label: COPY.startDrafting, kbd: '⌘↵', action: 'start-drafting', disabled: false, disabledReason: null },
 };
 
-/** Atlas drafting step 4: the one drafting card carries the caret, the recommendation still pending. */
+/** Atlas drafting step 4: the one drafting card carries the caret; the recommendation has no card until its step starts. */
 export const FX_FILE_RUNNING: FileView = {
   dealId: 'atlas',
   mode: 'running',
@@ -954,12 +925,11 @@ export const FX_FILE_RUNNING: FileView = {
       flagLines: [],
       body: null,
     },
-    SKELETON[4],
   ],
   toReview: [],
   sourceView: SOURCE_ATLAS,
   appendix: APPENDIX_ATLAS,
-  rows: { exhibits: false, stress: false, signature: true, monitoring: true },
+  rows: { exhibits: false, stress: false, signature: false, monitoring: false },
   primary: null,
   flagsOnRecord: 0,
   countedNotes: 0,

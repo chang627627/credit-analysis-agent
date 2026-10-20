@@ -1557,20 +1557,25 @@ export function evidenceCheckLine(ctx: FileCtx, rows: FigureRow[]): string | nul
 }
 
 /**
- * One paper card per section (THREE-PANE §5.3, §5.4, §5.7). Not started and plan review return
- * the five skeleton cards (an optional step toggled off in the plan under review reads excluded,
- * live); running returns exactly one drafting card; a set card carries its takeaway.
+ * One paper card per section (THREE-PANE §5.3, §5.4, R3). Live drafting, no skeleton cards: not
+ * started and plan review return none (the memo is its header; the plan lives in the agent panel),
+ * and a card exists once its step has started. Running returns exactly one drafting card (the pen
+ * sits on the next card between steps); a set card carries its takeaway. A skipped optional step
+ * has no card, and steps are numbered among the included ones ("Step 3 of 4").
  */
 export function buildSections(ctx: FileCtx, rows: FigureRow[], built?: NotesBuild): SectionView[] {
   const out: SectionView[] = [];
   const notes = built ?? buildNotes(ctx);
   const pkg = ctx.pkg;
   const running = ctx.mode === 'running';
-  const review = ctx.mode === 'plan-review';
-  const skeleton = ctx.mode === 'not-started' || review;
-  const enabled = ctx.s.plan.enabledIds;
-  const runnable = ctx.plan.filter((p) => reworkN(p.id) === null);
+  if (ctx.mode === 'not-started' || ctx.mode === 'plan-review') return out;
+  const runnable = ctx.plan.filter((p) => reworkN(p.id) === null && !p.skipped);
   const pen = penSection(ctx);
+  // a run that errored keeps a card where it stopped (the panel's "Drafting stopped at …" line links
+  // there): the last step's section, or Financials when nothing started
+  const lastStep = ctx.steps.length > 0 ? ctx.steps[ctx.steps.length - 1] : undefined;
+  const stopAt: SectionId | null =
+    ctx.mode !== 'error' ? null : lastStep ? (reworkN(lastStep.id) !== null ? sectionOfStep(lastStep.id) : STEP_SECTION[lastStep.id] ?? sectionOfStep(lastStep.id)) : 'financials';
   const amendments = amendmentsOf(ctx);
   const amended = amendments.length > 0;
 
@@ -1580,11 +1585,10 @@ export function buildSections(ctx: FileCtx, rows: FigureRow[], built?: NotesBuil
   for (const id of pageSectionIds(ctx)) {
     const planStep = planFor(id);
     if (!planStep) continue;
-    const step = skeleton ? undefined : ctx.steps.find((st) => st.id === planStep.id);
+    const step = ctx.steps.find((st) => st.id === planStep.id);
     const n = reworkN(planStep.id);
     let phase: SectionPhase;
-    if (skeleton) phase = review && planStep.optional && !enabled.includes(planStep.id) ? 'excluded' : 'pending';
-    else if (planStep.skipped) phase = 'excluded';
+    if (planStep.skipped) phase = 'excluded';
     else if (!step) phase = 'pending';
     else if (step.status === 'done') phase = 'set';
     else if (running) phase = 'drafting';
@@ -1596,22 +1600,16 @@ export function buildSections(ctx: FileCtx, rows: FigureRow[], built?: NotesBuil
     // likewise a revision is set only once its revised package is assembled (the gap before it suspends)
     if (n !== null && phase === 'set' && running && (!pkg || pkg.revision < n)) phase = 'drafting';
     if (phase === 'pending' && pen === id) phase = 'drafting';
+    if (phase === 'pending' && stopAt === id) phase = 'stopped';
+    // live drafting: a step not yet started, or skipped, has no card
+    if (phase === 'pending' || phase === 'excluded') continue;
 
     const status: StatusKey =
-      phase === 'set' ? 'done' : phase === 'drafting' ? 'drafting' : phase === 'excluded' ? 'excluded' : phase === 'stopped' ? 'error' : 'pending';
+      phase === 'set' ? 'done' : phase === 'drafting' ? 'drafting' : 'error';
     const callLine = step?.call && !step.result ? `Calling ${step.call.label}…` : null;
     const drafting =
       phase === 'drafting' ? { line: callLine ?? (n !== null ? COPY.draftingRevision(n) : COPY.draftingLine), caret: running } : null;
-    const phaseLine =
-      phase === 'pending'
-        ? id === 'recommendation'
-          ? COPY.pendingRecommendation
-          : COPY.pendingSection
-        : phase === 'excluded'
-          ? review
-            ? COPY.excludedDraftLine
-            : COPY.excludedLine
-          : null;
+    const phaseLine = null;
     const ordinal = runnable.findIndex((p) => p.id === planStep.id) + 1;
     const tool = TOOL_LABEL[planStep.toolName];
     const eyebrow = n !== null ? `${STATUS_WORD.returned} · ${tool}` : `Step ${ordinal} of ${runnable.length} · ${tool}`;
@@ -1964,8 +1962,10 @@ export function selectFile(s: V2Store, dealId: string): FileView | null {
     rows: {
       exhibits: exhibitEntries(ctx).length > 0,
       stress: pkg !== null && (ctx.mode === 'gate' || ctx.mode === 'sealed' || ctx.mode === 'running'),
-      signature: ctx.mode === 'running' || ctx.mode === 'gate' || ctx.mode === 'sealed',
-      monitoring: true,
+      // live drafting (THREE-PANE R3): the Decision card and the appendix are written last, so they
+      // arrive with the agent's package (the gate) and stay through a send-back's revision
+      signature: (ctx.mode === 'running' && pkg !== null) || ctx.mode === 'gate' || ctx.mode === 'sealed',
+      monitoring: pkg !== null || ctx.mode === 'gate' || ctx.mode === 'sealed',
     },
     primary,
     flagsOnRecord: pkg ? pkg.flags.length : 0,

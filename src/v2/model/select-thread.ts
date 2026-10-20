@@ -325,7 +325,8 @@ export function selectAgentPanel(s: V2Store, dealId: string): AgentPanelView {
       if (reworkN(p.id) !== null) continue;
       const sec = sectionOfPlanStep(p);
       if (p.skipped) {
-        S.push({ t: null, line: { id: `skip:${p.id}`, kind: 'step', glyph: 'excluded', text: COPY.skippedLine(sectionHeading(sec)), link: linkTo(sec) } });
+        // a skipped step has no memo card (live drafting, THREE-PANE R3), so its line links nowhere
+        S.push({ t: null, line: { id: `skip:${p.id}`, kind: 'step', glyph: 'excluded', text: COPY.skippedLine(sectionHeading(sec)), link: null } });
         continue;
       }
       const st = ctx.steps.find((x) => x.id === p.id);

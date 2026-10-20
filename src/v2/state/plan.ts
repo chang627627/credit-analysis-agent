@@ -5,7 +5,7 @@
 //
 // The countdown arms only while the live file is on screen with the tab
 // visible AND the plan prompt itself is shown (it lives in the agent panel,
-// THREE-PANE.md §1.5, R2.1; the memo shows the steps as skeleton cards);
+// THREE-PANE.md §1.5, R2.1, R3; the memo shows only its header until drafting starts);
 // leaving, hiding the tab or hiding the panel holds it, an open confirm
 // strip (Stop, or a start that would close this review) holds it as
 // engagement, and an expiry re-checks every condition before calling

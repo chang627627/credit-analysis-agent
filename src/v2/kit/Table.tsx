@@ -76,7 +76,10 @@ export const useFlash = (flashKey: string | number | undefined) => {
   return { ref, on, onAnimationEnd };
 };
 
-function BodyRow({ row, columns }: { row: TableRow; columns: TableColumn[] }) {
+/** A body row's position for the memo card's write-in stagger (--k-row), capped so long tables do not trail. */
+const ROW_STAGGER_CAP = 8;
+
+function BodyRow({ row, columns, index }: { row: TableRow; columns: TableColumn[]; index: number }) {
   const flash = useFlash(row.flashKey);
   const activatable = row.onActivate !== undefined && row.group === undefined;
   const n = Math.max(1, columns.length);
@@ -164,6 +167,7 @@ function BodyRow({ row, columns }: { row: TableRow; columns: TableColumn[] }) {
         role="row"
         className={cx(kind, state)}
         data-h={row.group ? (row.group.height ?? 32) : (row.height ?? 36)}
+        style={{ '--k-row': Math.min(index + 1, ROW_STAGGER_CAP) } as CSSProperties}
         data-anchor={row.anchorId}
         data-activate={activatable ? '' : undefined}
         tabIndex={activatable ? 0 : undefined}
@@ -208,8 +212,8 @@ export function Table({ columns, rows, caption, header = true, stackBelow }: Tab
             ))}
           </div>
         ) : null}
-        {rows.map((r) => (
-          <BodyRow key={r.key} row={r} columns={columns} />
+        {rows.map((r, i) => (
+          <BodyRow key={r.key} row={r} columns={columns} index={i} />
         ))}
       </div>
     </div>

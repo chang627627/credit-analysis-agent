@@ -56,6 +56,7 @@
   --dur-3: 600ms;       /* ink stroke only */
   --dur-flash: 1200ms;  /* one-shot anchor/cite flash */
   --dur-caret: 1060ms;  /* THE one loop: the drafting caret */
+  --dur-stagger: 48ms;  /* live drafting: the gap between a just-drafted card's parts and rows */
 
   /* type roles (Inter only; weights 400/500/600) */
   --t-display-size: 22px; --t-display-lh: 28px; --t-display-weight: 600; --t-display-track: -0.024em;
@@ -97,9 +98,9 @@
 .t-figure-lg { font-size: var(--t-figure-lg-size); line-height: var(--t-figure-lg-lh); font-weight: var(--t-figure-lg-weight); letter-spacing: var(--t-figure-lg-track); }
 .t-token { font-size: var(--t-token-size); line-height: var(--t-token-lh); font-weight: var(--t-token-weight); letter-spacing: var(--t-token-track); text-transform: uppercase; }
 @media (prefers-reduced-motion: reduce) {
-  .v2 { --dur-press: 0ms; --dur-1: 0ms; --dur-2: 0ms; --dur-3: 0ms; --dur-flash: 0ms; }
+  .v2 { --dur-press: 0ms; --dur-1: 0ms; --dur-2: 0ms; --dur-3: 0ms; --dur-flash: 0ms; --dur-stagger: 0ms; }
 }
-.v2[data-reduce-motion] { --dur-press: 0ms; --dur-1: 0ms; --dur-2: 0ms; --dur-3: 0ms; --dur-flash: 0ms; }
+.v2[data-reduce-motion] { --dur-press: 0ms; --dur-1: 0ms; --dur-2: 0ms; --dur-3: 0ms; --dur-flash: 0ms; --dur-stagger: 0ms; }
 /* @tokens:end */
 
 /* ---- base reset (no literals) ---- */

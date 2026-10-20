@@ -65,7 +65,6 @@ import {
   FX_DESK_INITIAL,
   FX_FILE_ATLAS_GATE,
   FX_FILE_ATLAS_REV2,
-  FX_FILE_PLAN_REVIEW,
   FX_FILE_RUNNING,
   FX_FILE_UPLOAD_GATE,
   FX_LEDGER_AFTER_ATLAS,
@@ -153,8 +152,6 @@ const REC_REV2 = sectionOf(FX_FILE_ATLAS_REV2, 'recommendation');
 const REDLINE = REVISION?.body?.redline ?? [];
 const RISK_UPLOAD = sectionOf(FX_FILE_UPLOAD_GATE, 'risk');
 const DRAFTING_SECTION = FX_FILE_RUNNING.sections.find((s) => s.drafting !== null) ?? null;
-const SKELETON_PEERS = sectionOf(FX_FILE_PLAN_REVIEW, 'peers');
-const SKELETON_REC = sectionOf(FX_FILE_PLAN_REVIEW, 'recommendation');
 
 // MarginNote specimens (FX_NOTES). Under R2 no app screen renders a note box: a flag is marked on
 // its memo row, or as one line at the foot of its card (SectionView.flagLines), and the agent panel
@@ -444,7 +441,6 @@ function CushionCell({ c }: { c: CushionView }) {
 
 const CONF_TONE: Record<'ink-3' | 'warn' | 'bad', string> = { 'ink-3': 'kp-ink3', warn: 'kp-warn', bad: 'kp-bad' };
 /** An excluded optional step's aside, in the model's words (no excluded fixture carries one yet). */
-const EXCLUDED_ASIDE: SectionAside = { kind: 'status', state: 'excluded', text: STATUS_WORD.excluded };
 
 /**
  * The aside right of a section eyebrow (THREE-PANE R2.2): a status label while the card is
@@ -1751,8 +1747,6 @@ const HEAD_CASES: HeadCase[] = [
   { key: 'rec', s: REC_SECTION, caption: 'recommendation · the token, the sentence and the basis' },
   { key: 'rec-prior', s: REC_REV2, caption: 'recommendation · struck prior token, then the token (rev 2)' },
   { key: 'drafting', s: DRAFTING_SECTION, caption: 'drafting · status aside, no takeaway (the drafting line and caret sit in the card)' },
-  { key: 'excluded', s: SKELETON_PEERS, aside: EXCLUDED_ASIDE, caption: 'excluded · status aside, no takeaway' },
-  { key: 'pending', s: SKELETON_REC, caption: 'pending (skeleton card) · no aside, no takeaway' },
 ];
 
 function SectionHeadBoard() {
@@ -1932,28 +1926,66 @@ function RecommendationCard({ s }: { s: SecOf<'recommendation'> }) {
   );
 }
 
-/** A card with only its head and phase line: pending (skeleton) or excluded. */
-function PhaseCard({ s, aside, line }: { s: SectionView; aside?: SectionAside | null; line: string | null }) {
+/** How long the live-drafting specimen stays on its drafting line before its step "returns". */
+const LIVE_DRAFT_MS = 1400;
+const DRAFTING_ASIDE: SectionAside = { kind: 'status', state: 'drafting', text: STATUS_WORD.drafting };
+
+/**
+ * Live drafting (P-26, THREE-PANE R3), in the app's order: the card rises in (MemoCard enter) with
+ * its drafting line, then writes itself in when its step returns (MemoCard reveal): the takeaway,
+ * the first block and its rows, the second block (from step 6) and its rows, then the flag lines
+ * and the record line. No caret here: the Caret board holds the page's one live loop.
+ */
+function LiveDraftSpecimen({ s, prefix }: { s: SecOf<'financials'>; prefix: string }) {
+  const [set, setSet] = useState(false);
+  useEffect(() => {
+    const t = window.setTimeout(() => setSet(true), LIVE_DRAFT_MS);
+    return () => window.clearTimeout(t);
+  }, []);
+  const rows = s.body ?? [];
+  const tableRows = (group: FigureRow['group']): TableRow[] => figRows(rows.filter((f) => f.group === group), prefix);
   return (
-    <MemoCard section={s.id} ariaLabel={s.heading}>
-      <HeadSpecimen s={s} aside={aside} anchorId={`kit-phase-${s.anchorId}`} />
-      {line ? <p className="t-small kp-ink3">{line}</p> : null}
+    <MemoCard section={s.id} ariaLabel={s.heading} enter reveal={set}>
+      <HeadSpecimen s={set ? s : { ...s, takeaway: null }} anchorId={`${prefix}-${s.anchorId}`} aside={set ? null : DRAFTING_ASIDE} />
+      {set ? (
+        <>
+          <div className="kp-secbody" data-reveal="">
+            <Block label={s.blockLabels.size}>
+              <Table columns={FIG_COLUMNS} rows={tableRows('size')} caption={`${s.heading} · ${s.blockLabels.size} (live specimen)`} stackBelow={480} />
+            </Block>
+            <Block label={s.blockLabels.tested}>
+              <Table columns={FIG_COLUMNS} rows={tableRows('tested')} caption={`${s.heading} · ${s.blockLabels.tested} (live specimen)`} header={false} stackBelow={480} />
+            </Block>
+          </div>
+          <div className="kp-revealfoot" data-reveal="">
+            <CardFoot s={s} />
+          </div>
+        </>
+      ) : (
+        <p className="kp-draft t-small kp-ink2">{COPY.draftingLine}</p>
+      )}
     </MemoCard>
   );
 }
 
 function MemoCardBoard() {
   const [flash, setFlash] = useState(0);
+  const [replay, setReplay] = useState(0);
   const finUpload = sectionOf(FX_FILE_UPLOAD_GATE, 'financials');
   return (
     <Board
       id={B.memocard.id}
       name={B.memocard.name}
-      spec="MemoCard (P-26): section.k-memocard, paper, 1px --line, --r-md, scroll-margin-top 60, its own container (k-memocard) · body: padding 24 (16 under a 560px card), flex column, gap 24 · Block: t-label --ink-2 label, 8px above its table, meter or list · foot: row-less flags as one marked t-small line each (no notes block), then ONE quiet t-meta footer line with the collapsed Record · cards sit 16px apart on --canvas · an agent panel link (Covenants →) scrolls the memo to its card and flashes the head or row once, nothing else moves (P-24)"
+      spec="MemoCard (P-26): section.k-memocard, paper, 1px --line, --r-md, scroll-margin-top 60, its own container (k-memocard) · enter (a card that starts while you watch rises in once) and reveal (a card whose step just returned writes itself in) · body: padding 24 (16 under a 560px card), flex column, gap 24 · Block: t-label --ink-2 label, 8px above its table, meter or list · foot: row-less flags as one marked t-small line each (no notes block), then ONE quiet t-meta footer line with the collapsed Record · cards sit 16px apart on --canvas · an agent panel link (Covenants →) scrolls the memo to its card and flashes the head or row once, nothing else moves (P-24)"
       action={
-        <Button variant="secondary" size="sm" onClick={() => setFlash((n) => n + 1)}>
-          Show row
-        </Button>
+        <>
+          <Button variant="secondary" size="sm" onClick={() => setFlash((n) => n + 1)}>
+            Show row
+          </Button>
+          <Button variant="secondary" size="sm" icon={RotateCcw} onClick={() => setReplay((n) => n + 1)}>
+            Replay
+          </Button>
+        </>
       }
     >
       <Group label="A memo on the canvas: one card per section (Atlas, rev 1 gate and rev 2)">
@@ -1972,23 +2004,12 @@ function MemoCardBoard() {
           </div>
         ) : null}
       </Group>
-      <Group label="Skeleton and excluded cards (not started, plan review): the step list is shown here, on the right, never in the agent panel">
-        <Grid size="wide">
-          {SKELETON_REC ? (
-            <Cell caption="pending · head + phase line, no controls" block>
-              <div className="kp-canvas">
-                <PhaseCard s={SKELETON_REC} line={SKELETON_REC.phaseLine} />
-              </div>
-            </Cell>
-          ) : null}
-          {SKELETON_PEERS ? (
-            <Cell caption="excluded · off in the plan under review" block>
-              <div className="kp-canvas">
-                <PhaseCard s={SKELETON_PEERS} aside={EXCLUDED_ASIDE} line={COPY.excludedDraftLine} />
-              </div>
-            </Cell>
-          ) : null}
-        </Grid>
+      <Group label="Live drafting: no skeleton cards. Before Start drafting the memo is its header alone; a card rises in when its step starts (its drafting line; the caret is on the Caret board) and writes itself in once when its step returns, in the app's order: takeaway, first block and rows, second block and rows, flag lines, record line, one --dur-stagger apart (press Replay)">
+        {FIN ? (
+          <div className="kp-canvas">
+            <LiveDraftSpecimen key={`live-${replay}`} s={FIN} prefix="kit-live" />
+          </div>
+        ) : null}
       </Group>
       <Group label="Narrow card (480px frame, uploaded file): padding drops to 16, the Financials tables stack by their own width, the footer line wraps before Record">
         {finUpload ? (
@@ -2085,7 +2106,7 @@ function PanelSpecimen({ v }: { v: AgentPanelView }) {
 
 const PANEL_CASES: { key: string; v: AgentPanelView; caption: string }[] = [
   { key: 'not-started', v: FX_PANEL_NOT_STARTED, caption: 'not started · one ready line; the composer takes “draft the memo” (⌘↵ also starts)' },
-  { key: 'plan', v: FX_PANEL_PLAN_REVIEW, caption: 'plan review · the plan prompt above the composer: one line, one row of buttons, the countdown with Hold; the steps themselves are the skeleton cards in the memo' },
+  { key: 'plan', v: FX_PANEL_PLAN_REVIEW, caption: 'plan review · the plan checklist as a message in the thread (Claude Code style), Start drafting, the countdown with Hold; the memo shows its header alone until drafting starts' },
   { key: 'running', v: FX_PANEL_RUNNING, caption: 'drafting · the running step carries the static drafting glyph (the memo caret stays the only loop)' },
   { key: 'gate', v: FX_PANEL_ATLAS_GATE, caption: 'at the gate · ONE line, “Decision →” scrolls the memo to the Decision card; no token, no verbs, no note here' },
   { key: 'rev2', v: FX_PANEL_ATLAS_REV2, caption: 'rev 2 after Q&A · a typed “countersign” is refused with a pointer to the Decision card; answers clip to 2 lines' },

@@ -19,7 +19,7 @@ This addendum changes the case file (`#/file/<id>`) in two ways the owner asked 
 
 ## R2 · Owner revision (2026-10-20): the agent panel is command and control only; the countersign lives on the right
 
-**This section wins over everything below it.** Owner, verbatim: 你他妈中间这一栏显示那么多数据干嘛？没用过claude code？claude code中间要显示那么多吗？中间只搞high level。命令与指挥。显示的都看右边。不然我到底看中间还是右边？ ("Why does the middle column show so much data? Does Claude Code show that much in the middle? The middle is high level only: command and control. Everything that is displayed goes on the right. Otherwise do I look at the middle or the right?") Then: countersign也要移到右边去。("The countersign moves to the right too.")
+**This section wins over everything below it except R3, which wins over R2.** Owner, verbatim: 你他妈中间这一栏显示那么多数据干嘛？没用过claude code？claude code中间要显示那么多吗？中间只搞high level。命令与指挥。显示的都看右边。不然我到底看中间还是右边？ ("Why does the middle column show so much data? Does Claude Code show that much in the middle? The middle is high level only: command and control. Everything that is displayed goes on the right. Otherwise do I look at the middle or the right?") Then: countersign也要移到右边去。("The countersign moves to the right too.")
 
 **The rule.** The agent panel (middle) never DISPLAYS data and holds no decision. It holds only (a) one-line status from the agent, (b) the plan prompt (start drafting), (c) the reviewer's questions/instructions and short answers, (d) the composer. Every number, list, table, record, reason, attestation, consequence and file detail, AND THE WHOLE DECISION (recommendation, note, verbs, signature), lives in the memo pane (right). A panel line may POINT at something on the right with a link ("Covenants →"); it never reproduces it. Reference model: Claude Code (short status lines in the conversation; the detail and the work product are in the artifact).
 
@@ -94,6 +94,43 @@ No composer note mode and no decision state in the panel.
 - **Q&A tokens:** questions open only once the memo is assembled (gate or sealed), i.e. after step 5, so an answer that names the agent's call never precedes the recommendation card.
 
 ---
+
+## R3 · Owner revision (2026-10-20): the memo writes itself live, the panel reads like Claude Code
+
+**R3 wins over R2 and over everything else in this file.** It supersedes the skeleton cards (§5.7,
+R2.1's "the step list itself is shown on the right", R2.5's Copy clause "a skipped optional card in
+plan review reads 'Optional · will be skipped'", §9 item 6) and the plan prompt's place above the
+composer.
+
+- **Agent panel = Claude Code.** The conversation runs top-down from the top of the panel; the plan
+  checklist with Start drafting is a message in that flow, after the status lines. Only the
+  composer is pinned to the foot: one frame with the round send button inside (quiet while empty,
+  accent once there is a draft); the frame takes the focus ring. No rule crosses the panel foot or
+  the sidebar foot, and no empty-state filler line. A skipped step's line links nowhere.
+- **No skeleton cards.** Before Start drafting (not started, plan review) the memo is its header
+  alone; the plan lives only in the agent panel. A card exists once its step starts: it rises in
+  once (`MemoCard enter`) carrying the one drafting line and the caret, then **writes itself in**
+  when its step returns (`MemoCard reveal`: the takeaway, each block, each table row, the row-less
+  flag lines, the record line, one `--dur-stagger` apart). The write-in plays once (then the card is
+  ordinary again, so a row flash is never outranked). A skipped optional step has no card, and steps
+  are numbered among the included ones ("Step 3 of 4" when peers is skipped). Cards already on the
+  page when a file opens never animate; everything is instant under reduced motion. The Decision
+  card and the Portfolio Monitor appendix arrive with the agent's package (the gate) and stay through
+  a send-back; a Book row's link (`at=monitoring`) shows the appendix on a file that has none yet. A
+  run that errors keeps a stopped card where it halted, so the panel's "Drafting stopped at …" link
+  has a target.
+- **Follow.** While the file's run drafts, the memo pane keeps the card being written in view (whole,
+  24px of canvas under it; a card taller than the view shows from its head; opening a file mid-run
+  jumps there, later moves glide). The reviewer takes over with a wheel or touch scroll that can move
+  the memo (downward only with real memo below, so wheeling toward the card being written keeps
+  following), any scroll the follow did not make that goes up or carries that card off the top
+  (keys, scrollbar, focus), a press inside any other card (its Record, a link, a selection), or a
+  memo cue / link into the file (panel links, J / K, traces) that targets another card. Scrolling
+  back down until the card being written sits whole in view (after the take-over gesture settles),
+  or the doc bar's "Go to drafting" (shown only while not following), resumes. When the run reaches
+  the gate while following, the last card written settles at the top: the recommendation on the
+  first pass (Decision card right under it), the revision after a send-back. Reasoning is never
+  streamed onto the page: it stays in each card's Record.
 
 ## 0. Owner decisions that survive (each is checked in §9)
 

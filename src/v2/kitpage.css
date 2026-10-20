@@ -189,6 +189,16 @@
 .kp-composer { min-width: 0; }
 
 /* ---- board 16b · memo cards on the canvas (P-26); blocks mirror the memo's .file-block ---- */
+/* the live-drafting specimen mirrors the memo's write-in order (file.css .file-secbody[data-reveal]) */
+.kp-secbody { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.kp-secbody[data-reveal] > * {
+  --k-reveal-at: 1;
+  animation: v2-enter var(--dur-2) var(--ease-out) backwards;
+  animation-delay: calc(var(--dur-stagger) * var(--k-reveal-at));
+}
+.kp-secbody[data-reveal] > :nth-child(2) { --k-reveal-at: 6; }
+.kp-revealfoot { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.kp-revealfoot[data-reveal] { animation: v2-enter var(--dur-2) var(--ease-out) backwards; animation-delay: calc(var(--dur-stagger) * 14); }
 .kp-canvas {
   display: flex;
   flex-direction: column;

@@ -290,8 +290,30 @@
   flex-direction: column;
   gap: 24px;
   min-width: 0;
-  animation: v2-enter var(--dur-2) var(--ease-out) backwards;
 }
+/* live drafting (the card's step just returned while you watched): the card writes itself in. Each
+   block rises in turn, and its table rows follow from the block's step (--k-reveal-at, read by the
+   kit's MemoCard reveal); then the row-less flag lines, then the record line. Instant under reduced
+   motion (--dur-stagger and --dur-2 are 0). Cards already on the page when a file opens carry no
+   data-reveal, so they never animate; the reveal drops once it has played. */
+.file-secbody[data-reveal] > * {
+  --k-reveal-at: 1;
+  animation: v2-enter var(--dur-2) var(--ease-out) backwards;
+  animation-delay: calc(var(--dur-stagger) * var(--k-reveal-at));
+}
+.file-secbody[data-reveal] > :nth-child(2) { --k-reveal-at: 6; }
+.file-secbody[data-reveal] > :nth-child(3) { --k-reveal-at: 10; }
+.file-secbody[data-reveal] > :nth-child(n + 4) { --k-reveal-at: 12; }
+.file-secbody[data-reveal] .file-drivers__row {
+  --file-row: 1;
+  animation: v2-enter var(--dur-2) var(--ease-out) backwards;
+  animation-delay: calc(var(--dur-stagger) * (var(--k-reveal-at) + var(--file-row)));
+}
+.file-secbody[data-reveal] .file-drivers__row:nth-child(2) { --file-row: 2; }
+.file-secbody[data-reveal] .file-drivers__row:nth-child(3) { --file-row: 3; }
+.file-secbody[data-reveal] .file-drivers__row:nth-child(n + 4) { --file-row: 4; }
+.file-flags[data-reveal] { animation: v2-enter var(--dur-2) var(--ease-out) backwards; animation-delay: calc(var(--dur-stagger) * 13); }
+.file-foot[data-reveal] { animation: v2-enter var(--dur-2) var(--ease-out) backwards; animation-delay: calc(var(--dur-stagger) * 14); }
 /* a block: its label 8px above its content, 24px between blocks (the card body's gap) */
 .file-block { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .file-block__label { color: var(--ink-2); }
@@ -337,7 +359,6 @@
   gap: 8px;
   min-width: 0;
   list-style: none;
-  animation: v2-enter var(--dur-2) var(--ease-out) backwards;
 }
 .file-flag { min-width: 0; border-radius: var(--r-xs); overflow-wrap: anywhere; }
 .file-flag.is-flash { animation: v2-flash var(--dur-flash) var(--ease-out); }
@@ -351,7 +372,6 @@
   min-width: 0;
   padding-top: 12px;
   border-top: 1px solid var(--line);
-  animation: v2-enter var(--dur-2) var(--ease-out) backwards;
 }
 .file-foot__line {
   display: block;

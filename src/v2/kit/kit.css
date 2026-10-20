@@ -601,6 +601,18 @@
   scroll-margin-top: 60px;
 }
 .v2 .k-memocard__body { display: flex; flex-direction: column; gap: var(--s-6); min-width: 0; padding: 24px; }
+/* live drafting: a card that starts while you watch rises in once; a card whose step just returned
+   writes itself in once: the takeaway, then each table row a --dur-stagger apart, from the block's
+   --k-reveal-at step (the screen sets it per block, so a later table starts later). The screen
+   drops data-reveal when it has played, so a row flash is never outranked. */
+.v2 .k-memocard[data-enter] { animation: v2-enter var(--dur-2) var(--ease-out) backwards; }
+.v2 .k-memocard[data-reveal] .k-sechead__takeaway { animation: v2-enter var(--dur-2) var(--ease-out) backwards; }
+/* --k-row is each body row's position (set by Table, capped at 8), so a headless table counts the same */
+.v2 .k-memocard[data-reveal] .k-table__row,
+.v2 .k-memocard[data-reveal] .k-table__group {
+  animation: v2-enter var(--dur-2) var(--ease-out) backwards;
+  animation-delay: calc(var(--dur-stagger) * (var(--k-reveal-at, 1) + var(--k-row, 1)));
+}
 @container k-memocard (max-width: 559px) {
   .v2 .k-memocard__body { padding: 16px; }
 }

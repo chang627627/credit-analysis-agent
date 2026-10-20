@@ -31,10 +31,11 @@ const CONF_CLASS: Record<SectionFooter['confTone'], string> = {
   bad: 'file-tone-bad',
 };
 
-export function CardFlags(props: { lines: SectionFlagLine[]; ctx: FileCtx }) {
-  const { lines, ctx } = props;
+/** `reveal`: the card's step just returned while you watched; these lines rise in after its blocks. */
+export function CardFlags(props: { lines: SectionFlagLine[]; ctx: FileCtx; reveal?: boolean }) {
+  const { lines, ctx, reveal = false } = props;
   return (
-    <ul className="file-flags">
+    <ul className="file-flags" data-reveal={reveal ? '' : undefined}>
       {lines.map((l) => {
         const flash = ctx.flashKeyOf(l.anchorId);
         const cls = ['file-flag'];
@@ -53,8 +54,8 @@ export function CardFlags(props: { lines: SectionFlagLine[]; ctx: FileCtx }) {
   );
 }
 
-export function CardFooter(props: { footer: SectionFooter }) {
-  const { footer: f } = props;
+export function CardFooter(props: { footer: SectionFooter; reveal?: boolean }) {
+  const { footer: f, reveal = false } = props;
   const [open, setOpen] = useState(false);
   const r = f.record;
   // the quiet line rides the disclosure's own row (kit `lead`), before the Record trigger; the
@@ -68,7 +69,7 @@ export function CardFooter(props: { footer: SectionFooter }) {
     </span>
   );
   return (
-    <div className="file-foot">
+    <div className="file-foot" data-reveal={reveal ? '' : undefined}>
       <Disclosure label={f.recordLabel} lead={lead} open={open} onToggle={() => setOpen((o) => !o)}>
         <div className="file-record">
           <JsonBlock label={r.argsLabel} count={r.argsCount} value={r.args} />

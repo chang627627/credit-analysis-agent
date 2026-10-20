@@ -80,8 +80,11 @@ src/
     synthesize.ts   simulated extraction: a Deal derived from an uploaded filename
     responder.ts    rule-based composer Q&A over the current deal
     monitor.ts      portfolio monitoring sweep generator (drift → covenant re-test → escalate)
-    whatif.ts       pure what-if sensitivity model + the shared `decide` rule (recompute
-                    covenants/risk/recommendation from editable drivers)
+    policy.ts       house policy constants for the decision rule (confidence floor 0.75, decline
+                    score 75, referral score 60, FCC floor 1.00x, leverage outer limit 6.0x,
+                    15% headroom cushion, cure cap 35% of debt)
+    whatif.ts       pure what-if sensitivity model + the shared severity-gated `decide` rule
+                    (recompute covenants/headroom/risk/recommendation from editable drivers)
     util.ts         abortable sleep, uid, confidenceBucket
   hooks/
     useCreditAgent.ts   generator → reduce → state + controls
@@ -112,7 +115,8 @@ src/
   the primary input; the bottom composer is for follow-ups/steering, not data entry. Avoids the
   "I typed and nothing changed" trap. The composer 📎 reuses the same ingest path.
 - **Deal picker:** 3 sample deals → **APPROVE / ESCALATE / DECLINE**; the recommendation is
-  **computed from the data** (no breach → approve; breach + risk ≥ 75 → decline; else escalate).
+  **computed from the data** by the severity-gated rule (see the progress log entry): never by
+  breach count — data gate → knock-out decline → exception escalate → clean approve.
 - **Theme default LIGHT** (per request); dark = graphite. Both persist.
 - **Nav collapse toggle is at the TOP** of the sidebar (not the bottom); folds to a ~60px icon
   rail with hover tooltips; persists.
@@ -484,6 +488,23 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
       rail**: the numbered-circle-in-bordered-box wizard chips (a 2015 pattern) became a 2px state
       rail above a plain label — pending `--border` / active `--accent` / done `--good`, ordinal is
       now a plain tabular numeral, not a bubble. Reads cleaner AND halves the bar's vertical space.
+- [x] **Severity-gated decision rule (shared engine, V1 + V2)** — industry-researched (credit policy
+      practice: triage by severity, never by breach count). `decide()` in `whatif.ts` takes a
+      structured input and returns `{ recommendation, basis, reasons, triggers, … }`; constants live in
+      `src/agent/policy.ts`. First match wins: **(1) data gate** — any of extract / risk / covenant
+      tools below 75% confidence → ESCALATE "verify the extracted figures" (run packages only; the
+      what-if and amend previews skip it); **(2) knock-out DECLINE** — risk score ≥ 75, fixed-charge
+      coverage < 1.00x, leverage > 6.0x, or a breach with no cure within the 35%-of-debt cap; **(3)
+      exception ESCALATE** — a curable breach ("approve subject to $X sponsor equity or a covenant
+      reset"), any covenant under 15% signed headroom, or score ≥ 60; **(4) APPROVE**. Up to four
+      specific reasons with sizes ride `ApprovalPackage.decisionReasons` / `decisionBasis` into V1's
+      gate and V2's Decision card. `findCure` now targets a *clean* structure (15% headroom, not bare
+      compliance). Outcomes: Meridian APPROVE (30% headroom, score 28); **Atlas ESCALATE with a $19.5M
+      cure** (supersedes the old $6.0M → 4.00x cure; rev 2 approves at 3.40x, score 47); Cobalt
+      DECLINE (score 82, FCC 0.95x, four breaches, no cure); uploads ESCALATE through the data gate
+      (Risk Engine reads 0.70). Amending Atlas's leverage ceiling can no longer reach APPROVE (its
+      coverages stay under the cushion). Responder, draft note, monitor watch band (now < 15%) and the
+      V1 copy read the same rule. Verified by harnesses (200 checks) + adversarial review + browser.
 - [x] **DESIGN.md + the `/designsystem` catalog** — the design system documented in the
       VoltAgent/awesome-design-md (Google Stitch) format: YAML front matter with machine-readable
       token maps (`colors` = light default, `typography`, `rounded`, `spacing`, `components` with
@@ -518,8 +539,9 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   Store and view types live in `state/contracts.ts` (re-exported by `state/store.tsx`),
   `model/types.ts` and `state/screens.ts`.
 - **Spec:** `docs/v2/SPEC.md` (the build spec) + `docs/v2/THREE-PANE.md` (the three-pane case file
-  and section hierarchy addendum). Its section **"R2 · Owner revision"** wins over the rest of that
-  file and over SPEC.md; the owner decisions below supersede all of them.
+  and section hierarchy addendum). Its sections **"R3 · Owner revision"** (live drafting, the Claude
+  Code panel) and **"R2 · Owner revision"** win over the rest of that file (R3 over R2) and over
+  SPEC.md; the owner decisions below supersede all of them.
 - **Guardrails:** `npm run v2-check` (28 greps: tokens only, 400/500/600, 4px grid, one
   infinite animation, no hand-rolled controls outside the kit, V1 + engine hashes untouched, …).
   New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-27, rendered on `/?kit`) for
@@ -550,12 +572,16 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   line per step, updated in place ("Testing covenants" with the static drafting glyph → "Covenants
   tested · Covenants →"; "Peer benchmarks skipped") · action-worthy flags only, at most one per step
   ("4 covenants breached · Covenants →", never the flag sentence, confidences or durations) ·
-  revision lines ("Returned for revision · rev 2", "Proposed a $6.0M sponsor equity cure") · the gate
+  revision lines ("Returned for revision · rev 2", "Proposed a $19.5M sponsor equity cure") · the gate
   as ONE line "Your countersignature is needed · Decision →" (countdown / held variants) · Q&A ("You ·
-  …" and answers clipped to 2 lines) · "You countersigned DECLINE · 00:52 · Record →". The plan prompt
-  sits above the composer: "I'll draft 5 steps. Peer benchmarks is optional." + [Start drafting ⌘↵]
-  [Skip peers / Include peers] [Cancel] + "Starts in 7 s · Hold"; the step list itself is the memo's
-  skeleton cards. No boxes, cards, records or buttons other than the plan prompt's.
+  …" and answers clipped to 2 lines) · "You countersigned DECLINE · 00:52 · Record →". **Reads like
+  Claude Code** (THREE-PANE R3): the conversation runs top-down from the top of the panel and the
+  plan checklist (locked required steps, a checkbox on the optional one, [Start drafting ⌘↵], the
+  countdown line) is a message in that flow, not pinned above the input. Only the composer is pinned
+  to the foot: one frame with the round send button inside (quiet while empty, accent once there is
+  a draft). No full-width rule at the panel or sidebar foot, no empty-state filler sentence. A
+  skipped step's line links nowhere (it has no card). No boxes, cards, records or buttons other than
+  the plan prompt's.
 - **Memo pane** (right; holds everything displayed): the header on the canvas (borrower, facility,
   amount, CAM id, prepared-by, CIM paragraphs; no recommendation, and a sealed header seal is the
   who-clause only, "You countersigned.") → one paper `MemoCard` per section, 16px apart (P-26):
@@ -572,17 +598,28 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   Then ONE quiet footer line, "Document Intelligence · 94% · 1.1 s", with a collapsed "Record"
   disclosure holding the tool's args in, data out and the reasoning (`SectionView.footer`; kit
   `Disclosure` `lead` puts the line and the trigger on one row). Tables stack by their own width
-  (`stackBelow` 640 for covenants, 480 for financials). Skeleton cards in not-started and plan review
-  (an optional step toggled off reads "Optional · will be skipped"); one drafting card carries the
-  app's only caret. J / K step through the flagged rows in the memo (a row-less flag lands on its
-  marked line, `flag:<id>`).
+  (`stackBelow` 640 for covenants, 480 for financials). **Live drafting, no skeleton cards**
+  (THREE-PANE R3): before Start drafting the memo is its header alone; a card exists once its step
+  starts — it rises in once (`MemoCard enter`) with the drafting line and the app's only caret, then
+  writes itself in when its step returns (`MemoCard reveal`: takeaway, blocks, table rows, flag lines,
+  record line, one `--dur-stagger` apart). A skipped optional step has no card and steps are numbered
+  among the included ones ("Step 3 of 4"). The Decision card and the appendix arrive with the agent's
+  package (the gate) and stay through a send-back (a Book row's `at=monitoring` link shows the
+  appendix earlier); an errored run keeps a stopped card where it halted. While drafting, the memo
+  pane follows the card being written until the reviewer takes over (a wheel / touch scroll that can
+  move the memo, a scroll the follow didn't make going up, a press in another card, or a memo cue /
+  link to another card; see THREE-PANE R3); scrolling back down to it or the doc bar's "Go to
+  drafting" (shown only while not following) resumes; at the gate it settles on the last card
+  written. The write-in plays once; cards already on the page when a file opens never animate. J / K step through the flagged rows in the memo (a row-less flag lands
+  on its marked line, `flag:<id>`).
 - **Decision card** (P-23, `screens/decision/DecisionCard.tsx`, the memo's `signature` slot, renders
   `selectSignature` → `SignatureView` in full): the ONE place to decide, its own card right after
   step 5. In order: Signed over ("you opened n of N", each with Show row or Show in memo) · reviewer note (Draft from
   notes + provenance chip; optional to countersign, required to return or reject) · amendment
   summary with Revert (amending itself stays on the covenant row) · the call **directly above the
-  verbs**: "The agent recommends [TOKEN]" (always the agent's own call) + the question + a
-  one-sentence reason · the verbs in **one horizontal row that may wrap, never a vertical list**,
+  verbs**: "The agent recommends [TOKEN]" (always the agent's own call) + the question + the
+  decision's specific reasons with sizes (`pkg.decisionReasons`: the first two on an ESCALATE, every
+  principal reason on a DECLINE, "verify the extracted figures" on a data-gated file) · the verbs in **one horizontal row that may wrap, never a vertical list**,
   each with its one-line consequence under it · the attestation + the policy line / checks · the
   signature lines (agent pre-signed, reviewer line). After the decision the same card is the sealed
   record (ink / AUTO / REJECTED + quote + provenance + routed line; no verbs, no note field).
@@ -612,7 +649,7 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   build's step lines with confidences and durations, Record / Reasoning disclosures, flag sentences
   as MarginNote messages, the plan step checklist, the file context block, the head's note stepper
   and Show all reasoning: "do I look at the middle or the right?") · **the decision card in the agent
-  panel** (it was docked between the thread and the composer; the countersign moved to the right). · any show/hide toggle or collapse control for the agent panel (after the Desk, a case file is always three panes) · a project picker or project switch in the agent panel (step one, selecting the project, happens on the Desk; the agent panel exists only inside a case file)
+  panel** (it was docked between the thread and the composer; the countersign moved to the right). · any show/hide toggle or collapse control for the agent panel (after the Desk, a case file is always three panes) · a project picker or project switch in the agent panel (step one, selecting the project, happens on the Desk; the agent panel exists only inside a case file) · the plan prompt pinned above the composer, bottom-anchored ("chat grows upward") thread lines and an empty-thread filler sentence ("Just do what normal claude code did") · a composer whose send button sits outside its field as a grey square · skeleton / "Not drafted yet" placeholder cards in the memo (cards appear as they are drafted)
 
 ## Backlog (to-do)
 

@@ -18,6 +18,15 @@
 //   1064px and up, @container viz; an overlay on the right edge below)
 //   canvas = sticky doc bar + .file-content (max 808, cards 16px apart)
 //
+// Live drafting (like an artifact being written): before Start drafting the
+// memo is its header alone; a card appears when its step starts (rising in
+// once), shows the one drafting line and caret, then writes itself in when its
+// step returns (takeaway, blocks, rows, flags, record line, one stagger apart).
+// While drafting, the pane follows the card being written until the reviewer
+// takes over (scrolls, presses into another card, follows a link or cue);
+// "Go to drafting" in the doc bar (shown only then) resumes following. The cards
+// already on the page when a file opens never animate.
+//
 // No notes blocks, no margin column, no header margin, no Contents row. The
 // screen is a pure reduction of selectFile(): it renders the view verbatim and
 // calls only store actions. It owns the scroll and cue effects: [dealId, at,
@@ -28,7 +37,7 @@
 // every panel link ("Covenants →", "Decision →") has a target.
 // ---------------------------------------------------------------------------
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Caret, EmptyNote, LinkButton, MemoCard, SectionHead, StatusLabel } from '../../kit';
 import { COPY, CUE_HOLD_MS, isRowAnchor, selectFile } from '../../model';
@@ -37,6 +46,7 @@ import { CardFlags, CardFooter } from './CardFoot';
 import { useV2 } from '../../state/store';
 import type { V2Actions } from '../../state/store';
 import type { FileScreenProps } from '../../state/screens';
+import { cssMs } from '../../state/ui';
 import { Appendix } from './Appendix';
 import { DocBar } from './DocBar';
 import { PageHeader } from './PageHeader';
@@ -64,6 +74,16 @@ export interface FileCtx {
 const CUE_FRESH_MS = 1000;
 /** Cards sit this far below the scroller's top edge, under the 44px doc bar (MemoCard scroll-margin-top). */
 const CARD_SCROLL_MARGIN = 60;
+/** While following, the card being written keeps this much canvas under it. */
+const FOLLOW_FOOT = 24;
+/** A downward wheel takes over only with more memo than this below the view (not just the foot's padding). */
+const FOLLOW_SLACK = 96;
+/** Scroll events this soon after the follow (or a cue) scrolled are its own glide, not the reviewer. */
+const OWN_SCROLL_MS = 1000;
+/** After the reviewer takes over, a re-follow waits for that gesture to settle. */
+const REFOLLOW_AFTER_MS = 400;
+/** A write-in lasts at most this many --dur-stagger steps (blocks, rows, flags, the record line) plus --dur-2. */
+const REVEAL_STEPS = 22;
 
 /** Attribute selectors carry anchor ids such as `cov:Max Total Leverage`. */
 function esc(v: string): string {
@@ -86,8 +106,8 @@ function Aside(props: { aside: SectionAside }) {
   );
 }
 
-function SectionBody(props: { sec: SectionView; ctx: FileCtx }) {
-  const { sec, ctx } = props;
+function SectionBody(props: { sec: SectionView; ctx: FileCtx; reveal: boolean }) {
+  const { sec, ctx, reveal } = props;
   switch (sec.phase) {
     case 'pending':
     case 'excluded':
@@ -139,13 +159,37 @@ function SectionBody(props: { sec: SectionView; ctx: FileCtx }) {
       body = null;
   }
   if (!body) return null;
-  return <div className="file-secbody">{body}</div>;
+  return (
+    <div className="file-secbody" data-reveal={reveal ? '' : undefined}>
+      {body}
+    </div>
+  );
 }
 
-function SectionCard(props: { sec: SectionView; ctx: FileCtx }) {
-  const { sec, ctx } = props;
+/**
+ * One section card. `arrived`: the memo had already rendered when this card mounted, so its step
+ * started while you watched and the card rises in once. A card that drafted on this page (or
+ * arrived already set) writes itself in when its step returns, once; the cards already on the page
+ * when the file opened stay still.
+ */
+function SectionCard(props: { sec: SectionView; ctx: FileCtx; arrived: boolean }) {
+  const { sec, ctx, arrived } = props;
+  const [enter] = useState(arrived);
+  // remember, across renders, that this card was seen drafting (React's "previous render" pattern)
+  const [sawDrafting, setSawDrafting] = useState(sec.phase === 'drafting');
+  if (sec.phase === 'drafting' && !sawDrafting) setSawDrafting(true);
+  // the write-in is one-shot: once it has played, the card is an ordinary card again (a row flash
+  // must win over the reveal's animation); a card that drafts again writes itself in again
+  const [revealDone, setRevealDone] = useState(false);
+  if (sec.phase === 'drafting' && revealDone) setRevealDone(false);
+  const reveal = sec.phase === 'set' && (sawDrafting || enter) && !revealDone;
+  useEffect(() => {
+    if (!reveal) return;
+    const t = window.setTimeout(() => setRevealDone(true), cssMs('--dur-2') + REVEAL_STEPS * cssMs('--dur-stagger') + 100);
+    return () => window.clearTimeout(t);
+  }, [reveal]);
   return (
-    <MemoCard section={sec.id} ariaLabel={sec.heading}>
+    <MemoCard section={sec.id} ariaLabel={sec.heading} enter={enter} reveal={reveal}>
       <SectionHead
         eyebrow={sec.eyebrow}
         heading={sec.heading}
@@ -155,10 +199,10 @@ function SectionCard(props: { sec: SectionView; ctx: FileCtx }) {
         flashKey={ctx.flashKeyOf(sec.anchorId)}
         highlighted={ctx.isHighlighted(sec.anchorId)}
       />
-      <SectionBody sec={sec} ctx={ctx} />
-      {sec.flagLines.length > 0 ? <CardFlags lines={sec.flagLines} ctx={ctx} /> : null}
+      <SectionBody sec={sec} ctx={ctx} reveal={reveal} />
+      {sec.flagLines.length > 0 ? <CardFlags lines={sec.flagLines} ctx={ctx} reveal={reveal} /> : null}
       {/* keyed by run, so a re-run opens with every Record collapsed again */}
-      {sec.footer ? <CardFooter key={`${ctx.view.runId ?? 'none'}:${sec.footer.record.stepId}`} footer={sec.footer} /> : null}
+      {sec.footer ? <CardFooter key={`${ctx.view.runId ?? 'none'}:${sec.footer.record.stepId}`} footer={sec.footer} reveal={reveal} /> : null}
     </MemoCard>
   );
 }
@@ -174,6 +218,45 @@ export function FileScreen({ dealId, at, navSeq, slots }: FileScreenProps) {
   reducedRef.current = s.reducedMotion;
   const viewRef = useRef<FileView | null>(view);
   viewRef.current = view;
+
+  // ---- live drafting state (THREE-PANE R3) ----------------------------------------------------
+  // the card being written: the one drafting card while this file's run drafts (the model keeps
+  // exactly one while the run is live)
+  const running = view !== null && view.live && view.mode === 'running';
+  const frontier = running ? view.sections.find((sec) => sec.phase === 'drafting')?.id ?? null : null;
+  const runningRef = useRef(running);
+  runningRef.current = running;
+  const frontierRef = useRef(frontier);
+  frontierRef.current = frontier;
+  const lastFrontier = useRef<string | null>(frontier);
+  if (frontier) lastFrontier.current = frontier;
+  // following: the pane keeps the card being written in view until the reviewer takes over. A run
+  // that starts here turns it back on, and so does "Go to drafting"; opening the file at a target
+  // (a link) starts with it off.
+  const [following, setFollowing] = useState(at === null);
+  const followingRef = useRef(following);
+  followingRef.current = following;
+  const tookOverAt = useRef(0);
+  const ownScrollUntil = useRef(0);
+  const takeOver = useCallback(() => {
+    if (!followingRef.current) return;
+    followingRef.current = false;
+    tookOverAt.current = performance.now();
+    setFollowing(false);
+  }, []);
+  const follow = useCallback(() => {
+    followingRef.current = true;
+    setFollowing(true);
+  }, []);
+  /** A navigation the reviewer asked for (a panel link, J / K, a trace, a link into the file): while
+      drafting it takes over, unless it targets the card being written. */
+  const navTakeOver = useCallback(
+    (section: string) => {
+      ownScrollUntil.current = performance.now() + OWN_SCROLL_MS;
+      if (runningRef.current && section !== frontierRef.current) takeOver();
+    },
+    [takeOver],
+  );
 
   // ---- local cue state: replayed flashes, and held highlights under reduced motion
   const [flashKeys, setFlashKeys] = useState<Record<string, number>>({});
@@ -222,6 +305,7 @@ export function FileScreen({ dealId, at, navSeq, slots }: FileScreenProps) {
     (section: MemoSection, anchorId: string | null, instant: boolean) => {
       const card = query(`[data-section="${esc(section)}"]`);
       if (!card) return;
+      navTakeOver(section);
       const row =
         anchorId !== null && isRowAnchor(anchorId) ? card.querySelector<HTMLElement>(`[data-anchor="${esc(anchorId)}"]`) : null;
       const scroller = canvasRef.current;
@@ -246,7 +330,7 @@ export function FileScreen({ dealId, at, navSeq, slots }: FileScreenProps) {
       const owned = section === 'monitoring' || (v ? v.sections.some((sec) => sec.id === section) : false);
       if (owned) cue(`sec:${section}`);
     },
-    [query, cue],
+    [query, cue, navTakeOver],
   );
 
   // ---- [dealId, at, navSeq]: scroll the target card into view. Opening the file jumps (no long
@@ -258,8 +342,10 @@ export function FileScreen({ dealId, at, navSeq, slots }: FileScreenProps) {
     atMounted.current = true;
     if (!at) return;
     const el = query(`[data-section="${esc(at)}"]`);
-    if (el) el.scrollIntoView({ block: 'start', behavior: scrollBehavior(first, reducedRef.current) });
-  }, [dealId, at, navSeq, query]);
+    if (!el) return;
+    navTakeOver(at);
+    el.scrollIntoView({ block: 'start', behavior: scrollBehavior(first, reducedRef.current) });
+  }, [dealId, at, navSeq, query, navTakeOver]);
 
   // ---- ui.memoCue: a tick change after mount; on mount, a cue under CUE_FRESH_MS old (§2.6)
   const memoCue = s.ui.memoCue;
@@ -285,6 +371,131 @@ export function FileScreen({ dealId, at, navSeq, slots }: FileScreenProps) {
   const amendFocus = s.ui.amendFocus;
   const amendAtMount = useRef(amendFocus ? amendFocus.tick : 0);
   const liveAmendFocus = amendFocus && amendFocus.tick !== amendAtMount.current ? amendFocus : null;
+
+  // ---- live drafting ---------------------------------------------------------------------------
+  // `settled`: the memo has rendered once, so a card that mounts from now on arrived while you
+  // watched (FileScreen is keyed by the file, so opening another file starts unsettled again).
+  const [settled, setSettled] = useState(false);
+  useEffect(() => setSettled(true), []);
+
+  const wasRunning = useRef(running);
+  useEffect(() => {
+    const was = wasRunning.current;
+    wasRunning.current = running;
+    if (running && !was) {
+      follow();
+      return;
+    }
+    // the run reached the gate while you were following: settle on the last card written from its
+    // head (the recommendation on the first pass, with the Decision card right under it; the
+    // revision after a send-back, which reads before the recommendation it changed)
+    if (!running && was && followingRef.current && viewRef.current?.mode === 'gate') {
+      const sc = canvasRef.current;
+      const id = lastFrontier.current;
+      const el = sc && id ? sc.querySelector<HTMLElement>(`[data-section="${esc(id)}"]`) : null;
+      if (sc && el) {
+        const v = sc.getBoundingClientRect();
+        const r = el.getBoundingClientRect();
+        if (r.bottom > v.bottom - FOLLOW_FOOT) {
+          sc.scrollTo({ top: sc.scrollTop + r.top - (v.top + CARD_SCROLL_MARGIN), behavior: scrollBehavior(false, reducedRef.current) });
+        }
+      }
+    }
+  }, [running, follow]);
+
+  // The reviewer takes over while the run drafts:
+  //   - a wheel or touch scroll that can move the memo (downward only with real memo below the view,
+  //     never the foot's padding, so wheeling toward the card being written keeps following);
+  //   - a scroll the follow did not make that goes up, or carries the card being written above the
+  //     view (scroll keys, the scrollbar, focus moving);
+  //   - a press inside any card but the one being written (its Record, a link, selecting text);
+  //   - a memo cue or a link into the file (navTakeOver above).
+  // Scrolling back down until the card being written sits whole in view picks it up again once the
+  // gesture that took over has settled; "Go to drafting" always does.
+  useEffect(() => {
+    const sc = canvasRef.current;
+    if (!sc || !running) return;
+    const frontierEl = () => {
+      const id = frontierRef.current;
+      return id ? sc.querySelector<HTMLElement>(`[data-section="${esc(id)}"]`) : null;
+    };
+    const onWheel = (e: WheelEvent) => {
+      const room = sc.scrollHeight - sc.clientHeight - sc.scrollTop;
+      if (e.deltaY < 0 ? sc.scrollTop > 0 : e.deltaY > 0 && room > FOLLOW_SLACK) takeOver();
+    };
+    const onTouch = () => takeOver();
+    const onPointer = (e: PointerEvent) => {
+      const t = e.target;
+      const card = t instanceof Element ? t.closest('[data-section]') : null;
+      if (card && card.getAttribute('data-section') !== frontierRef.current) takeOver();
+    };
+    let lastTop = sc.scrollTop;
+    const onScroll = () => {
+      const top = sc.scrollTop;
+      const down = top > lastTop;
+      const up = top < lastTop;
+      lastTop = top;
+      const now = performance.now();
+      const v = sc.getBoundingClientRect();
+      const bandTop = v.top + CARD_SCROLL_MARGIN;
+      if (followingRef.current) {
+        if (now < ownScrollUntil.current) return;
+        if (up) takeOver();
+        else if (down) {
+          const el = frontierEl();
+          if (el && el.getBoundingClientRect().top < bandTop - 8) takeOver();
+        }
+        return;
+      }
+      if (!down || now - tookOverAt.current < REFOLLOW_AFTER_MS) return;
+      const el = frontierEl();
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      if (r.top >= bandTop - 2 && r.bottom <= v.bottom) follow();
+    };
+    sc.addEventListener('wheel', onWheel, { passive: true });
+    sc.addEventListener('touchmove', onTouch, { passive: true });
+    sc.addEventListener('pointerdown', onPointer);
+    sc.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      sc.removeEventListener('wheel', onWheel);
+      sc.removeEventListener('touchmove', onTouch);
+      sc.removeEventListener('pointerdown', onPointer);
+      sc.removeEventListener('scroll', onScroll);
+    };
+  }, [running, takeOver, follow]);
+
+  // follow: when a card starts (the frontier moves) or grows, show it whole with a little canvas
+  // under it; a card taller than the view shows from its head. Opening a file mid-run jumps there
+  // (no long glide down a freshly mounted memo); every later move glides.
+  const openedRunning = useRef(running);
+  const followMoved = useRef(false);
+  useLayoutEffect(() => {
+    if (!frontier || !following) return;
+    const sc = canvasRef.current;
+    const el = query(`[data-section="${esc(frontier)}"]`);
+    if (!sc || !el) return;
+    let instant = openedRunning.current && !followMoved.current;
+    followMoved.current = true;
+    const bring = () => {
+      const v = sc.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      const top = v.top + CARD_SCROLL_MARGIN;
+      const bottom = v.bottom - FOLLOW_FOOT;
+      let dy = 0;
+      if (r.height > bottom - top || r.top < top) dy = r.top - top;
+      else if (r.bottom > bottom) dy = r.bottom - bottom;
+      if (Math.abs(dy) < 1) return;
+      ownScrollUntil.current = performance.now() + OWN_SCROLL_MS;
+      sc.scrollTo({ top: sc.scrollTop + dy, behavior: scrollBehavior(instant, reducedRef.current) });
+    };
+    bring();
+    instant = false;
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(bring);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [frontier, following, query]);
 
   if (!view) {
     return (
@@ -313,20 +524,28 @@ export function FileScreen({ dealId, at, navSeq, slots }: FileScreenProps) {
   };
 
   const goToDrafting = () => {
-    const target = view.sections.find((sec) => sec.phase === 'drafting') ?? view.sections.find((sec) => sec.phase === 'pending');
+    follow();
+    const target = view.sections.find((sec) => sec.phase === 'drafting');
     if (!target) return;
     const el = query(`[data-section="${esc(target.id)}"]`);
+    ownScrollUntil.current = performance.now() + OWN_SCROLL_MS;
     if (el) el.scrollIntoView({ block: 'start', behavior: 'auto' });
   };
 
   return (
     <div ref={rootRef} className="file" data-source={view.sourceView.open ? 'open' : 'closed'}>
       <div ref={canvasRef} className="file-canvas">
-        <DocBar docBar={view.docBar} source={view.sourceView} dealId={dealId} actions={a} onGoToDrafting={goToDrafting} />
+        <DocBar
+          docBar={following && running ? { ...view.docBar, goToDrafting: false } : view.docBar}
+          source={view.sourceView}
+          dealId={dealId}
+          actions={a}
+          onGoToDrafting={goToDrafting}
+        />
         <div className="file-content">
           <PageHeader header={view.header} ctx={ctx} />
           {view.sections.map((sec) => (
-            <SectionCard key={sec.id} sec={sec} ctx={ctx} />
+            <SectionCard key={sec.id} sec={sec} ctx={ctx} arrived={settled} />
           ))}
           {/* R2.2: the Decision card right after step 5, before the stress test. The slot renders
               the card's content (the whole decision at the gate, the sealed record after it). */}
@@ -345,7 +564,9 @@ export function FileScreen({ dealId, at, navSeq, slots }: FileScreenProps) {
               {slots.exhibits}
             </MemoCard>
           ) : null}
-          {view.rows.monitoring && view.appendix ? (
+          {/* the Portfolio Monitor's appendix arrives with the package; a link from the Book
+              (at=monitoring) shows it on a file that has none yet */}
+          {(view.rows.monitoring || at === 'monitoring') && view.appendix ? (
             <MemoCard section="monitoring" ariaLabel={view.appendix.heading}>
               <Appendix appendix={view.appendix} ctx={ctx} />
             </MemoCard>

@@ -26,11 +26,13 @@ import {
   awaitingAtOf,
   buildNotes,
   countedFlagsOf,
+  covenantInputsNotInCim,
   covenantRow,
   cureOf,
   dataGated,
   exhibitEntries,
   fileContext,
+  fileFigureRows,
   lowerFirst,
   packageDecision,
   returnedRecord,
@@ -317,6 +319,13 @@ export function signatureOf(ctx: FileCtx): SignatureView | null {
         ? `Notes on the record · you opened ${openedCount} of ${total}`
         : `Signed over · you opened ${openedCount} of ${total}`;
 
+  // R4.3 (Mobbin audit fix 3): the covenant inputs the CIM does not state, as ONE info item after the
+  // Signed over rows. Not a flag: never in signedOver, never counted above, never read by the policy
+  // or the call; it only takes the reviewer to the Covenants card, where each such Actual is marked.
+  const notInCim = !pending ? covenantInputsNotInCim(ctx.deal, fileFigureRows(ctx)).length : 0;
+  const inputsNotInCim: SignatureView['inputsNotInCim'] =
+    notInCim > 0 ? { text: COPY.inputsNotInCim(notInCim), linkLabel: COPY.showInMemo, target: memoTargetOfAnchor('sec:covenants') } : null;
+
   // the agent's pre-signed line
   const rev = pkg?.revision ?? 1;
   const awaitingAt = awaitingAtOf(ctx);
@@ -337,6 +346,8 @@ export function signatureOf(ctx: FileCtx): SignatureView | null {
       // what was actually signed: the amended outcome re-tested on the recorded terms
       sealedCaption = `${VERB_WORD['countersigned-amended']} · ${signedVerdict(ctx.deal, pkg.recommendation, sealed.amendments, 'your amended terms', pkg)} · Reviewer · ${stamp}`;
     } else sealedCaption = `${VERB_WORD.countersigned} · concurs ${recWord} · Reviewer · ${stamp}`;
+    // R4.3: the record says what it was decided over
+    if (notInCim > 0) sealedCaption += ` · ${COPY.sealedNotInCim(notInCim, sealed.outcome === 'reject' ? 'decided' : 'signed')}`;
   }
   const js = g.justSigned;
   const animate =
@@ -454,6 +465,7 @@ export function signatureOf(ctx: FileCtx): SignatureView | null {
     returned,
     signedOver,
     signedOverLabel,
+    inputsNotInCim,
     agent: { text: COPY.agentSignature, caption: agentCaption },
     reviewer,
     policy,

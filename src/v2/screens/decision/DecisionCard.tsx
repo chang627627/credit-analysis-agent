@@ -6,7 +6,9 @@
 // The owner-approved SignatureBlock arrangement, in the memo, top to bottom:
 //   head          eyebrow "Your countersignature · CAM-… · rev n" and the title "Decision"
 //                 (the record's eyebrow once sealed), then the returned history, if any;
-//   1 Signed over the counted notes ("you opened n of N"), each with its own "Show row";
+//   1 Signed over the counted notes ("you opened n of N"), each with its own "Show row"; then, when
+//                 covenant inputs are not stated in the CIM, ONE info item (R4.3, P-32) with "Show in
+//                 memo": not a flag, never counted, it only takes the reviewer to the Covenants card;
 //   2 note        the reviewer note with Draft from notes and the provenance chip (optional to
 //                 countersign, required to return or reject); while Return or Reject is armed its
 //                 label asks that verb's question, and a calm hint follows a second empty press;
@@ -71,12 +73,26 @@ function Checks({ checks }: { checks: { ok: boolean; text: string }[] }) {
   );
 }
 
-/** 1 · Signed over: the label, then 28px rows on 1px rules, each with its own link. */
-function SignedOver({ v, disabled, onShow }: { v: SignatureView; disabled: boolean; onShow: (o: SignatureView['signedOver'][number]) => void }) {
+/**
+ * 1 · Signed over: the label, then 28px rows on 1px rules, each with its own link. The info item
+ * (R4.3) closes the list in quieter type: it is not a note, so it never counts toward "you opened".
+ */
+function SignedOver({
+  v,
+  disabled,
+  onShow,
+  onInfo,
+}: {
+  v: SignatureView;
+  disabled: boolean;
+  onShow: (o: SignatureView['signedOver'][number]) => void;
+  onInfo: (info: NonNullable<SignatureView['inputsNotInCim']>) => void;
+}) {
+  const info = v.inputsNotInCim;
   return (
     <div className="decision__over">
       <p className="decision-ink3 t-label">{v.signedOverLabel}</p>
-      {v.signedOver.length > 0 ? (
+      {v.signedOver.length > 0 || info ? (
         <ul className="decision__overlist">
           {v.signedOver.map((o) => (
             <li key={o.flagId} className="decision__overrow">
@@ -90,6 +106,15 @@ function SignedOver({ v, disabled, onShow }: { v: SignatureView; disabled: boole
               </LinkButton>
             </li>
           ))}
+          {info ? (
+            <li className="decision__overrow" data-pattern="P-32">
+              <StatusGlyph state="info" srLabel={STATUS_WORD.info} />
+              <span className="decision__overtext decision-ink2 t-small">{info.text}</span>
+              <LinkButton role="label" onClick={() => onInfo(info)} disabled={disabled} ariaLabel={`${info.linkLabel} · ${info.text}`}>
+                {info.linkLabel}
+              </LinkButton>
+            </li>
+          ) : null}
         </ul>
       ) : null}
     </div>
@@ -230,6 +255,7 @@ export function DecisionCard({ dealId }: DecisionBlockProps) {
               v={v}
               disabled={dead}
               onShow={(o) => (sealedState ? a.cueMemo(o.target) : a.focusNoteById(o.noteId))}
+              onInfo={(info) => a.cueMemo(info.target)}
             />
 
             {/* 2 · the reviewer note, on the record */}

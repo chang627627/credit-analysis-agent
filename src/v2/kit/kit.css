@@ -107,6 +107,13 @@
 .v2 .k-link:disabled, .v2 .k-link[aria-disabled="true"] { color: var(--ink-3); cursor: not-allowed; }
 .v2 .k-link:disabled .k-link__text, .v2 .k-link[aria-disabled="true"] .k-link__text { text-decoration: none; }
 .v2 .k-link--provisional:disabled { border-bottom: var(--line-provisional); }
+/* tone inherit (P-32): a figure that traces to its memo row keeps the surrounding ink (a breached
+   Actual stays bad-ink); a quiet --line underline at rest says it is a link, the ink on hover */
+.v2 .k-link--inherit { color: inherit; }
+.v2 .k-link--inherit .k-link__text { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.v2 .k-link--inherit:hover .k-link__text, .v2 .k-link--inherit[data-force="hover"] .k-link__text { text-decoration-color: currentColor; text-underline-offset: 3px; }
+.v2 .k-link--inherit:disabled { color: inherit; }
+.v2 .k-link--inherit:disabled .k-link__text { text-decoration: none; }
 
 /* ---- Kbd ---- */
 .v2 .k-kbd {

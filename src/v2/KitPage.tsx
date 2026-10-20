@@ -168,6 +168,9 @@ const NOTE_RESTRUCTURE: NoteView = FX_NOTES.restructure;
 const NOTE_SIGNED_OVER: NoteView = FX_NOTES.signedOver;
 
 const LEV_ROW = COVENANTS.find((c) => c.amend?.kind === 'leverage') ?? null;
+/** R4.3 specimens: a covenant input the CIM does not state, and a breached Actual (both trace to Financials). */
+const COV_INTEREST = COVENANTS.find((c) => c.evidence?.cls === 'unquoted') ?? null;
+const COV_BREACH = COVENANTS.find((c) => c.actualTone === 'bad') ?? null;
 const STATUS_KEYS = Object.keys(STATUS_WORD) as StatusKey[];
 const TOKEN_KEYS = ['approve', 'escalate', 'decline', 'rejected'] as const;
 const TOKEN_VARIANTS = ['solid', 'muted', 'struck'] as const;
@@ -926,6 +929,29 @@ function IconLinkKbdBoard() {
               {COPY.openFile}
             </LinkButton>
           </Cell>
+          {COV_INTEREST && COV_INTEREST.evidence ? (
+            <Cell caption="tone inherit · role figure (P-32): a covenant Actual that traces to its Financials row · rest (quiet --line underline)">
+              <LinkButton role="figure" tone="inherit" ariaLabel={COV_INTEREST.evidence.ariaLabel} onClick={noop}>
+                {COV_INTEREST.actual}
+              </LinkButton>
+            </Cell>
+          ) : null}
+          {COV_INTEREST && COV_INTEREST.evidence ? (
+            <Cell caption="tone inherit · hover (the underline takes the ink)">
+              <LinkButton role="figure" tone="inherit" force="hover" ariaLabel={COV_INTEREST.evidence.ariaLabel} onClick={noop}>
+                {COV_INTEREST.actual}
+              </LinkButton>
+            </Cell>
+          ) : null}
+          {COV_BREACH && COV_BREACH.evidence ? (
+            <Cell caption="tone inherit · inside a breached row: it keeps the bad-ink">
+              <span className="kp-bad">
+                <LinkButton role="figure" tone="inherit" ariaLabel={COV_BREACH.evidence.ariaLabel} onClick={noop}>
+                  {COV_BREACH.actual}
+                </LinkButton>
+              </span>
+            </Cell>
+          ) : null}
         </Grid>
       </Group>
       <Group id="board-kbd" label="Kbd">
@@ -1059,7 +1085,7 @@ function TipCiteEvidenceBoard() {
       <Group label="Tip (specimen: open, in normal flow)">
         <Grid size="wide">
           <Cell caption="placement top">
-            <Tip label="No CIM sentence states this figure; it comes from the extraction." specimen>
+            <Tip label="No CIM sentence states this figure; it comes from the extraction model." specimen>
               <span className="kp-tipchild t-small">{unquoted?.evidence.text ?? COPY.evidenceCheck}</span>
             </Tip>
           </Cell>
@@ -1102,7 +1128,7 @@ function TipCiteEvidenceBoard() {
             </Cell>
           ) : null}
           {unquoted ? (
-            <Cell caption={`unquoted · ${unquoted.label} ${unquoted.value}`}>
+            <Cell caption={`not in the CIM · ${unquoted.label} ${unquoted.value} · it comes from the extraction model (R4.3)`}>
               <EvidenceSpecimen ev={unquoted.evidence} />
             </Cell>
           ) : null}
@@ -1521,6 +1547,26 @@ const COV_COLUMNS: TableColumn[] = [
   { key: 'cushion', label: 'Cushion', width: '152px' },
   { key: 'status', label: 'Status', width: '104px' },
 ];
+/** The Actual as the memo renders it (R4.3, P-32): it traces to its Financials row in the row's own ink; a figure the CIM does not state carries one t-meta line. */
+function CovActual({ c }: { c: CovenantRow }) {
+  const ev = c.evidence;
+  return (
+    <span className={c.actualTone === 'bad' ? 'kp-bad' : undefined}>
+      {ev ? (
+        <LinkButton role="figure" tone="inherit" ariaLabel={ev.ariaLabel} onClick={noop}>
+          {c.actual}
+        </LinkButton>
+      ) : (
+        c.actual
+      )}
+      {ev && ev.line ? (
+        <span className="kp-actualsrc t-meta" data-pattern="P-32">
+          {ev.line}
+        </span>
+      ) : null}
+    </span>
+  );
+}
 const covRow = (c: CovenantRow, extra: Partial<TableRow> = {}): TableRow => ({
   key: c.anchorId,
   height: 36,
@@ -1528,7 +1574,7 @@ const covRow = (c: CovenantRow, extra: Partial<TableRow> = {}): TableRow => ({
   cells: {
     name: <span className="t-strong">{c.name}</span>,
     threshold: c.threshold,
-    actual: <span className={c.actualTone === 'bad' ? 'kp-bad' : undefined}>{c.actual}</span>,
+    actual: <CovActual c={c} />,
     cushion: <CushionCell c={c.cushion} />,
     status: (
       <StatusLabel state={c.status} role="small">
@@ -2005,7 +2051,7 @@ function MemoCardBoard() {
       }
     >
       <Group label="A memo on the canvas: one card per section (Atlas, rev 1 gate and rev 2)">
-        <Cell caption="Financials (breach marked where it sits, the evidence check as a foot line; press Show row to flash total leverage) · Covenant compliance (stackBelow 640) · Recommendation rev 2 (struck prior + token) · every set card ends in its footer line and Record" block>
+        <Cell caption="Financials (breach marked where it sits, the evidence check as a foot line naming the covenant inputs the CIM does not state; press Show row to flash total leverage) · Covenant compliance (stackBelow 640; each Actual traces to its Financials row, and one the CIM does not state carries “Not in CIM”, P-32) · Recommendation rev 2 (struck prior + token) · every set card ends in its footer line and Record" block>
           <div className="kp-canvas">
             {FIN ? <FinancialsCard s={FIN} prefix="kit-card" flashKey={flash === 0 ? undefined : flash} /> : null}
             {COV_SECTION ? <CovenantsCard s={COV_SECTION} /> : null}
@@ -2261,10 +2307,10 @@ function DecisionSpecimen({ v, anchor }: { v: SignatureView; anchor: string }) {
   return (
     <MemoCard section="signature" ariaLabel={v.heading}>
       <SectionHead eyebrow={v.eyebrow} heading={v.heading} anchorId={anchor} />
-      {v.signedOver.length > 0 || !sealed ? (
+      {v.signedOver.length > 0 || v.inputsNotInCim || !sealed ? (
         <div className="kp-block">
           <p className="kp-block__label t-label">{v.signedOverLabel}</p>
-          {v.signedOver.length > 0 ? (
+          {v.signedOver.length > 0 || v.inputsNotInCim ? (
             <ul className="kp-signedover">
               {v.signedOver.map((o) => (
                 <li key={o.noteId} className="kp-signedover__row">
@@ -2277,6 +2323,16 @@ function DecisionSpecimen({ v, anchor }: { v: SignatureView; anchor: string }) {
                   </LinkButton>
                 </li>
               ))}
+              {/* R4.3 (P-32): one info item, quieter than a note and never counted in "you opened n of N" */}
+              {v.inputsNotInCim ? (
+                <li className="kp-signedover__row" data-pattern="P-32">
+                  <StatusGlyph state="info" srLabel={STATUS_WORD.info} />
+                  <span className="t-small kp-ink2">{v.inputsNotInCim.text}</span>
+                  <LinkButton role="label" onClick={noop}>
+                    {v.inputsNotInCim.linkLabel}
+                  </LinkButton>
+                </li>
+              ) : null}
             </ul>
           ) : null}
         </div>
@@ -2410,13 +2466,14 @@ function DecisionSpecimen({ v, anchor }: { v: SignatureView; anchor: string }) {
 }
 
 const DECISION_CASES: { key: string; v: SignatureView; caption: string }[] = [
-  { key: 'gate', v: FX_SIG_ATLAS_GATE, caption: 'Atlas rev 1 gate · the call (always the agent’s own token) directly above the verbs; one row of verbs, a consequence under each; attestation and policy line under the verbs' },
+  { key: 'gate', v: FX_SIG_ATLAS_GATE, caption: 'Atlas rev 1 gate · the call (always the agent’s own token) directly above the verbs; one row of verbs, a consequence under each; attestation and policy line under the verbs · Signed over closes with ONE info item, “3 covenant inputs are not stated in the CIM · Show in memo” (P-32): not a flag, not counted in “you opened 0 of 2”' },
   { key: 'amended', v: FX_SIG_ATLAS_AMENDED, caption: 'amended in place on the covenant row · the amendment summary with Revert and Edit in memo; the lead token still reads the agent’s ESCALATE' },
   { key: 'rev2', v: FX_SIG_ATLAS_REV2, caption: 'rev 2 on the revised structure · policy on, not eligible (Show checks)' },
   { key: 'cobalt', v: FX_SIG_COBALT_GATE, caption: 'Cobalt rev 1 · DECLINE, five notes to sign over' },
   { key: 'armed-return', v: FX_SIG_ATLAS_ARMED_RETURN, caption: 'Return armed (P-30) · the first press only armed it: the note typed before is selected for review, the label asks what to revise (quoted in Revision 2), the button reads its commit label with ⌘↵, a quiet Cancel shares the row; Esc in the card also disarms' },
   { key: 'armed-reject', v: FX_SIG_COBALT_ARMED_REJECT, caption: 'Reject armed, pressed again on an empty note (P-30) · it stays armed and a calm hint asks for the reason (t-small, never a red alert); the other refusal verb would re-arm to it; the primary still signs at once' },
-  { key: 'sealed', v: FX_SIG_SEALED, caption: 'countersigned · the same card becomes the sealed record: no verbs, no note field; headline, ink, quote, provenance, routed line' },
+  { key: 'sealed', v: FX_SIG_SEALED, caption: 'countersigned · the same card becomes the sealed record: no verbs, no note field; headline, ink, quote, provenance, routed line · the caption ends “signed with 3 inputs not stated in the CIM” (P-32)' },
+  { key: 'auto-sealed', v: FX_SIG_AUTO_SEALED, caption: 'auto-countersigned (Meridian) · no notes to sign over, so Signed over holds only the info item (P-32); the policy and its checks are unchanged by it' },
 ];
 
 function DecisionCardBoard() {

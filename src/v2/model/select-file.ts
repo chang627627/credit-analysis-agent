@@ -84,6 +84,7 @@ import {
 import type {
   AppendixView,
   ConfirmView,
+  CovenantEvidence,
   CovenantRow,
   CushionView,
   DeskRow,
@@ -128,6 +129,8 @@ import {
   COPY,
   driverTone,
   noCureText,
+  NOT_IN_CIM,
+  NOT_IN_CIM_SHORT,
   policyPct,
   provenanceText,
   sectionHeading,
@@ -285,6 +288,11 @@ export function reworkTag(title: string): string {
 /** First letter lower-cased (verb words inside a sentence). */
 export function lowerFirst(t: string): string {
   return t.length > 0 ? t[0].toLowerCase() + t.slice(1) : t;
+}
+
+/** First letter upper-cased (a list that opens a sentence). */
+function upperFirst(t: string): string {
+  return t.length > 0 ? t[0].toUpperCase() + t.slice(1) : t;
 }
 
 /** 'Total Leverage' → 'Total leverage'; acronyms and parentheses stay as written. */
@@ -1098,6 +1106,53 @@ export function figureRows(ctx: FileCtx, data: unknown): FigureRow[] {
   });
 }
 
+/** The file's eight figure rows, read from its extraction step (the deal's filed figures before it runs). */
+export function fileFigureRows(ctx: FileCtx): FigureRow[] {
+  const extract = ctx.steps.find((st) => st.id === 'step_extract');
+  return figureRows(ctx, extract?.result?.data);
+}
+
+/** The figure a covenant tests (leverage, interest, fixed, liquidity), or null for any other covenant. */
+function figureOfCovenant(name: string): FigureId | null {
+  const kind = covenantKind(name);
+  return kind === 'other' ? null : kind;
+}
+
+/**
+ * THREE-PANE R4.3 (Mobbin audit fix 3): a covenant's Actual carries its figure's evidence, read from
+ * the Financials row, so a covenant input the CIM does not state says so where the test reads it.
+ * The line under the Actual is set only for that class (the short form: the column is 88px). Null
+ * when the covenant tests no memo figure.
+ */
+export function covenantEvidence(c: CovenantTest, rows: FigureRow[]): CovenantEvidence | null {
+  const fig = figureOfCovenant(c.name);
+  const row = fig ? rows.find((r) => r.id === fig) : undefined;
+  if (!row) return null;
+  const text = evidenceText(row.evidence);
+  return {
+    cls: row.evidence.cls,
+    text,
+    line: row.evidence.cls === 'unquoted' ? NOT_IN_CIM_SHORT : null,
+    target: memoTargetOfAnchor(row.anchorId),
+    ariaLabel: `${c.name} actual ${c.actual}. ${text}. Show in ${sectionHeading('financials')}.`,
+  };
+}
+
+/**
+ * R4.3: the deal's covenant tests whose Actual the CIM does not state (the figure's evidence is
+ * 'Not in the CIM · extraction model'), in table order, each with its Financials row. One reading for
+ * the Financials foot line, the covenant rows, the Decision card's info item and the sealed caption.
+ */
+export function covenantInputsNotInCim(deal: Deal, rows: FigureRow[]): { covenant: CovenantTest; row: FigureRow }[] {
+  const out: { covenant: CovenantTest; row: FigureRow }[] = [];
+  for (const c of deal.covenants) {
+    const fig = figureOfCovenant(c.name);
+    const row = fig ? rows.find((r) => r.id === fig) : undefined;
+    if (row && row.evidence.cls === 'unquoted') out.push({ covenant: c, row });
+  }
+  return out;
+}
+
 function riskBody(ctx: FileCtx, data: unknown): RiskBody {
   const r = asRisk(data, ctx.deal);
   return {
@@ -1141,8 +1196,17 @@ const AMEND_FIELD = {
   liquidity: { step: 0.5, min: 0, max: 50, prefix: '≥ $', suffix: 'M' },
 } as const;
 
-/** One covenant row: signed cushion on the effective threshold; status re-tested under amendments. */
-export function covenantRow(c: CovenantTest, amendments: Amendment[], changed: string[], amend: CovenantRow['amend']): CovenantRow {
+/**
+ * One covenant row: signed cushion on the effective threshold; status re-tested under amendments.
+ * `evidence` is the Actual's (R4.3); the stress test passes none (its actuals are scenario values).
+ */
+export function covenantRow(
+  c: CovenantTest,
+  amendments: Amendment[],
+  changed: string[],
+  amend: CovenantRow['amend'],
+  evidence: CovenantEvidence | null = null,
+): CovenantRow {
   const eff = effectiveThreshold(c.name, c.threshold, amendments);
   const pass = (c.status === 'pass') !== changed.includes(c.name);
   const word = pass ? STATUS_WORD.pass : STATUS_WORD.breach;
@@ -1157,10 +1221,11 @@ export function covenantRow(c: CovenantTest, amendments: Amendment[], changed: s
     status: pass ? 'pass' : 'breach',
     statusText: eff.amended ? `${word} · as amended` : word,
     amend,
+    evidence,
   };
 }
 
-function covenantRows(ctx: FileCtx, data: unknown): CovenantRow[] {
+function covenantRows(ctx: FileCtx, data: unknown, rows: FigureRow[]): CovenantRow[] {
   const tests = asCovenants(data, ctx.deal);
   const amendments = amendmentsOf(ctx);
   const changed = amendedChanged(ctx.deal, amendments);
@@ -1174,7 +1239,7 @@ function covenantRows(ctx: FileCtx, data: unknown): CovenantRow[] {
       const value = kind === 'leverage' ? g.levMax ?? filed : g.liqMin ?? filed;
       amend = { kind, value, ...AMEND_FIELD[kind] };
     }
-    return covenantRow(c, amendments, changed, amend);
+    return covenantRow(c, amendments, changed, amend, covenantEvidence(c, rows));
   });
 }
 
@@ -1185,7 +1250,7 @@ function keyFigures(ctx: FileCtx, pkg: ApprovalPackage, rows: FigureRow[]): KeyF
     const [value, second] = k.value.split(' · ');
     const revised = k.source === 'propose_restructure' && !!pkg.restructure;
     const row = id ? rows.find((r) => r.id === id) : undefined;
-    const evidence: EvidenceView = revised ? modelEvidence('revised') : row?.evidence ?? { cls: 'unquoted', text: 'Unquoted · extracted' };
+    const evidence: EvidenceView = revised ? modelEvidence('revised') : row?.evidence ?? { cls: 'unquoted', text: NOT_IN_CIM };
     const anchorId = revised && id ? `rev${pkg.revision}:${id}` : id ? `fig:${id}` : 'sec:financials';
     const cov = id ? covenantForFigure(ctx.deal, id) : undefined;
     let caption: string | null = null;
@@ -1545,15 +1610,36 @@ function flagLinesOf(ctx: FileCtx, id: SectionId, notes: NotesBuild, rows: Figur
   return out;
 }
 
-/** The evidence check as one memo line, or null when every figure is quoted or derived from quoted figures. */
+/**
+ * The evidence check as one memo line (R4.3), or null when every figure is quoted or derived from
+ * quoted figures. It names the covenant tests whose inputs the CIM does not state, counted and named
+ * from the figures, and says where those figures come from (the extraction model); a figure outside
+ * the covenant tests that the CIM does not state is named after them.
+ */
 export function evidenceCheckLine(ctx: FileCtx, rows: FigureRow[]): string | null {
-  const unquoted = rows.filter((r) => r.evidence.cls === 'unquoted');
-  if (unquoted.length === 0) return null;
-  const names = listJoin(unquoted.map((r) => lowerFirst(r.label)));
-  let text = `${unquoted.length} of ${rows.length} figures are not quoted in the CIM (${names}); verify them against the source.`;
+  const unstated = rows.filter((r) => r.evidence.cls === 'unquoted');
+  if (unstated.length === 0) return null;
+  const inputs = covenantInputsNotInCim(ctx.deal, rows);
+  const others = unstated.filter((r) => !inputs.some((i) => i.row.id === r.id));
+  const names = (list: FigureRow[]) => listJoin(list.map((r) => lowerFirst(r.label)));
+  const parts: string[] = [];
+  if (inputs.length > 0) {
+    const n = inputs.length;
+    const total = ctx.deal.covenants.length;
+    const one = n === 1;
+    parts.push(
+      `${n} of ${total} covenant ${total === 1 ? 'test' : 'tests'} ${one ? 'uses a figure' : 'use figures'} the CIM does not state (${names(inputs.map((i) => i.row))}); ${one ? 'it comes' : 'they come'} from the extraction model.`,
+    );
+    if (others.length > 0) parts.push(`${upperFirst(names(others))} ${others.length === 1 ? 'is' : 'are'} not stated in the CIM either.`);
+  } else {
+    const one = others.length === 1;
+    parts.push(
+      `${others.length} of ${rows.length} figures ${one ? 'is' : 'are'} not stated in the CIM (${names(others)}); ${one ? 'it comes' : 'they come'} from the extraction model.`,
+    );
+  }
   const extract = ctx.steps.find((st) => st.id === 'step_extract');
-  if (ctx.deal.uploaded && extract?.result) text += ` Extraction ran at ${fmtConf(extract.result.confidence)} confidence on an unseen document.`;
-  return text;
+  if (ctx.deal.uploaded && extract?.result) parts.push(`Extraction ran at ${fmtConf(extract.result.confidence)} confidence on an unseen document.`);
+  return parts.join(' ');
 }
 
 /**
@@ -1647,7 +1733,7 @@ export function buildSections(ctx: FileCtx, rows: FigureRow[], built?: NotesBuil
       const take = peers && median ? peersTakeaway(peers.deal.leverageX, median.leverageX) : null;
       out.push({ ...withTake(take), kind: 'peers', body: set ? peersBody(data) : null });
     } else if (id === 'covenants') {
-      const body = set ? covenantRows(ctx, data) : null;
+      const body = set ? covenantRows(ctx, data, rows) : null;
       out.push({
         ...withTake(body ? covenantsTakeaway(body, amended) : null),
         kind: 'covenants',
@@ -1931,8 +2017,7 @@ export function selectFile(s: V2Store, dealId: string): FileView | null {
   const ctx = fileContext(s, dealId);
   if (!ctx) return null;
   const notes = buildNotes(ctx);
-  const extract = ctx.steps.find((st) => st.id === 'step_extract');
-  const rows = figureRows(ctx, extract?.result?.data);
+  const rows = fileFigureRows(ctx);
   const sections = buildSections(ctx, rows, notes);
   const parsing = parsingReason(s);
   const pkg = ctx.pkg;

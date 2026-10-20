@@ -31,6 +31,17 @@ export const AUTO_NOTE = `Auto-countersigned · clean-approval policy (recommend
 /** Confidence at and above which a figure stays neutral (never green). */
 export const CONF_NEUTRAL = 0.9;
 
+// ---- evidence words (THREE-PANE R4.3, Mobbin audit fix 3)
+
+/**
+ * The evidence class of a figure no CIM sentence states: the extraction model produced it. The
+ * no-break space keeps "extraction model" together, so a narrow Source column or key figure wraps
+ * after the "·" ("Not in the CIM ·" / "extraction model") instead of orphaning "model".
+ */
+export const NOT_IN_CIM = 'Not in the CIM · extraction\u00a0model' as const;
+/** Its short form, only where space requires it: the line under a covenant's Actual (an 88px column). */
+export const NOT_IN_CIM_SHORT = 'Not in CIM';
+
 // ---- §5 status words
 
 export const STATUS_WORD: Record<StatusKey, string> = {
@@ -349,6 +360,10 @@ export const COPY = {
   askMetaLocal: 'Countersign',
   evidenceCheck: 'Evidence check',
   evidenceCheckMeta: 'Countersign · deterministic check',
+  /** R4.3: the Decision card's one info item under Signed over (not a flag, never counted in "you opened n of N") */
+  inputsNotInCim: (n: number): string => (n === 1 ? '1 covenant input is not stated in the CIM' : `${n} covenant inputs are not stated in the CIM`),
+  /** R4.3: the clause the sealed record's caption adds ('signed with 3 inputs not stated in the CIM') */
+  sealedNotInCim: (n: number, verb: 'signed' | 'decided'): string => `${verb} with ${n} ${n === 1 ? 'input' : 'inputs'} not stated in the CIM`,
   basisFiled: 'On the filed figures',
   flipOnRevised: 'On the revised structure',
   flipSeeStress: 'Nearest flip · see the stress test',

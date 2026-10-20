@@ -547,7 +547,7 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   supersede all of them.
 - **Guardrails:** `npm run v2-check` (28 greps: tokens only, 400/500/600, 4px grid, one
   infinite animation, no hand-rolled controls outside the kit, V1 + engine hashes untouched, …).
-  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-31, rendered on `/?kit`) for
+  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-32, rendered on `/?kit`) for
   owner approval; every `data-pattern` id needs an entry there, every kit export a kit-page specimen.
 - **Storage** (only in `src/v2/state/`): `v2.navCollapsed`, `v2.chatOpen` (only `state/panes.ts`).
   (`v2.showReasoning` was retired with R2: reasoning lives in each card's Record.) **Auto-countersign
@@ -607,7 +607,9 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   Then ONE quiet footer line, "Document Intelligence · 94% · 1.1 s", with a collapsed "Record"
   disclosure holding the tool's args in, data out and the reasoning (`SectionView.footer`; kit
   `Disclosure` `lead` puts the line and the trigger on one row). Tables stack by their own width
-  (`stackBelow` 640 for covenants, 480 for financials). **Live drafting, no skeleton cards**
+  (`stackBelow` 640 for covenants, 480 for financials). Each covenant Actual traces to its
+  Financials row (scroll + one flash), and one the CIM does not state carries "Not in CIM" under it
+  (P-32, see below). **Live drafting, no skeleton cards**
   (THREE-PANE R3): before Start drafting the memo is its header alone; a card exists once its step
   starts — it rises in once (`MemoCard enter`) with the drafting line and the app's only caret, then
   writes itself in when its step returns (`MemoCard reveal`: takeaway, blocks, table rows, flag lines,
@@ -624,7 +626,8 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   on its marked line, `flag:<id>`).
 - **Decision card** (P-23, `screens/decision/DecisionCard.tsx`, the memo's `signature` slot, renders
   `selectSignature` → `SignatureView` in full): the ONE place to decide, its own card right after
-  step 5. In order: Signed over ("you opened n of N", each with Show row or Show in memo) · reviewer note (Draft from
+  step 5. In order: Signed over ("you opened n of N", each with Show row or Show in memo; then ONE
+  uncounted info item when covenant inputs are not stated in the CIM, P-32) · reviewer note (Draft from
   notes + provenance chip; optional to countersign, required to return or reject) · amendment
   summary with Revert (amending itself stays on the covenant row) · the call **directly above the
   verbs**: "The agent recommends [TOKEN]" (always the agent's own call) + the question + the
@@ -669,6 +672,22 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   hold. Everything else waits for you." The top-bar switch wears the kit Tip with the one-line version
   ("Clean means APPROVE · no flags · first pass · every key figure at 90% or above → countersign after
   a 5 s countdown you can hold."); the kit Switch forwards `aria-describedby` for it.
+- **Covenant inputs the CIM does not state are on the record** (P-32, THREE-PANE R4.3, Mobbin audit
+  fix 3). Interest coverage, fixed-charge coverage and liquidity are stated in no sample CIM, yet
+  they are 3 of the 4 covenant-tested actuals. Their evidence class reads "Not in the CIM ·
+  extraction model" everywhere (`NOT_IN_CIM`; class id still `unquoted`; the short "Not in CIM" only
+  under a covenant Actual, an 88px column). The Financials foot line counts and names them, computed:
+  "3 of 4 covenant tests use figures the CIM does not state (interest coverage, fixed-charge
+  coverage and liquidity); they come from the extraction model." (no more "verify them against the
+  source", which the CIM cannot support). `CovenantRow.evidence` (`covenantEvidence`: class, text,
+  the "Not in CIM" line, the Financials-row target, an aria label; `null` in the stress test): every
+  Actual is a kit `LinkButton role="figure" tone="inherit"` (new variant: the row's own ink, quiet
+  `--line` underline) that traces to its Financials row via `cueMemo`; columns and `stackBelow 640`
+  unchanged. The Decision card's Signed over closes with ONE info item, "3 covenant inputs are not
+  stated in the CIM · Show in memo" (`SignatureView.inputsNotInCim`, lands on the Covenants card):
+  not a flag, never counted in "you opened n of N", never read by the policy or the engine. The
+  sealed caption adds "signed with 3 inputs not stated in the CIM" ("decided with …" on a
+  rejection). Engine numbers unchanged.
 - **Rejected by the owner during the V2 build (do not resurrect):** vertical "Source ¶" spine
   (source opens from a doc-bar button instead) · the ¶ citation mark (reads "CIM para 2") ·
   recommendation at the top of the memo · side margin column of notes (left empty gaps) ·

@@ -11,7 +11,7 @@
 // are MarginNote specimens; the raw step record is FX_STUB_EXTRACT.
 // ---------------------------------------------------------------------------
 
-import { AUTO_NOTE, COPY, IMPERATIVE, sectionLinkLabel, STATUS_WORD, tokenOf } from './vocab';
+import { AUTO_NOTE, COPY, IMPERATIVE, NOT_IN_CIM, NOT_IN_CIM_SHORT, sectionLinkLabel, STATUS_WORD, tokenOf } from './vocab';
 import { EM, MINUS } from './format';
 import { policyRule } from './select-top';
 import type {
@@ -20,6 +20,7 @@ import type {
   BookItem,
   BookRow,
   BookView,
+  CovenantEvidence,
   CovenantRow,
   DeskRow,
   DeskView,
@@ -390,7 +391,7 @@ const NOTE_ATLAS_EVIDENCE: NoteView = {
   tone: 'info',
   status: 'info',
   heading: COPY.evidenceCheck,
-  text: '3 of 8 figures are not quoted in the CIM: interest coverage, fixed-charge coverage and liquidity. They come from the extraction model; verify against the source.',
+  text: '3 of 4 covenant tests use figures the CIM does not state (interest coverage, fixed-charge coverage and liquidity); they come from the extraction model.',
   meta: COPY.evidenceCheckMeta,
   anchorId: 'sec:financials',
   counted: false,
@@ -429,7 +430,7 @@ const NOTE_ATLAS_RESTRUCTURE: NoteView = {
 
 const quoted = (para: number, offset: number, citeIndex: number) =>
   ({ cls: 'quoted', text: 'Quoted', para, paraLabel: `CIM para ${para}`, markId: `m${para}-${offset}`, citeIndex }) as const;
-const UNQUOTED = { cls: 'unquoted', text: 'Unquoted · extracted' } as const;
+const UNQUOTED = { cls: 'unquoted', text: NOT_IN_CIM } as const;
 
 const ATLAS_MARKS = ['m2-80', 'm2-111', 'm2-121', 'm2-190'];
 
@@ -505,9 +506,9 @@ const KEYFIGS_ATLAS: KeyFigureView[] = [
     caption: '0.10x room · ≥ 2.00x',
     tone: 'warn',
     dot: 'warn',
-    evidenceText: 'Unquoted · extracted',
+    evidenceText: NOT_IN_CIM,
     anchorId: 'fig:interest',
-    ariaLabel: 'Interest coverage 2.10x, 0.10x room · ≥ 2.00x. Unquoted · extracted. Show in Financials.',
+    ariaLabel: `Interest coverage 2.10x, 0.10x room · ≥ 2.00x. ${NOT_IN_CIM}. Show in Financials.`,
     target: { section: 'financials', anchorId: 'fig:interest' },
   },
   {
@@ -517,9 +518,9 @@ const KEYFIGS_ATLAS: KeyFigureView[] = [
     caption: '$4.2M room · ≥ $10.0M',
     tone: 'ink',
     dot: null,
-    evidenceText: 'Unquoted · extracted',
+    evidenceText: NOT_IN_CIM,
     anchorId: 'fig:liquidity',
-    ariaLabel: 'Liquidity $14.2M, $4.2M room · ≥ $10.0M. Unquoted · extracted. Show in Financials.',
+    ariaLabel: `Liquidity $14.2M, $4.2M room · ≥ $10.0M. ${NOT_IN_CIM}. Show in Financials.`,
     target: { section: 'financials', anchorId: 'fig:liquidity' },
   },
 ];
@@ -571,6 +572,15 @@ const PEERS_ATLAS: PeersBody = {
 const AMEND_LEVERAGE = { kind: 'leverage' as const, value: 4, step: 0.05, min: 1, max: 8, prefix: '≤ ', suffix: 'x' };
 const AMEND_LIQUIDITY = { kind: 'liquidity' as const, value: 10, step: 0.5, min: 0, max: 50, prefix: '≥ $', suffix: 'M' };
 
+/** A covenant Actual's evidence, read from its Financials row (R4.3); the line only for a figure the CIM does not state. */
+const covEv = (name: string, actual: string, fig: string, text: string): CovenantEvidence => ({
+  cls: text === NOT_IN_CIM ? 'unquoted' : text.startsWith('Derived') ? 'derived' : 'quoted',
+  text,
+  line: text === NOT_IN_CIM ? NOT_IN_CIM_SHORT : null,
+  target: { section: 'financials', anchorId: `fig:${fig}` },
+  ariaLabel: `${name} actual ${actual}. ${text}. Show in Financials.`,
+});
+
 /** Filed figures, no amend fields (sealed, snapshot, restructured revision). */
 const COVENANTS_ATLAS: CovenantRow[] = [
   {
@@ -584,6 +594,7 @@ const COVENANTS_ATLAS: CovenantRow[] = [
     status: 'breach',
     statusText: 'Breach',
     amend: null,
+    evidence: covEv('Max Total Leverage', '4.26x', 'leverage', 'Derived · 96.3 ÷ 22.6'),
   },
   {
     anchorId: 'cov:Min Interest Coverage',
@@ -596,6 +607,7 @@ const COVENANTS_ATLAS: CovenantRow[] = [
     status: 'pass',
     statusText: 'Pass',
     amend: null,
+    evidence: covEv('Min Interest Coverage', '2.10x', 'interest', NOT_IN_CIM),
   },
   {
     anchorId: 'cov:Min Fixed-Charge Coverage',
@@ -608,6 +620,7 @@ const COVENANTS_ATLAS: CovenantRow[] = [
     status: 'pass',
     statusText: 'Pass',
     amend: null,
+    evidence: covEv('Min Fixed-Charge Coverage', '1.18x', 'fixed', NOT_IN_CIM),
   },
   {
     anchorId: 'cov:Min Liquidity',
@@ -620,6 +633,7 @@ const COVENANTS_ATLAS: CovenantRow[] = [
     status: 'pass',
     statusText: 'Pass',
     amend: null,
+    evidence: covEv('Min Liquidity', '$14.2M', 'liquidity', NOT_IN_CIM),
   },
 ];
 /** The live rev 1 gate: leverage and liquidity thresholds are AmendFields. */
@@ -663,7 +677,7 @@ const EVIDENCE_ATLAS: SectionFlagLine = {
   id: 'evidence-check',
   flagId: null,
   state: 'info',
-  text: '3 of 8 figures are not quoted in the CIM (interest coverage, fixed-charge coverage and liquidity); verify them against the source.',
+  text: '3 of 4 covenant tests use figures the CIM does not state (interest coverage, fixed-charge coverage and liquidity); they come from the extraction model.',
   anchorId: 'flag:evidence-check',
 };
 const take = (state: TakeawayView['state'], text: string, basis: string | null = null): TakeawayView => ({ state, text, token: null, prior: null, basis });
@@ -1153,8 +1167,8 @@ const REC_UP: RecommendationBody = {
     upKey('Revenue (TTM)', '$155.7M', 'Quoted · CIM para 2', 'fig:revenue'),
     upKey('Adj. EBITDA', '$23.4M', 'Quoted · CIM para 2', 'fig:ebitda', { sub: '15.0% margin' }),
     upKey('Total leverage', '4.99x', 'Quoted · CIM para 2', 'fig:leverage', { caption: '0.99x over ≤ 4.00x', tone: 'bad', dot: 'bad' }),
-    upKey('Interest coverage', '4.25x', 'Unquoted · extracted', 'fig:interest', { caption: '2.25x room · ≥ 2.00x' }),
-    upKey('Liquidity', '$25.7M', 'Unquoted · extracted', 'fig:liquidity', { caption: '$15.7M room · ≥ $10.0M' }),
+    upKey('Interest coverage', '4.25x', NOT_IN_CIM, 'fig:interest', { caption: '2.25x room · ≥ 2.00x' }),
+    upKey('Liquidity', '$25.7M', NOT_IN_CIM, 'fig:liquidity', { caption: '$15.7M room · ≥ $10.0M' }),
   ],
   aidLabel: COPY.aidLabel,
   nearestFlip: `${COPY.flipUnverified('ESCALATE')} · Nearest flip · Total debt ≤ $79.5M (${M}$37.3M) → APPROVE`,
@@ -1189,10 +1203,18 @@ const COVENANTS_UP: CovenantRow[] = [
     actual: '4.99x',
     cushion: { pct: -24.8, text: `${M}24.8%`, tone: 'bad' },
     amend: AMEND_LEVERAGE,
+    // the uploaded CIM states its leverage ("or 4.99x leverage"), so this Actual is Quoted
+    evidence: covEv('Max Total Leverage', '4.99x', 'leverage', 'Quoted · CIM para 2'),
   },
-  { ...COVENANTS_ATLAS[1], actual: '4.25x', cushion: { pct: 52.9, text: '+52.9%', tone: 'neutral' } },
-  { ...COVENANTS_ATLAS[2], actual: '1.45x', cushion: { pct: 24.1, text: '+24.1%', tone: 'neutral' } },
-  { ...COVENANTS_ATLAS[3], actual: '$25.7M', cushion: { pct: 61.1, text: '+61.1%', tone: 'neutral' }, amend: AMEND_LIQUIDITY },
+  { ...COVENANTS_ATLAS[1], actual: '4.25x', cushion: { pct: 52.9, text: '+52.9%', tone: 'neutral' }, evidence: covEv('Min Interest Coverage', '4.25x', 'interest', NOT_IN_CIM) },
+  { ...COVENANTS_ATLAS[2], actual: '1.45x', cushion: { pct: 24.1, text: '+24.1%', tone: 'neutral' }, evidence: covEv('Min Fixed-Charge Coverage', '1.45x', 'fixed', NOT_IN_CIM) },
+  {
+    ...COVENANTS_ATLAS[3],
+    actual: '$25.7M',
+    cushion: { pct: 61.1, text: '+61.1%', tone: 'neutral' },
+    amend: AMEND_LIQUIDITY,
+    evidence: covEv('Min Liquidity', '$25.7M', 'liquidity', NOT_IN_CIM),
+  },
 ];
 const upStub = (s: StubView, meta: string, confTone: StubView['confTone'], result?: unknown): StubView => ({
   ...s,
@@ -1495,6 +1517,18 @@ const SIGNED_OVER_ATLAS: SignatureView['signedOver'] = [
   },
 ];
 
+/**
+ * R4.3 (Mobbin audit fix 3): interest coverage, fixed-charge coverage and liquidity are not stated in
+ * any sample CIM, so each Decision card carries the one info item after Signed over (never counted).
+ */
+const INPUTS_NOT_IN_CIM: SignatureView['inputsNotInCim'] = {
+  text: COPY.inputsNotInCim(3),
+  linkLabel: COPY.showInMemo,
+  target: { section: 'covenants', anchorId: 'sec:covenants' },
+};
+/** The clause the sealed caption adds (R4.3). */
+const SIGNED_NOT_IN_CIM = ` · ${COPY.sealedNotInCim(3, 'signed')}`;
+
 /** Atlas rev 1 gate, policy off. */
 export const FX_SIG_ATLAS_GATE: SignatureView = {
   state: 'gate',
@@ -1505,6 +1539,7 @@ export const FX_SIG_ATLAS_GATE: SignatureView = {
   returned: [],
   signedOver: SIGNED_OVER_ATLAS,
   signedOverLabel: 'Signed over · you opened 0 of 2',
+  inputsNotInCim: INPUTS_NOT_IN_CIM,
   agent: { text: COPY.agentSignature, caption: 'Credit Analyst (agent) · rev 1 · 14:02' },
   reviewer: REVIEWER_OPEN,
   policy: POLICY_OFF,
@@ -1593,6 +1628,7 @@ export const FX_SIG_MERIDIAN_COUNTDOWN: SignatureView = {
   returned: [],
   signedOver: [],
   signedOverLabel: 'Signed over · no notes',
+  inputsNotInCim: INPUTS_NOT_IN_CIM,
   agent: { text: COPY.agentSignature, caption: 'Credit Analyst (agent) · rev 1 · 14:12' },
   reviewer: {
     sigState: 'countdown',
@@ -1642,6 +1678,7 @@ export const FX_SIG_COBALT_GATE: SignatureView = {
   returned: [],
   signedOver: SIGNED_OVER_COBALT,
   signedOverLabel: 'Signed over · you opened 0 of 5',
+  inputsNotInCim: INPUTS_NOT_IN_CIM,
   agent: { text: COPY.agentSignature, caption: 'Credit Analyst (agent) · rev 1 · 14:20' },
   reviewer: REVIEWER_OPEN,
   policy: POLICY_OFF,
@@ -1701,7 +1738,7 @@ export const FX_SIG_SEALED: SignatureView = {
   signedOverLabel: 'Signed over · you opened 1 of 2',
   reviewer: {
     sigState: 'signed',
-    caption: 'Countersigned · concurs ESCALATE · Reviewer · 17 Oct 2026, 14:03',
+    caption: `Countersigned · concurs ESCALATE · Reviewer · 17 Oct 2026, 14:03${SIGNED_NOT_IN_CIM}`,
     ink: 'static',
     autoText: null,
     rejectedWord: null,
@@ -1712,7 +1749,7 @@ export const FX_SIG_SEALED: SignatureView = {
   attestation: null,
   verbs: null,
   sealed: {
-    caption: 'Countersigned · concurs ESCALATE · Reviewer · 17 Oct 2026, 14:03',
+    caption: `Countersigned · concurs ESCALATE · Reviewer · 17 Oct 2026, 14:03${SIGNED_NOT_IN_CIM}`,
     quote: '“Leverage is 0.26x over the covenant; the sponsor has a waiver track record. Senior credit to confirm.”',
     provenance: 'authored by the reviewer',
     amendments: [],
@@ -1731,7 +1768,7 @@ export const FX_SIG_AUTO_SEALED: SignatureView = {
   call: null,
   reviewer: {
     sigState: 'signed-auto',
-    caption: 'Auto-countersigned · clean-approval policy · 17 Oct 2026, 14:12',
+    caption: `Auto-countersigned · clean-approval policy · 17 Oct 2026, 14:12${SIGNED_NOT_IN_CIM}`,
     ink: 'none',
     autoText: COPY.autoSignature,
     rejectedWord: null,
@@ -1743,7 +1780,7 @@ export const FX_SIG_AUTO_SEALED: SignatureView = {
   attestation: null,
   verbs: null,
   sealed: {
-    caption: 'Auto-countersigned · clean-approval policy · 17 Oct 2026, 14:12',
+    caption: `Auto-countersigned · clean-approval policy · 17 Oct 2026, 14:12${SIGNED_NOT_IN_CIM}`,
     quote: `“${AUTO_NOTE}”`,
     provenance: 'written by the clean-approval policy',
     amendments: [],
@@ -1783,7 +1820,7 @@ export const FX_SIG_REJECTED: SignatureView = {
   agent: { text: COPY.agentSignature, caption: 'Credit Analyst (agent) · rev 2 · 14:21' },
   reviewer: {
     sigState: 'rejected',
-    caption: 'Rejected · Reviewer · 14:22',
+    caption: `Rejected · Reviewer · 14:22 · ${COPY.sealedNotInCim(3, 'decided')}`,
     ink: 'none',
     autoText: null,
     rejectedWord: 'REJECTED',
@@ -1794,7 +1831,7 @@ export const FX_SIG_REJECTED: SignatureView = {
   attestation: null,
   verbs: null,
   sealed: {
-    caption: 'Rejected · Reviewer · 14:22',
+    caption: `Rejected · Reviewer · 14:22 · ${COPY.sealedNotInCim(3, 'decided')}`,
     quote: '“No structure within policy clears four breaches. Not a credit we can restructure.”',
     provenance: 'authored by the reviewer',
     amendments: [],
@@ -1904,11 +1941,12 @@ export const FX_STRESS_ATLAS: StressView = {
     text: `flips · risk 58 → 47 · headroom ${M}6.5% → 15.1% · breaches 1 → 0`,
     key: 'ebitda=22.60|debt=76.80|rate=11.18|liquidity=14.20',
   },
+  // the stress test's actuals are scenario values, so they carry no evidence (R4.3)
   covenants: [
-    { ...COVENANTS_ATLAS[0], actual: '3.40x', actualTone: 'ink', cushion: { pct: 15, text: '+15.0%', tone: 'neutral' }, status: 'pass', statusText: 'Pass' },
-    { ...COVENANTS_ATLAS[1], actual: '2.63x', cushion: { pct: 24, text: '+24.0%', tone: 'neutral' } },
-    { ...COVENANTS_ATLAS[2], actual: '1.33x', cushion: { pct: 17.3, text: '+17.3%', tone: 'neutral' } },
-    COVENANTS_ATLAS[3],
+    { ...COVENANTS_ATLAS[0], actual: '3.40x', actualTone: 'ink', cushion: { pct: 15, text: '+15.0%', tone: 'neutral' }, status: 'pass', statusText: 'Pass', evidence: null },
+    { ...COVENANTS_ATLAS[1], actual: '2.63x', cushion: { pct: 24, text: '+24.0%', tone: 'neutral' }, evidence: null },
+    { ...COVENANTS_ATLAS[2], actual: '1.33x', cushion: { pct: 17.3, text: '+17.3%', tone: 'neutral' }, evidence: null },
+    { ...COVENANTS_ATLAS[3], evidence: null },
   ],
   attach: { label: COPY.attachAsExhibit, disabled: false, reason: null },
   readonlyNote: null,

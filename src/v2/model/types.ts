@@ -49,7 +49,7 @@ export type FigureId = 'revenue' | 'ebitda' | 'margin' | 'debt' | 'leverage' | '
 export type EvidenceView =
   | { cls: 'quoted'; text: 'Quoted'; para: number; paraLabel: string; markId: string; citeIndex: number }
   | { cls: 'derived'; text: 'Derived'; formula: string; operands: { text: string; markId: string | null; citeIndex: number | null }[] }
-  | { cls: 'unquoted'; text: 'Unquoted · extracted' }
+  | { cls: 'unquoted'; text: 'Not in the CIM · extraction\u00a0model' }   // R4.3: no CIM sentence states it (vocab NOT_IN_CIM; no-break space)
   | { cls: 'model'; text: string };
 
 // ---- memo targets and section heads (THREE-PANE §2.6, §5.3, §5.5)
@@ -142,11 +142,22 @@ export interface NoteView {
   actions: { kind: 'show' | 'memo' | 'amend'; label: string }[]; amendKind: 'leverage' | 'liquidity' | null;
 }
 export interface FigureRow { id: FigureId; anchorId: string; label: string; value: string; evidence: EvidenceView; group: 'size' | 'tested'; valueTone: 'ink' | 'bad'; mark: 'breach' | null }
+/**
+ * THREE-PANE R4.3 (Mobbin audit fix 3): where a covenant's Actual comes from, read from the figure's
+ * Financials row. cls and text are that row's evidence ('Not in the CIM · extraction model',
+ * 'Derived · 96.3 ÷ 22.6', 'Quoted · CIM para 2'); line is the t-meta line under the Actual, set
+ * only when the CIM does not state the figure ('Not in CIM', the short form, since the Actual
+ * column is 88px); target is that Financials row ('fig:interest'), where the Actual traces
+ * (cueMemo: scroll and one flash); ariaLabel is the trace's accessible name.
+ */
+export interface CovenantEvidence { cls: EvidenceView['cls']; text: string; line: string | null; target: MemoTarget; ariaLabel: string }
 export interface CovenantRow {
   anchorId: string; name: string; threshold: string; amended: { from: string; to: string } | null;
   actual: string; actualTone: 'ink' | 'bad'; cushion: { pct: number; text: string; tone: 'neutral' | 'warn' | 'bad' };
   status: 'pass' | 'breach'; statusText: string;
   amend: { kind: 'leverage' | 'liquidity'; value: number; step: number; min: number; max: number; prefix: string; suffix: string } | null;
+  /** the Actual's evidence (R4.3); null in the stress test, whose actuals are scenario values, not the filed figures */
+  evidence: CovenantEvidence | null;
 }
 export interface KeyFigureView { label: string; value: string; sub: string | null; caption: string | null; tone: 'ink' | 'warn' | 'bad'; dot: MeaningTone | null; evidenceText: string; anchorId: string; ariaLabel: string; target: MemoTarget }
 /** basis, prior, token and sentence are kept for the exports; the card shows them through `takeaway`. */
@@ -232,6 +243,13 @@ export interface SignatureView {
   /** linkLabel: 'Show row' (row anchors) | 'Show in memo' (section anchors) */
   signedOver: { flagId: string; noteId: string; state: StatusKey; text: string; cleared: boolean; opened: boolean; target: MemoTarget; linkLabel: string }[];
   signedOverLabel: string;
+  /**
+   * THREE-PANE R4.3 (Mobbin audit fix 3): ONE non-blocking info item after the Signed over rows,
+   * '3 covenant inputs are not stated in the CIM' with 'Show in memo' (the Covenants card). Not a
+   * flag: never in signedOver, never counted in "you opened n of N", never read by the policy or
+   * the call. Null when every covenant input is stated in (or derived from) the CIM, and pending.
+   */
+  inputsNotInCim: { text: string; linkLabel: string; target: MemoTarget } | null;
   agent: { text: string; caption: string };
   /** the open line is a record, not a control (the primary verb signs) */
   reviewer: { sigState: SigState; caption: string; ink: 'none' | 'animate' | 'static'; autoText: string | null; rejectedWord: string | null; fillMs: number; reviewLabel: string | null };

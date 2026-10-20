@@ -11,9 +11,15 @@
 // "Edit in memo", and the panel's "Covenants →". The table stacks under 640px
 // of its own width. `CushionCell` and the columns are shared with the
 // appendix.
+//
+// R4.3 (Mobbin audit fix 3): each Actual traces to its Financials row (the
+// kit LinkButton in the row's own ink, P-32; cueMemo scrolls there and
+// flashes it once, no connector lines), and an Actual the CIM does not state
+// carries one t-meta line under it, "Not in CIM" (the model's short form of
+// the evidence class, since the column is 88px).
 // ---------------------------------------------------------------------------
 
-import { AmendField, Meter, Redline, StatusLabel, Table } from '../../../kit';
+import { AmendField, LinkButton, Meter, Redline, StatusLabel, Table } from '../../../kit';
 import type { TableColumn, TableRow } from '../../../kit';
 import type { CovenantRow } from '../../../model';
 import type { FileCtx } from '../FileScreen';
@@ -66,6 +72,27 @@ export function Covenants(props: { rows: CovenantRow[]; label: string; ctx: File
     return <span className="t-figure">{c.threshold}</span>;
   };
 
+  // the Actual traces to its Financials row; a figure the CIM does not state says so under it
+  const actual = (c: CovenantRow) => {
+    const ev = c.evidence;
+    return (
+      <span className={c.actualTone === 'bad' ? 'file-tone-bad' : undefined}>
+        {ev ? (
+          <LinkButton role="figure" tone="inherit" ariaLabel={ev.ariaLabel} onClick={() => a.cueMemo(ev.target)}>
+            {c.actual}
+          </LinkButton>
+        ) : (
+          c.actual
+        )}
+        {ev && ev.line ? (
+          <span className="file-actual__src t-meta" data-pattern="P-32">
+            {ev.line}
+          </span>
+        ) : null}
+      </span>
+    );
+  };
+
   const tableRows: TableRow[] = rows.map((c) => ({
     key: c.anchorId,
     anchorId: c.anchorId,
@@ -75,7 +102,7 @@ export function Covenants(props: { rows: CovenantRow[]; label: string; ctx: File
     cells: {
       name: <span className="t-body">{c.name}</span>,
       threshold: threshold(c),
-      actual: <span className={c.actualTone === 'bad' ? 'file-tone-bad' : undefined}>{c.actual}</span>,
+      actual: actual(c),
       cushion: <CushionCell cushion={c.cushion} />,
       status: (
         <StatusLabel state={c.status} role="small">

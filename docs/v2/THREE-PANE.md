@@ -228,6 +228,61 @@ in words built from the same terms the eligibility check tests. This supersedes 
   an open Tip specimen with the short rule, and the Settings help line with the full rule.
   `FX_TOPBAR.policyRule` is `policyRule().short`.
 
+### R4.3 Covenant inputs the CIM does not state, on the record (Mobbin audit fix 3, P-32)
+
+**The problem (verified in the build).** `model/evidence.ts` classed interest coverage, fixed-charge
+coverage and liquidity "Unquoted · extracted" in all three sample deals. They are three of the four
+covenant-tested actuals behind Atlas's ESCALATE and Cobalt's DECLINE, yet the Covenant compliance
+table (`CovenantRow` had no evidence field) showed each Actual with no sign it had no source; the
+only signal was an info line at the foot of Financials telling the reviewer to "verify them against
+the source", which is impossible (the CIM does not contain them); and the Decision card's Signed
+over never mentioned it (SPEC.md Pillar 2 made the evidence check info only).
+
+**The rule.** The fact is stated in plain words, marked where the covenant tests read it, and
+carried onto the decision and its record, without becoming a flag. This supersedes SPEC.md Pillar
+1's "Unquoted · extracted" class name, Pillar 2's evidence-check line, the §2.2 evidence-check row's
+copy and the §9.8 walkthrough's "3 of 8 figures are not quoted in the CIM".
+
+- **Copy** (model only; `vocab.ts`): the evidence class reads `NOT_IN_CIM` "Not in the CIM ·
+  extraction model" everywhere it shows (Financials Source column, key figures, accessible names;
+  the class id stays `unquoted`). The short form `NOT_IN_CIM_SHORT` "Not in CIM" is used only where
+  space requires it: the line under a covenant Actual (an 88px column).
+- **Financials foot line** (`evidenceCheckLine`, counts and names computed from the figure rows and
+  the deal's covenants): "3 of 4 covenant tests use figures the CIM does not state (interest
+  coverage, fixed-charge coverage and liquidity); they come from the extraction model." Singular
+  forms read "uses a figure … it comes"; a figure outside the covenant tests that the CIM does not
+  state is named after it ("Revenue (TTM) is not stated in the CIM either."); with no covenant
+  input affected it falls back to "n of 8 figures …". The uploaded-file clause ("Extraction ran at
+  76% confidence on an unseen document.") is unchanged.
+- **Covenant rows** (`CovenantRow.evidence: CovenantEvidence | null`, built by `covenantEvidence`
+  from the figure's Financials row): `cls` and `text` are that row's evidence, `line` is set only
+  for a figure the CIM does not state, `target` is the Financials row (`fig:interest`), `ariaLabel`
+  "Min Interest Coverage actual 2.10x. Not in the CIM · extraction model. Show in Financials." The
+  stress test passes `null` (its actuals are scenario values). In the Covenants table every Actual
+  with evidence is a kit `LinkButton` `role="figure"` `tone="inherit"` (new kit variant, P-32: the
+  row's own ink, so a breached Actual stays bad-ink, with a quiet `--line` underline that takes the
+  ink on hover) that traces to its Financials row through `cueMemo` (scroll and one flash; no
+  connector lines). A figure the CIM does not state carries one `t-meta` ink-3 line under the
+  Actual, "Not in CIM" (`.file-actual__src`, block, so it follows the cell's alignment, stacked or
+  not). The columns, their widths and `stackBelow={640}` are unchanged; a row with the line grows
+  past its 36px minimum.
+- **Decision card** (`SignatureView.inputsNotInCim`, from `covenantInputsNotInCim`): Signed over
+  closes with ONE info item, an info glyph, "3 covenant inputs are not stated in the CIM" (t-small
+  ink-2, quieter than a note's t-strong) and "Show in memo", which scrolls to the Covenants card
+  head (`cueMemo`, never `focusNoteById`). It is not a flag: never in `signedOver`, never counted
+  in "you opened n of N", never walked by J / K, and neither the auto-countersign policy
+  (`policyChecks`) nor any engine decision reads it. It shows at the gate and on the sealed record
+  (also when there are no notes: "Signed over · no notes" then the item), never while pending.
+- **Sealed caption** (the reviewer line's caption and `sealed.caption`): adds "signed with 3 inputs
+  not stated in the CIM" after the stamp (countersigned and auto-countersigned); a rejection reads
+  "decided with 3 inputs not stated in the CIM", since a refusal signs nothing over.
+- **Kit page:** the LinkButton group adds the tone inherit / role figure specimens (rest, hover,
+  inside a breached row); every covenant table specimen renders the Actual as the memo does (trace
+  link plus "Not in CIM"); the Decision card board's gate and sealed captions name the info item and
+  the caption clause, and a new auto-countersigned specimen shows Signed over holding only the info
+  item. Fixtures (`FX_*`) carry the new copy, `CovenantRow.evidence` and `inputsNotInCim`; engine
+  numbers are unchanged.
+
 ## 0. Owner decisions that survive (each is checked in §9)
 
 | Decision | Where it holds |

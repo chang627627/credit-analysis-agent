@@ -11,6 +11,7 @@ import { MIN_HEADROOM } from '../../agent/policy';
 import { headroomOf } from '../../agent/whatif';
 import { fmtM, fmtPct, fmtSigned, fmtX } from './format';
 import type { CushionView, EvidenceView, FigureId } from './types';
+import { NOT_IN_CIM } from './vocab';
 
 /** 'CIM para 2': the plain-words address of a CIM paragraph (owner feedback: the ¶ mark read as noise). */
 export function paraLabel(n: number): string {
@@ -161,7 +162,8 @@ function quoteOf(
  * Exactly one class per figure:
  *  quoted when the formatted string occurs in a paragraph (first match);
  *  leverage otherwise derived 'debt ÷ ebitda', each operand carrying its own cite;
- *  interest / fixed / liquidity (and anything else not found) unquoted · extracted.
+ *  interest / fixed / liquidity (and anything else not found) 'Not in the CIM · extraction model'
+ *  (class 'unquoted': no CIM sentence states it, the extraction model produced it; R4.3).
  */
 export function evidenceFor(
   fig: FigureId,
@@ -182,7 +184,7 @@ export function evidenceFor(
     const ebitda = operand('ebitda', f.ebitdaTtm);
     return { cls: 'derived', text: 'Derived', formula: `${debt.text} ÷ ${ebitda.text}`, operands: [debt, ebitda] };
   }
-  return { cls: 'unquoted', text: 'Unquoted · extracted' };
+  return { cls: 'unquoted', text: NOT_IN_CIM };
 }
 
 /** Model-output evidence (not a CIM figure): the Risk Engine score or a revised structure. */
@@ -192,7 +194,7 @@ export function modelEvidence(source: 'risk' | 'revised'): EvidenceView {
     : { cls: 'model', text: 'Model output · Structuring Engine' };
 }
 
-/** Plain text for a KeyFigure: 'Quoted · CIM para 2' · 'Derived · 96.3 ÷ 22.6' · 'Unquoted · extracted' · 'Model output · …'. */
+/** Plain text for a KeyFigure: 'Quoted · CIM para 2' · 'Derived · 96.3 ÷ 22.6' · 'Not in the CIM · extraction model' · 'Model output · …'. */
 export function evidenceText(e: EvidenceView): string {
   switch (e.cls) {
     case 'quoted':

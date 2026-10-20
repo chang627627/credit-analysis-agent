@@ -81,6 +81,7 @@
 .kp-ink3 { color: var(--ink-3); }
 .kp-warn { color: var(--warn-ink); }
 .kp-bad { color: var(--bad-ink); }
+.kp-actualsrc { display: block; color: var(--ink-3); }
 .kp-prewrap { white-space: pre-line; }
 
 /* ---- board 1 · type roles ---- */

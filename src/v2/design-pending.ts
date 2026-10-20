@@ -65,9 +65,9 @@ export const PENDING: PendingPattern[] = [
   {
     id: 'P-04',
     type: 'component',
-    name: 'Evidence classes: Quoted / Derived / Unquoted / Model output',
+    name: 'Evidence classes: Quoted / Derived / Not in the CIM / Model output',
     description:
-      'One classifier gives every memo figure exactly one evidence class: Quoted with a paragraph cite into the CIM ("CIM para 2"), Derived with its formula and operand cites, Unquoted (extracted) when no CIM sentence states it, or Model output. V1 made a figure citable only when it appeared in the document, and said nothing about the rest.',
+      'One classifier gives every memo figure exactly one evidence class: Quoted with a paragraph cite into the CIM ("CIM para 2"), Derived with its formula and operand cites, "Not in the CIM · extraction model" when no CIM sentence states it (R4.3; it was "Unquoted · extracted"), or Model output. V1 made a figure citable only when it appeared in the document, and said nothing about the rest.',
     evidence: 'V2 spec §1 pillar 1 and §9.4 evidenceFor; V1 click-through provenance (CLAUDE.md, backlog #3)',
     proposedBy: BY,
     proposedDate: ON,
@@ -401,6 +401,19 @@ export const PENDING: PendingPattern[] = [
     status: 'approved',
     kitAnchor: '#board-switch',
     ownerNote: 'Owner asked for it (Mobbin audit fix 2)',
+  },
+  {
+    id: 'P-32',
+    type: 'component',
+    name: 'Covenant inputs the CIM does not state, marked where they are tested and on the record',
+    description:
+      'Interest coverage, fixed-charge coverage and liquidity are stated in no sample CIM, yet they are three of the four covenant-tested actuals behind the call. Their evidence class now reads "Not in the CIM · extraction model" everywhere it shows. In the Covenant compliance table each Actual traces to its Financials row (a kit LinkButton in the row\'s own ink with a quiet hairline underline, tone inherit; the trace scrolls and flashes the row once, no connector lines), and an Actual the CIM does not state carries one t-meta line under it, "Not in CIM" (the short form, since the column is 88px). The Financials foot line counts and names them ("3 of 4 covenant tests use figures the CIM does not state (interest coverage, fixed-charge coverage and liquidity); they come from the extraction model."). The Decision card\'s Signed over closes with ONE quiet info item, "3 covenant inputs are not stated in the CIM · Show in memo": not a flag, never counted in "you opened n of N", and it changes neither the auto-countersign policy nor any engine decision. The sealed caption adds "signed with 3 inputs not stated in the CIM". Before, the Actual showed no sign it had no source, the only signal was a Financials foot line asking the reviewer to verify the figures against a CIM that does not contain them, and the Decision card never mentioned it.',
+    evidence: 'Mobbin audit of the case file, fix 3 (verified: evidence.ts labelled these figures "Unquoted · extracted" in all three sample deals; CovenantRow had no evidence field; SPEC.md made the evidence check info only); THREE-PANE.md R4.3',
+    proposedBy: OWNER,
+    proposedDate: ON_3P,
+    status: 'approved',
+    kitAnchor: '#board-decisioncard',
+    ownerNote: 'Owner asked for it (Mobbin audit fix 3)',
   },
 ];
 

@@ -337,6 +337,8 @@
   border-bottom: 1px solid var(--line);
 }
 
+/* R4.3: the line under a covenant Actual the CIM does not state (block, so it follows the cell's alignment) */
+.file-actual__src { display: block; color: var(--ink-3); }
 .file-cushion { display: inline-flex; align-items: center; gap: 8px; }
 .file-cushion__text { min-width: 48px; text-align: right; }
 

@@ -67,7 +67,7 @@ Three lenses look at the same files: **Desk** (index and pipeline), **Book** (mo
 - One classifier (`evidenceFor` in the model) gives every memo figure exactly one class:
   - **Quoted ¶NN.** The formatted string occurs in that CIM paragraph. Clicking the ¶ cite opens the source and outlines the exact span, with a "1 of 4" stepper over every quoted span in the file.
   - **Derived.** The formula prints inline ("96.3 ÷ 22.6"), and each operand is itself a cite.
-  - **Unquoted · extracted.** The extraction produced it, but no CIM sentence states it. Atlas interest coverage, fixed-charge coverage and liquidity are in this class.
+  - **Not in the CIM · extraction model** (class `unquoted`; it read "Unquoted · extracted" before THREE-PANE R4.3). The extraction model produced it, but no CIM sentence states it. Interest coverage, fixed-charge coverage and liquidity are in this class in all three sample deals, and they are three of the four covenant-tested actuals.
   - **Model output.** Produced by the Risk Engine or the Structuring Engine.
 - Each section's margin stub opens the raw tool record: args in, data out, measured duration, confidence, and a persistent Copy JSON.
 - Each key figure at the top traces to its row and to the tool call behind it.
@@ -82,7 +82,7 @@ Three lenses look at the same files: **Desk** (index and pipeline), **Book** (mo
   - send-back, restructure and no-cure go to the Revision section;
   - anything else goes to the emitting step's section.
 - **Counted notes** (breach, watch, low-confidence, no-cure) are washed in their meaning colour. The sticky doc bar counts them ("2 notes to review"), and the reader can step through them with J/K.
-- A deterministic **Evidence check** note states how many figures are unquoted. It is info and is not counted.
+- A deterministic **Evidence check** line (the foot of Financials) counts and names the covenant tests whose inputs the CIM does not state and says they come from the extraction model: "3 of 4 covenant tests use figures the CIM does not state (interest coverage, fixed-charge coverage and liquidity); they come from the extraction model." It is info and is not counted (THREE-PANE R4.3: it no longer asks the reviewer to verify against a source that does not contain them). The same fact is marked where it is tested: each covenant Actual traces to its Financials row, and one the CIM does not state carries "Not in CIM" under it.
 - Confidence is neutral at 90% and above, warn-ink from 75% to 89%, and bad-ink below the 0.75 floor (where a note always exists). It is never green.
 - Covenant distance is a **signed cushion** (+5.0% / −6.5%) on a centred-tick meter with one shared ±50% scale.
 - Risk sits on the single band table from `rating.ts`, with the 75 decline line marked.
@@ -91,7 +91,7 @@ Three lenses look at the same files: **Desk** (index and pipeline), **Book** (mo
 
 **Pillar 3 · Pause for accountable human judgment.** The decision happens at the foot of the memo it governs. The agent's pre-signed line sits beside an empty 2px teal reviewer line.
 - The primary names what you concur with: "Countersign escalation", "Countersign approval", "Countersign decline", "Countersign as amended" or "Countersign revised structure".
-- A **Signed over** list names every counted note you accept, with "you opened n of N".
+- A **Signed over** list names every counted note you accept, with "you opened n of N". It closes with ONE info item when covenant inputs are not stated in the CIM ("3 covenant inputs are not stated in the CIM · Show in memo"): not a flag, never counted, never read by the policy or the call; the sealed caption adds "signed with 3 inputs not stated in the CIM" (THREE-PANE R4.3).
 - An attestation states the consequence before you commit.
 - **Return for revision** and **Reject memo** require a reason, and that reason goes on the record.
 - **Draft from notes** inserts an evidence draft only on click. Its provenance (authored / agent-drafted, edited / agent-drafted, verbatim) rides into the record.
@@ -571,7 +571,7 @@ There are no count-ups, shimmer, seams, pulses, spinners, glows or rotations.
 - **Agent recommendation tokens:** APPROVE · ESCALATE · DECLINE (agent only); REJECTED appears only on the rejected signature line.
 - **Human verbs:** Countersigned · Countersigned as amended · Auto-countersigned · Returned for revision · Rejected · Run cancelled. The imperatives are Countersign … · Return for revision · Reject memo.
 - **Covenant and monitor words:** Pass · Watch · Breach (monitor `healthy` → Pass, `watch` → Watch, `breach` → Breach).
-- **Evidence classes:** Quoted · Derived · Unquoted · extracted · Model output.
+- **Evidence classes:** Quoted · Derived · Not in the CIM · extraction model (short form "Not in CIM" only under a covenant Actual) · Model output.
 - **"Flag" vs "note":**
   - A **flag** is any engine flag on the package (`flagsOnRecord`). The word is used only in the policy check and the Ledger.
   - A **note** is a margin note.
@@ -633,7 +633,7 @@ export type { LucideIcon };
 | 22 | `SectionHead.tsx` · `SectionHead` | `{ ordinal: string; heading: string; suffix?: string \| null; status: StatusKey; statusLabel: string; anchorId: string; flashKey?: number; highlighted?: boolean }` | 28px row, grid `[24px ordinal][1fr heading][16px glyph]`. Ordinal t-figure ink-3. Heading t-heading (`h2`). Suffix t-small ink-2 inline. Same flash/highlight as Table rows. | `h2`; glyph `srLabel` | `.k-sechead .is-flash .is-highlighted` |
 | 23 | `Disclosure.tsx` · `Disclosure` | `{ label: string; meta?: string; open: boolean; onToggle: () => void; children: ReactNode }` | Trigger looks like `LinkButton role="label"` + `ChevronRight` 12 rotating 90° over `--dur-1`. Panel: `grid-template-rows` 0fr→1fr over `--dur-2`; collapsed padding collapses with the row. | `aria-expanded`, `aria-controls`; panel `inert` when closed | `.k-disclosure .k-disclosure__panel` |
 | 24 | `JsonBlock.tsx` · `JsonBlock`, `CopyButton` | `JsonBlock { label: string; count: string; value: unknown }`; `CopyButton { text: string; label: string }` | Label row: t-label ink-2 + t-meta ink-3 count + CopyButton (always visible). Block: sunken, radius sm, padding 8 12, t-small, `white-space: pre-wrap`, max-height 240, `overflow: auto`, no syntax colour. CopyButton = `IconButton xs`: `Copy` → `Check` for 1200ms after copying, announces "Copied" via an internal `.v2-sr` live span. | `<pre tabIndex=0 aria-label>` | `.k-json .k-json__pre` |
-| 25 | `KeyFigure.tsx` · `KeyFigure`, `KeyFigures` | `KeyFigure { label: string; value: string; sub?: string \| null; caption?: string \| null; tone: 'ink'\|'warn'\|'bad'; dot?: MeaningTone \| null; evidence: string; onClick: () => void; ariaLabel: string; force?: ForceState }`; `KeyFigures { children: ReactNode; ariaLabel: string }` | KeyFigures = grid of N equal cells in a 1px line frame, radius md, 1px vertical rules (borders, not gaps). KeyFigure = a `<button>` with **no interactive descendants**: min-height 76, padding 12 16. Label t-label ink-3 (optional 6px `dot` in tone mark). Value t-figure-lg in tone ink. Sub t-small ink-2. Caption t-small in tone. Evidence t-small ink-3, **plain text** (for example "Quoted ¶02", "Derived · 96.3 ÷ 22.6", "Unquoted · extracted", "Model output · Structuring Engine"). Hover sunken. Wraps 3+2 below a 600px container (container query). | `<button aria-label>` | `.k-keyfigs .k-keyfig` |
+| 25 | `KeyFigure.tsx` · `KeyFigure`, `KeyFigures` | `KeyFigure { label: string; value: string; sub?: string \| null; caption?: string \| null; tone: 'ink'\|'warn'\|'bad'; dot?: MeaningTone \| null; evidence: string; onClick: () => void; ariaLabel: string; force?: ForceState }`; `KeyFigures { children: ReactNode; ariaLabel: string }` | KeyFigures = grid of N equal cells in a 1px line frame, radius md, 1px vertical rules (borders, not gaps). KeyFigure = a `<button>` with **no interactive descendants**: min-height 76, padding 12 16. Label t-label ink-3 (optional 6px `dot` in tone mark). Value t-figure-lg in tone ink. Sub t-small ink-2. Caption t-small in tone. Evidence t-small ink-3, **plain text** (for example "Quoted ¶02", "Derived · 96.3 ÷ 22.6", "Not in the CIM · extraction model", "Model output · Structuring Engine"). Hover sunken. Wraps 3+2 below a 600px container (container query). | `<button aria-label>` | `.k-keyfigs .k-keyfig` |
 | 26 | `Slider.tsx` · `Slider` | `{ value: number; min: number; max: number; step: number; onChange: (v: number) => void; ariaLabel: string; valueText: string; zones: { tone: MeaningTone; fromPct: number; toPct: number }[]; boundaries: { pct: number; text: string; tone: MeaningTone }[] }` | 56px row. Labels above the track (t-meta in tone ink), hidden when < 48px apart or < 24px from either end. 4px track of flat zone segments in tone mark (gapless; no gradient) + 2px ink-3 notches at boundaries. 14px paper thumb with a 2px ink ring. Fully custom cross-engine range chrome; focus = accent outline on the thumb. | native `<input type=range>` with `aria-valuetext`; a `.v2-sr` list of zones | `.k-slider .k-slider__zones .k-slider__label` |
 | 27 | `SignatureLine.tsx` · `SignatureLine`, `INK_PATH` | see the type block below | See §8. The interactive element (`role="button"`) wraps **only the pad and the rule**. The caption renders as a **sibling** below it, so a `LinkButton` in the caption is never nested. | open line `role="button" tabIndex=0 aria-label="Countersignature line. The agent is suspended until you act."`; ink SVG `aria-hidden` | `.k-sig .k-sig__hit .k-sig__pad .k-sig__rule .k-sig__fill .k-sig__ink .k-sig__caption .k-sig--open .k-sig--signed .k-sig--rejected .k-sig--auto` (P-01, P-11) |
 | 28 | `Caret.tsx` · `Caret` | `{}` | inline-block 2×14 accent, `vertical-align: text-bottom`, **margin-left 4px**, `animation: v2-caret var(--dur-caret) steps(1) infinite` (the only `infinite` in the codebase). Reduced motion: `animation: none`. | `aria-hidden` | `.k-caret` (P-06) |
@@ -1603,7 +1603,7 @@ export function paragraphsOf(body: string): { n: number; label: string; text: st
 export function evidenceFor(fig: FigureId, value: number, deal: Deal, paras: { n: number; text: string }[], quotedMarkIds: string[]): EvidenceView;
 //  quoted when the formatted string occurs in a paragraph (first match); leverage → derived 'debt ÷ ebitda'
 //  with operands '96.3', '22.6' each carrying its quoted markId and citeIndex; interest/fixed/liquidity →
-//  unquoted unless quoted; risk → model 'Model output · Risk Engine (internal-pd-v3)'; revised → 'Model output · Structuring Engine'
+//  unquoted ('Not in the CIM · extraction model') unless quoted; risk → model 'Model output · Risk Engine (internal-pd-v3)'; revised → 'Model output · Structuring Engine'
 export function evidenceText(e: EvidenceView): string;   // plain text for KeyFigure: 'Quoted ¶02' · 'Derived · 96.3 ÷ 22.6' · …
 export function cushionOf(threshold: string, actual: string): { pct: number; text: string; tone: 'neutral' | 'warn' | 'bad' };
 //  max covenant: (t − a)/t·100; min covenant: (a − t)/t·100; tone bad <0, warn 0–<10, neutral ≥10
@@ -1667,7 +1667,7 @@ export type FigureId = 'revenue' | 'ebitda' | 'margin' | 'debt' | 'leverage' | '
 export type EvidenceView =
   | { cls: 'quoted'; text: 'Quoted'; para: number; paraLabel: string; markId: string; citeIndex: number }
   | { cls: 'derived'; text: 'Derived'; formula: string; operands: { text: string; markId: string | null; citeIndex: number | null }[] }
-  | { cls: 'unquoted'; text: 'Unquoted · extracted' }
+  | { cls: 'unquoted'; text: 'Not in the CIM · extraction model' }
   | { cls: 'model'; text: string };
 
 export interface TopBarView {
@@ -2223,7 +2223,7 @@ export const REJECTED_BEFORE: { name: string; note: string }[];
 | P-01 | Countersignature line with ink, inside the gate | interaction · #board-signatureline | The one signature interaction |
 | P-02 | Two-press sign: the first A brings the line into view | interaction · – | Nobody signs a line they cannot see |
 | P-03 | Margin notes aligned to their section by grid rows | layout · #board-marginnote | |
-| P-04 | Evidence classes: Quoted ¶ / Derived / Unquoted / Model output | component · #board-evidencetag | |
+| P-04 | Evidence classes: Quoted ¶ / Derived / Not in the CIM / Model output | component · #board-evidencetag | |
 | P-05 | Inline amend with redline on the covenant row | component · #board-amendfield | |
 | P-06 | Drafting caret as the app's only loop | motion · #board-caret | |
 | P-07 | Signed cushion with a centred-tick meter on one ±50% scale | component · #board-meter | Fixes V1's HeadroomBar |
@@ -2308,7 +2308,7 @@ export const REJECTED_BEFORE: { name: string; note: string }[];
   - The drop zone is keyboard reachable and disabled with the right reason.
   - The parsing row ticks without animation.
 - **Case file:**
-  - Every §1 figure has exactly one evidence class. Atlas: 4 Quoted, 1 Derived "96.3 ÷ 22.6", 3 Unquoted.
+  - Every §1 figure has exactly one evidence class. Atlas: 4 Quoted, 1 Derived "96.3 ÷ 22.6", 3 Not in the CIM.
   - Notes sit in their section's margin cell and link to covenant rows on hover. The stepper cycles counted notes only.
   - A key-figure click opens the stub's Record and cues the row.
   - `?at=` scrolling works for every FileAt (targets are page cells).

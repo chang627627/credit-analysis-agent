@@ -153,41 +153,68 @@ as today", R2.3's "S / R run return / reject through the note-required flow", §
 `needNote` hint and §3.4's S / R row, and SPEC.md §8's need-note.
 
 - **State** (`state/contracts.ts`, `GateState`): `armed: 'reject' | 'rework' | null` replaces
-  `needNote`; `reasonHint: boolean` (the armed verb was pressed again on an empty note) shows the calm
-  hint; `focusTick` is gone (gate.ts focuses the registered note field directly, or through
-  `pendingNoteFocus` when it mounts within 3000 ms). A new package resets both; committing, signing
-  and Cancel clear them. `V2Actions.disarm()` is new; `AnnounceKind` gains `'need-reason'`.
+  `needNote`; `armedAt: number | null` and `armedBy: 'click' | 'key' | null` record when and how it
+  was armed (review fix, R4.4); `reasonHint: boolean` (the armed verb was pressed again on an empty
+  note) shows the calm hint; `focusTick` is gone (gate.ts focuses the registered note field
+  directly, or through `pendingNoteFocus` when it mounts within 3000 ms). A new package resets them;
+  committing, signing and Cancel clear them. `V2Actions.disarm()` is new; `tryReject` / `tryRework`
+  take an optional `source: 'click' | 'key'` (default `'click'`; S, R and ⌘↵ pass `'key'`);
+  `AnnounceKind` gains `'need-reason'`.
 - **First press** (click, S, R; the palette has no refusal command): hold the countdown
   (`holdAuto('engaged')`), clear the memo covers (drawer, overlaid source), arm the verb, bring the
   note and that verb's button into view when either is off screen (one centred scroll; a union taller
-  than the band keeps the note in view), focus the note and **select** any text already typed, so an
-  optional countersign note or an agent draft is reviewed or replaced, never sent unseen.
+  than the band keeps the note in view) and focus the note, so an optional countersign note or an
+  agent draft is reviewed before it goes on the record. After a **click** its text is **selected**
+  (review or replace it); after **S or R** the caret goes to the **end** (R4.4), so a reflexive
+  second key types one visible letter instead of replacing the whole note.
 - **While armed** (`SignatureView`, model only): `note.label` is the verb's question, "Why reject it?
   · on the record" or "What should the agent revise? · quoted in Revision N" (N = the package's
   revision + 1, the Revision card that will quote the note); `verbs.armed` names the verb; its label
-  is the commit label, "Reject with this reason" / "Return with this note"; its `kbd` is the commit
-  chord `⌘↵` (`Ctrl↵` off Mac), since focus sits in the note where S and R type; its consequence
-  caption is unchanged; `verbs.cancelLabel` "Cancel" renders a quiet kit `LinkButton` as the last
-  item of the SAME verb row (still one horizontal row that may wrap, never a list). Typing in the
-  note works as before (provenance chip, holds the countdown); Draft from notes keeps the verb armed.
-- **Second press of the same verb** (click, the same key with focus outside a field, or `⌘↵` with
-  focus anywhere in the Decision card): with a note it commits exactly as before (Reject seals the
-  run, Return recedes and resumes the loop; the note and its provenance go on the record; exports
-  unchanged). With an empty note it stays armed, sets `reasonHint`, focuses the note and shows one
-  calm `t-small` ink-2 line under it, "Write a reason first." / "Write what the agent should revise
-  first." (described-by on the field and announced through the live region), never a red alert.
-  Any text clears the hint.
-- **The other refusal verb** while armed re-arms to it (same first-press behaviour, hint cleared).
+  is the commit label, "Reject now" / "Return with note" (R4.4: no wider than "Reject memo" /
+  "Return for revision", so the row keeps its two lines at phone width, see the width check below);
+  its `kbd` is the commit chord `⌘↵` (`Ctrl↵` off Mac), since focus sits in the note where letters
+  type, and it is the **only chip** while armed: `kbd.sign` and the other refusal verb's chip are
+  `null` (no chip), because neither key can act from the note (and A never signs over an armed
+  refusal, below), so every chip shown is true; its consequence caption is unchanged;
+  `verbs.cancelLabel` "Cancel" renders a quiet kit `LinkButton` as the last item of the SAME verb row
+  (still one horizontal row that may wrap, never a list; under a 360px card it is the one item that
+  may wrap to a line of its own, since it is not a verb). Typing in the note works as before
+  (provenance chip, holds the countdown); Draft from notes keeps the verb armed.
+- **Second press of the same verb** (click, `⌘↵` with focus anywhere in the Decision card, or the
+  same key **only with focus outside a field**: from the note, where arming puts focus, S and R
+  type): with a note it commits exactly as before (Reject seals the run, Return recedes and resumes
+  the loop; the note and its provenance go on the record; exports unchanged). With an empty note it
+  stays armed, sets `reasonHint`, focuses the note and shows one calm `t-small` ink-2 line under
+  it, "Write a reason first." / "Write what the agent should revise first." (described-by on the
+  field and announced through the live region), never a red alert; `⌘↵` from the note is the
+  keyboard path to it. Any text clears the hint. Two guards make the second press its own gesture
+  (R4.4): a press of the armed verb within `ARM_SETTLE_MS` (500 ms) of arming does nothing, so a
+  double-click arms and never commits (also when the double-click re-arms from the other verb); and
+  a **key** press (S, R, `⌘↵`) while neither the armed verb's button nor the note is on screen
+  (`onScreen`, the rule A uses) never commits: it brings them back into view and focuses the note.
+- **The other refusal verb** while armed re-arms to it (same first-press behaviour, hint cleared;
+  by key only with focus outside a field).
 - **Disarm:** Cancel, or Esc while focus is in the Decision card or its note (handled first in the
   capture-phase keyboard map, before the confirm strip / source / cites chain, which is unchanged
   elsewhere). The note stays as typed; focus that fell to the body (the Cancel link unmounts) returns
   to the verb it disarmed. The countdown hold stays (engagement holds until the package changes).
-- **The primary** still signs at once (owner rule) and clears `armed`; the note goes on the record as
-  the countersign note exactly as typed. A is unchanged (two-press unless the reviewer line is on
-  screen; never from inside the note, which is typing).
-- **Kit page:** the Decision card board adds two specimens, Return armed with a typed note (selected,
-  commit label, Cancel) and Reject armed after an empty second press (the calm hint). The TextArea
-  "invalid" specimen stays as the kit recipe only: no V2 field uses it now.
+- **The primary** still signs at once (owner rule): a click, or Enter or Space on it, clears `armed`
+  and the note goes on the record as the countersign note exactly as typed. **A never signs while a
+  refusal verb is armed** (R4.4): `requestSign('key')` then runs phase one only (the card comes into
+  view, the primary takes focus) and announces "Countersign is focused. Reject memo is armed, so
+  press Enter to countersign or Esc to cancel it." (`COPY.signReadyArmed`; "Return for revision"
+  for Return). With nothing armed A is unchanged (two-press unless the reviewer line is on screen;
+  never from inside the note, which is typing). So no single key can seal a reason written for a
+  refusal as the countersign note.
+- **Kit page:** the Decision card board adds two specimens, Return armed with a typed note (commit
+  label, ⌘↵ the only chip, Cancel) and Reject armed after an empty second press (the calm hint). The
+  TextArea "invalid" specimen stays as the kit recipe only: no V2 field uses it now.
+- **Width check, armed** (the §3.1 method; under a 360px card the chips drop, line 2 must fit about
+  248 with its 12px gap): "Return with note" ≈ 136 + "Reject memo" ≈ 96, or "Return for revision"
+  ≈ 148 + "Reject now" ≈ 85, both fit where the resting pair (≈ 148 + ≈ 96) does. The verbs stay on
+  two lines in every armed state; Cancel (≈ 44) takes a third line of its own there, as the one
+  non-verb item. Above 360, where chips show, an armed line 2 is narrower than the resting one:
+  one ⌘↵ chip replaces the S and R chips.
 
 ### R4.2 Honest auto-countersign rule (Mobbin audit fix 2, P-31)
 
@@ -197,9 +224,11 @@ last until you refresh, like everything in this demo." The one setting that lets
 was the one described wrongly. The top-bar switch ("Auto-countersign clean approvals") never said
 what "clean" means, and Settings restated the policy's numbers by hand.
 
-**The rule.** Auto-countersign is session only, and wherever it can be switched the rule is stated
-in words built from the same terms the eligibility check tests. This supersedes SPEC.md §9.2
-"Persistence" (`v2.autonomy`) and the `V2Store.policy` comment "persisted 'v2.autonomy'".
+**The rule.** Auto-countersign is session only, and in Settings and on the wide top bar's switch
+the rule is stated in words built from the same terms the eligibility check tests (the narrow-width
+More menu item and the palette command keep one-line labels; see the Top bar bullet). This
+supersedes SPEC.md §9.2 "Persistence" (`v2.autonomy`) and the `V2Store.policy` comment "persisted
+'v2.autonomy'".
 
 - **Session only** (`state/gate.ts`, the only place it is touched): `readPolicy` / `writePolicy`
   are gone. `initialPolicy()`, the store's lazy initial state, always returns `'gate'` (off) and
@@ -211,9 +240,14 @@ in words built from the same terms the eligibility check tests. This supersedes 
   `isEligible` in `state/gate.ts` now passes only when every check is ok (same terms as before:
   APPROVE, zero flags, revision 1, every key figure at `POLICY_MIN_CONFIDENCE` or above; the
   hard-coded `0.9` there is gone). The Decision card prints those checks; `policyRule()` (model)
-  states them in words from the same constants (`tokenWord('approve')`,
-  `fmtConf(POLICY_MIN_CONFIDENCE)`, `fmtSeconds(AUTO_COUNTDOWN_MS)`). No screen restates a number;
-  the check text and `AUTO_NOTE` read the threshold from the constant too (output unchanged).
+  states them in words from `POLICY_TERMS` (`vocab.ts`: the APPROVE token, "no flags", "first pass",
+  "every key figure at 90% or above" from `POLICY_MIN_CONFIDENCE`) plus
+  `fmtSeconds(AUTO_COUNTDOWN_MS)`. No screen restates a term or a number. `AUTO_NOTE`, the note a
+  policy signature writes onto the record, quotes the same list (R4.4): "Auto-countersigned ·
+  clean-approval policy (APPROVE · no flags · first pass · every key figure at 90% or above)". This
+  **changes the stored note text**: before it read "(recommendation APPROVE, zero flags, every key
+  figure at 90% confidence or above)" and left out the first-pass term. The sealed card, the
+  Ledger row and exports quote the note as the engine stored it; the fixtures read `AUTO_NOTE`.
 - **Settings** (`SettingsView.policy.help` = `policyRule().full`, the policy row's help line,
   `t-small` ink-2, `data-pattern="P-31"`): "If the agent recommends APPROVE · no flags · first pass
   · every key figure at 90% or above → countersign after a visible 5 s countdown you can hold.
@@ -223,7 +257,8 @@ in words built from the same terms the eligibility check tests. This supersedes 
   first pass · every key figure at 90% or above → countersign after a 5 s countdown you can hold."
   The kit `Switch` now forwards `aria-describedby`, so the Tip's text reaches the switch's
   accessible description while the bubble shows. The narrow-width "More" menu item and the palette
-  command keep their one-line label.
+  command keep their one-line label, without the rule: kit Menu items have no tip slot, and the
+  palette's hint is a single unshrinking 36px-row slot, too narrow for the rule.
 - **Kit page:** the Switch board adds "The clean-approval rule in words (P-31)": the switch inside
   an open Tip specimen with the short rule, and the Settings help line with the full rule.
   `FX_TOPBAR.policyRule` is `policyRule().short`.
@@ -265,23 +300,65 @@ copy and the §9.8 walkthrough's "3 of 8 figures are not quoted in the CIM".
   connector lines). A figure the CIM does not state carries one `t-meta` ink-3 line under the
   Actual, "Not in CIM" (`.file-actual__src`, block, so it follows the cell's alignment, stacked or
   not). The columns, their widths and `stackBelow={640}` are unchanged; a row with the line grows
-  past its 36px minimum.
+  past its 36px minimum. Such a row is **top-aligned** (R4.4: kit `TableRow.align: 'start'`, new,
+  `data-align="start"` → `align-items: start`; stacked rows ignore it), so every cell's first line
+  shares one line box and the Actual's value sits on its neighbours' line. Centred, the two-line
+  Actual rode 8px above the other figures in its row, so the Actual column zigzagged.
 - **Decision card** (`SignatureView.inputsNotInCim`, from `covenantInputsNotInCim`): Signed over
   closes with ONE info item, an info glyph, "3 covenant inputs are not stated in the CIM" (t-small
   ink-2, quieter than a note's t-strong) and "Show in memo", which scrolls to the Covenants card
   head (`cueMemo`, never `focusNoteById`). It is not a flag: never in `signedOver`, never counted
   in "you opened n of N", never walked by J / K, and neither the auto-countersign policy
   (`policyChecks`) nor any engine decision reads it. It shows at the gate and on the sealed record
-  (also when there are no notes: "Signed over · no notes" then the item), never while pending.
+  (also when there are no notes: "Signed over · no notes" then the item), never while pending. On a
+  **rejected** record the list's label is "Notes on the record · …" for every count, "Notes on the
+  record · none" with no notes (R4.4), so the item never sits under "Signed over" on a refusal.
+  During an auto-countersign countdown its "Show in memo" holds the countdown first
+  (`reviewManually`, caption "Held · review manually"), since the link scrolls the card out of view:
+  the policy never signs while the reviewer reads the caveat the card raised.
 - **Sealed caption** (the reviewer line's caption and `sealed.caption`): adds "signed with 3 inputs
   not stated in the CIM" after the stamp (countersigned and auto-countersigned); a rejection reads
   "decided with 3 inputs not stated in the CIM", since a refusal signs nothing over.
 - **Kit page:** the LinkButton group adds the tone inherit / role figure specimens (rest, hover,
   inside a breached row); every covenant table specimen renders the Actual as the memo does (trace
-  link plus "Not in CIM"); the Decision card board's gate and sealed captions name the info item and
-  the caption clause, and a new auto-countersigned specimen shows Signed over holding only the info
-  item. Fixtures (`FX_*`) carry the new copy, `CovenantRow.evidence` and `inputsNotInCim`; engine
+  link plus "Not in CIM", top-aligned rows); the Decision card board's gate and sealed captions name
+  the info item and the caption clause, a new auto-countersigned specimen shows Signed over holding
+  only the info item, and a Meridian rejection with no notes (`FX_SIG_MERIDIAN_REJECTED`) shows
+  "Notes on the record · none" above it. Fixtures (`FX_*`) carry the new copy, `CovenantRow.evidence` and `inputsNotInCim`; engine
   numbers are unchanged.
+
+### R4.4 Review fixes to R4.1 to R4.3 (as built)
+
+An adversarial review of the three fixes found these; each is folded into the subsection above it
+names, and listed here so the change is traceable.
+
+- **R4.1 · a double-click committed a refusal.** The first click armed, the second (same gesture)
+  committed with whatever the note held, so a countersign note could still go out as a rejection
+  reason unreviewed. Now a press of the armed verb within `ARM_SETTLE_MS` (500 ms) of arming does
+  nothing (`GateState.armedAt`).
+- **R4.1 · A signed over an armed refusal.** With Reject armed and a reason typed, Tab then A sealed
+  the reason as the countersign note. A now never signs while a verb is armed (phase one only, with
+  its own announcement); the primary's click, Enter or Space remains the one act that signs over it.
+- **R4.1 · an armed verb committed off screen.** One S or R anywhere on the live file committed it,
+  card out of view. A key press now commits only while the armed verb or the note is on screen;
+  otherwise it brings them back.
+- **R4.1 · advertised keys that could not fire.** Arming put focus in the note with its text
+  selected while the A and S / R chips stayed, so pressing an advertised key replaced the note with
+  one letter. Keyboard arming now leaves the caret at the end (click arming still selects), and
+  while armed only the commit chord ⌘↵ shows as a chip.
+- **R4.1 · armed labels broke the two-line verb row at phone width.** "Reject with this reason" and
+  "Return with this note" pushed Return and Reject onto separate lines (three lines under a 360px
+  card). The commit labels are now "Reject now" and "Return with note", no wider than the resting
+  labels; Cancel, not a verb, may wrap on its own.
+- **R4.2 · `AUTO_NOTE` restated the rule and dropped "first pass".** It now quotes `POLICY_TERMS`,
+  the list Settings and the Tip state. The R4.2 claim that the rule shows "wherever it can be
+  switched" is narrowed to Settings and the wide top bar.
+- **R4.3 · the Actual column zigzagged.** Rows with "Not in CIM" are top-aligned (kit
+  `TableRow.align`).
+- **R4.3 · a rejected record headed the info item "Signed over · no notes".** A rejection's label is
+  "Notes on the record" for every count.
+- **R4.3 · the caveat link let a countdown sign off screen.** Following it during a countdown now
+  holds the countdown first.
 
 ## 0. Owner decisions that survive (each is checked in §9)
 

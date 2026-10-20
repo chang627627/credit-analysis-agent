@@ -26,8 +26,6 @@ export function PLAN_COUNTDOWN_S(speed: number): number {
  * eligibility check is policyChecks) and policyRule states it, so the two never disagree.
  */
 export const POLICY_MIN_CONFIDENCE = 0.9;
-/** The note a policy signature writes onto the record (the threshold read from the constant). */
-export const AUTO_NOTE = `Auto-countersigned · clean-approval policy (recommendation APPROVE, zero flags, every key figure at ${policyPct(POLICY_MIN_CONFIDENCE)} confidence or above)`;
 /** Confidence at and above which a figure stays neutral (never green). */
 export const CONF_NEUTRAL = 0.9;
 
@@ -87,6 +85,23 @@ export function tokenWord(rec: Recommendation): string {
   return TOKENS[rec].word;
 }
 
+// ---- the clean-approval rule's terms (THREE-PANE R4.2)
+
+/**
+ * The clean-approval policy's four terms in policyChecks' order, read from the same constants
+ * (the APPROVE token, zero flags, the first pass, POLICY_MIN_CONFIDENCE). policyRule states them
+ * in Settings and the top-bar Tip and AUTO_NOTE writes them onto the record, so the rule the
+ * reviewer is shown and the rule the record quotes are one list.
+ */
+export const POLICY_TERMS: readonly string[] = [
+  TOKENS.approve.word,
+  'no flags',
+  'first pass',
+  `every key figure at ${policyPct(POLICY_MIN_CONFIDENCE)} or above`,
+];
+/** The note a policy signature writes onto the record: the rule's own terms, nothing restated by hand. */
+export const AUTO_NOTE = `Auto-countersigned · clean-approval policy (${POLICY_TERMS.join(' · ')})`;
+
 // ---- human verbs
 
 export const VERB_WORD: Record<Verb, string> = {
@@ -102,9 +117,13 @@ export const VERB_WORD: Record<Verb, string> = {
 export const IMPERATIVE = {
   returnLabel: 'Return for revision',
   rejectLabel: 'Reject memo',
-  /** the armed verb's commit labels (R4, Mobbin audit fix 1): the second press decides */
-  returnCommit: 'Return with this note',
-  rejectCommit: 'Reject with this reason',
+  /**
+   * the armed verb's commit labels (R4, Mobbin audit fix 1): the second press decides. Each is no
+   * wider than its resting label, so Return and Reject still share line 2 of the verb row under a
+   * 360px card (R4.1 width table): armed, the row stays two lines, never three.
+   */
+  returnCommit: 'Return with note',
+  rejectCommit: 'Reject now',
 } as const;
 
 /** Primary labels by what is being concurred with (§10). */
@@ -413,6 +432,8 @@ export const COPY = {
   showInMemo: 'Show in memo',
   editInMemo: 'Edit in memo',
   signReady: 'Countersign is focused. Press A again to sign.',
+  /** A while Return or Reject is armed (R4.1): A never signs over an armed refusal */
+  signReadyArmed: (verb: string): string => `Countersign is focused. ${verb} is armed, so press Enter to countersign or Esc to cancel it.`,
   composerLabel: 'Message the Credit Analyst',
   send: 'Send',
   returningForRevision: 'Returning for revision',

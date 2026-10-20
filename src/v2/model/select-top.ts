@@ -11,7 +11,7 @@ import type { AuditHistoryEntry, RunRecord } from '../../hooks/useCreditAgent';
 import type { V2Store } from '../state/contracts';
 import { fmtConf, fmtCountdown, fmtSeconds, fmtSpeed, plural } from './format';
 import type { PolicyView, TopBarView } from './types';
-import { AUTO_COUNTDOWN_MS, COPY, HOLD_CAPTION, POLICY_MIN_CONFIDENCE, tokenWord } from './vocab';
+import { AUTO_COUNTDOWN_MS, COPY, HOLD_CAPTION, POLICY_MIN_CONFIDENCE, POLICY_TERMS, tokenWord } from './vocab';
 
 // ---- shared store lookups ----------------------------------------------------
 
@@ -164,9 +164,10 @@ export function policyChecks(pkg: Pick<ApprovalPackage, 'recommendation' | 'flag
 }
 
 /**
- * The clean-approval rule in words (THREE-PANE R4.2, Mobbin audit fix 2). The terms run in
- * policyChecks' order and read the same constants (the APPROVE token, zero flags, the first pass,
- * POLICY_MIN_CONFIDENCE) plus AUTO_COUNTDOWN_MS, so no number is restated by hand.
+ * The clean-approval rule in words (THREE-PANE R4.2, Mobbin audit fix 2). The terms are
+ * POLICY_TERMS (vocab: policyChecks' order, read from the same constants: the APPROVE token, zero
+ * flags, the first pass, POLICY_MIN_CONFIDENCE; AUTO_NOTE quotes the same list on the record) plus
+ * AUTO_COUNTDOWN_MS, so no term or number is restated by hand.
  *   full (Settings): 'If the agent recommends APPROVE · no flags · first pass · every key figure at
  *     90% or above → countersign after a visible 5 s countdown you can hold. Everything else waits
  *     for you.'
@@ -174,7 +175,7 @@ export function policyChecks(pkg: Pick<ApprovalPackage, 'recommendation' | 'flag
  *     first pass · every key figure at 90% or above → countersign after a 5 s countdown you can hold.'
  */
 export function policyRule(): { full: string; short: string } {
-  const terms = [tokenWord('approve'), 'no flags', 'first pass', `every key figure at ${fmtConf(POLICY_MIN_CONFIDENCE)} or above`];
+  const terms = POLICY_TERMS;
   const wait = fmtSeconds(AUTO_COUNTDOWN_MS);
   const [call, ...rest] = terms;
   return {

@@ -46,12 +46,20 @@ export interface GateState {
   insertedDraft: string | null;
   /**
    * R4 (Mobbin audit fix 1): the refusal verb the reviewer armed. A first press of Return or Reject
-   * (click, S, R) never acts: it arms that verb, puts the reviewer in the note with its text
-   * selected, and the note label asks the verb's question. A second press of the SAME verb commits
-   * when the note has text; the other refusal verb re-arms to it; Cancel or Esc in the card disarms;
-   * signing clears it.
+   * (click, S, R) never acts: it arms that verb, puts the reviewer in the note (text selected after
+   * a click, caret at the end after a key), and the note label asks the verb's question. A second
+   * press of the SAME verb commits when the note has text; the other refusal verb re-arms to it;
+   * Cancel or Esc in the card disarms; signing clears it. While armed, A never signs (it only
+   * focuses the primary); clicking the primary still signs at once.
    */
   armed: 'reject' | 'rework' | null;
+  /**
+   * When `armed` was last set (Date.now()), and by what. A press of the armed verb within
+   * ARM_SETTLE_MS of arming is the same gesture (a double-click) and never commits; 'key' arming
+   * leaves the caret at the end of the note, 'click' arming selects its text (state/gate.ts).
+   */
+  armedAt: number | null;
+  armedBy: 'click' | 'key' | null;
   /** the armed verb was pressed again with an empty note: the calm inline hint shows (cleared by any text) */
   reasonHint: boolean;
   levMax: number | null;           // amended Max Total Leverage ceiling (null = as filed)
@@ -152,7 +160,9 @@ export interface V2Actions {
    * R2.3, relative to the memo Decision card (the registered root, see registerDecision):
    *  - 'card'   the card's primary verb itself (click, Enter, Space): signs at once (live file only).
    *  - 'key'    A: signs when the card's reviewer line is on screen (below the doc bar, inside the
-   *             window, not covered by the drawer or an overlaid source); otherwise phase one only.
+   *             window, not covered by the drawer or an overlaid source) and no refusal verb is
+   *             armed; otherwise phase one only (while Return or Reject is armed, A only focuses the
+   *             primary: a reason typed for a refusal is never signed over by a single key).
    *  - 'button' "Go to decision" (doc bar, palette), the panel's "Decision →" and the composer's
    *             refusal link: phase one only, never signs.
    * Phase one: navigate to the live file if needed, close the drawer and an overlaid source, bring
@@ -164,16 +174,20 @@ export interface V2Actions {
   requestSign(source: 'key' | 'button' | 'card'): void;
   /**
    * R4 (Mobbin audit fix 1), Return (tryRework: click, S) and Reject (tryReject: click, R, or ⌘↵ in
-   * the card while armed). Every press holds the countdown and clears what covers the memo. A press
-   * of a verb that is not armed NEVER acts: it arms it (gate.armed), brings the note and that verb
-   * into view, focuses the note and selects its text (pendingNoteFocus when the field is unmounted).
-   * A press of the armed verb commits when the note has text; with an empty note it stays armed,
-   * focuses the note and shows the calm hint (reasonHint). Committing Reject seals the run;
+   * the card while armed). `source` is 'click' (the default: the card's buttons) or 'key' (S, R,
+   * ⌘↵). Every press holds the countdown and clears what covers the memo. A press of a verb that is
+   * not armed NEVER acts: it arms it (gate.armed, armedAt, armedBy), brings the note and that verb
+   * into view and focuses the note, selecting its text after a click and leaving the caret at its
+   * end after a key (pendingNoteFocus when the field is unmounted). A press of the armed verb within
+   * ARM_SETTLE_MS of arming does nothing (a double-click never commits); a key press of the armed
+   * verb while neither its button nor the note is on screen only brings them back into view. Past
+   * those, a press of the armed verb commits when the note has text; with an empty note it stays
+   * armed, focuses the note and shows the calm hint (reasonHint). Committing Reject seals the run;
    * committing Return recedes (leaving), then the loop resumes after --dur-2 (focus lost to the
    * body → the card's pending line).
    */
-  tryReject(): void;
-  tryRework(): void;
+  tryReject(source?: 'click' | 'key'): void;
+  tryRework(source?: 'click' | 'key'): void;
   /** Cancel (the link beside the verbs) or Esc in the card: disarm; focus lost to the body returns to the verb it disarmed */
   disarm(): void;
   reviewManually(): void;                      // holdAuto('manual')
@@ -268,7 +282,7 @@ export interface V2Internals {
   noteFieldRef: Box<HTMLTextAreaElement | null>;
   /** when phase one asked for the card's primary before the card mounted (0 = none): registerDecision focuses it within 3000 ms */
   pendingSignFocus: Box<number>;
-  /** when arming Return or Reject asked for the note field before it mounted (0 = none): registerNoteField focuses it (text selected) within 3000 ms */
+  /** when arming Return or Reject asked for the note field before it mounted (0 = none): registerNoteField focuses it within 3000 ms (text selected if a click armed it, caret at the end if a key did: gate.armedBy) */
   pendingNoteFocus: Box<number>;
   /** a compound start's plan toggle, applied when that deal's plan review opens */
   pendingPlanToggle: Box<{ dealId: string; stepId: string; include: boolean } | null>;

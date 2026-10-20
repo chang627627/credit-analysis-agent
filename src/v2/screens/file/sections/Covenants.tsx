@@ -16,7 +16,9 @@
 // kit LinkButton in the row's own ink, P-32; cueMemo scrolls there and
 // flashes it once, no connector lines), and an Actual the CIM does not state
 // carries one t-meta line under it, "Not in CIM" (the model's short form of
-// the evidence class, since the column is 88px).
+// the evidence class, since the column is 88px). Such a row is top-aligned
+// (kit TableRow align 'start'), so the Actual's value stays on the same line
+// as its neighbours' figures instead of riding 8px above them.
 // ---------------------------------------------------------------------------
 
 import { AmendField, LinkButton, Meter, Redline, StatusLabel, Table } from '../../../kit';
@@ -97,6 +99,7 @@ export function Covenants(props: { rows: CovenantRow[]; label: string; ctx: File
     key: c.anchorId,
     anchorId: c.anchorId,
     height: 36,
+    align: c.evidence && c.evidence.line ? 'start' : undefined,
     highlighted: ctx.isHighlighted(c.anchorId),
     flashKey: ctx.flashKeyOf(c.anchorId),
     cells: {

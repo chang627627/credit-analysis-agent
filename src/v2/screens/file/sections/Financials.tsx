@@ -5,10 +5,11 @@
 // coverage, liquidity; no header band of its own). Each figure carries
 // exactly one evidence class in the Source column: Quoted (a cite that opens
 // the source on that span), Derived (the formula, every operand its own
-// cite), Unquoted · extracted, or Model output. A tested figure that breaches
-// its filed covenant is the section's one emphasis: the breach glyph before
-// its label and the value in bad-ink, both decided by the model. The table
-// stacks under 480px of its own width. `Evidence` is shared with Risk.
+// cite), Not in the CIM · extraction model (class unquoted, THREE-PANE
+// R4.3), or Model output. A tested figure that breaches its filed covenant
+// is the section's one emphasis: the breach glyph before its label and the
+// value in bad-ink, both decided by the model. The table stacks under 480px
+// of its own width. `Evidence` is shared with Risk.
 // ---------------------------------------------------------------------------
 
 import type { ReactNode } from 'react';

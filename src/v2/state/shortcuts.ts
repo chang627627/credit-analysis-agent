@@ -10,17 +10,23 @@
 //                 where it is not the live file. The composer never submits on it.
 //                 Live file at the gate with Return or Reject armed and focus in the
 //                 Decision card (its note, where arming puts it and where S and R
-//                 type): presses the armed verb (commits with a note; R4).
+//                 type): presses the armed verb (commits with a note; R4). It is
+//                 the only commit key the card advertises while armed.
 //   A             live file at the gate: requestSign('key'), relative to the
 //                 memo Decision card. Signs when the card's reviewer line is on
 //                 screen; otherwise the first press brings the verbs and the line
 //                 into view and focuses the primary, and the next press signs.
+//                 While Return or Reject is armed, A never signs: it focuses the
+//                 primary (Enter, Space or a click on it signs over the armed verb).
 //   S / R         live file at the gate: Return / Reject, armed (R4, Mobbin audit
 //                 fix 1). A first press never acts: it arms the verb and puts the
-//                 reviewer in the card's note with its text selected. The same key
-//                 again (focus outside a field; in the note, where S and R type,
-//                 ⌘↵) commits when the note has text (empty: a calm hint); the
-//                 other key re-arms to the other verb.
+//                 reviewer in the card's note, caret at the end. From there letters
+//                 type (the chips for A and the other verb drop while armed), so
+//                 the commit is ⌘↵. Only with focus outside a field do S / R
+//                 reach the card again: the same key commits when the note has
+//                 text (empty: a calm hint) and the armed verb or the note is on
+//                 screen (off screen it brings them back instead); the other key
+//                 re-arms to the other verb.
 //   J / K         file route: next / previous flagged row in the memo
 //   [             file route: toggle the source pane
 //   ]             file route: toggle the agent panel (opening focuses the composer)
@@ -104,8 +110,8 @@ export function useShortcuts(x: V2Internals): void {
         if (armed !== null && r.name === 'file' && r.dealId === selectLiveDealId(s) && s.agent.status === 'awaiting_approval' && inDecision(x, e.target)) {
           e.preventDefault();
           if (e.repeat || s.gate.leaving) return;
-          if (armed === 'reject') a.tryReject();
-          else a.tryRework();
+          if (armed === 'reject') a.tryReject('key');
+          else a.tryRework('key');
           return;
         }
         if (r.name === 'file' && !s.agent.parsing) {
@@ -140,13 +146,13 @@ export function useShortcuts(x: V2Internals): void {
         case 'S':
           if (!atLiveGate || e.repeat) return;
           e.preventDefault();
-          a.tryRework();
+          a.tryRework('key');
           return;
         case 'r':
         case 'R':
           if (!atLiveGate || e.repeat) return;
           e.preventDefault();
-          a.tryReject();
+          a.tryReject('key');
           return;
         case 'j':
         case 'J':

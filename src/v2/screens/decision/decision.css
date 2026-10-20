@@ -81,7 +81,8 @@
 .decision__primary { display: flex; }
 .decision__caption { width: 0; min-width: 100%; }
 /* an armed Return / Reject (R4): the quiet Cancel link shares the row, centred on the button line
-   (md buttons are 34 tall); it never takes a share of the row like a verb */
+   (md buttons are 34 tall); it never takes a share of the row like a verb, and under a 360px card
+   it is the one item that may take a line of its own */
 .decision__cancel { display: flex; flex: 0 0 auto; align-items: center; min-height: 34px; }
 
 /* 6 · the attestation and the policy line, small, under the verbs */
@@ -92,7 +93,10 @@
 /* A phone-width card (under 360, the memo pane at a 390 viewport): the panel goes flat (rules above
    and below, no frame or side padding), the verbs close up to 12px and drop their decorative,
    aria-hidden Kbd chips (A, S and R still work), so Return and Reject (about 148 and 96 without
-   chips, 256 with the gap) still share the line under the primary: two lines, never three. */
+   chips, 256 with the gap) still share the line under the primary: two lines, never three. Armed
+   (R4.1), the commit labels are no wider than the resting ones ("Return with note" about 136,
+   "Reject now" about 85), so the verbs keep those two lines; the Cancel link is not a verb and
+   wraps on its own when line 2 is full. */
 @container decision (max-width: 359px) {
   .decision__panel {
     padding: 16px 0;

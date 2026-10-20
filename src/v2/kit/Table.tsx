@@ -1,7 +1,7 @@
 // Table: the one grid-based table of V2 (role=table semantics, CSS grid layout).
 // Every row is its own grid on the shared column template (fr tracks become minmax(0, fr) so
 // rows always align). Group rows, full-width span rows, indented rows, detail blocks, highlight,
-// flash, muted and activatable rows are all expressed through TableRow. `hideBelow` hides a column
+// flash, muted, activatable and top-aligned rows are all expressed through TableRow. `hideBelow` hides a column
 // below that viewport width; `stackBelow` (760, 640 or 480) stacks each row's cells into one column
 // once the table itself is narrower than that width (a container query on the table's own box, so a
 // table in a narrow memo card or a 360px frame stacks by its real width, whatever the viewport).
@@ -22,6 +22,12 @@ export interface TableRow {
   span?: ReactNode;                     // one full-width cell instead of cells
   group?: TableGroup;                   // group/header row instead of cells
   height?: 36 | 48 | 56;
+  /**
+   * 'start' tops the cells instead of centring them, so every cell's first line shares one line
+   * box when one cell carries a second line under its value (a covenant Actual's "Not in CIM",
+   * P-32): centring would lift that value above its neighbours. Unset = centred. Stacked rows ignore it.
+   */
+  align?: 'start';
   indent?: boolean;                     // 24px extra left padding (Book sub-rows)
   onActivate?: () => void;
   ariaLabel?: string;
@@ -167,6 +173,7 @@ function BodyRow({ row, columns, index }: { row: TableRow; columns: TableColumn[
         role="row"
         className={cx(kind, state)}
         data-h={row.group ? (row.group.height ?? 32) : (row.height ?? 36)}
+        data-align={row.group ? undefined : row.align}
         style={{ '--k-row': Math.min(index + 1, ROW_STAGGER_CAP) } as CSSProperties}
         data-anchor={row.anchorId}
         data-activate={activatable ? '' : undefined}

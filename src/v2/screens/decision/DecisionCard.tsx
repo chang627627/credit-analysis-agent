@@ -17,22 +17,27 @@
 //                 question and the one-sentence reason, directly above
 //   5 the verbs   ONE horizontal row that may wrap sideways (never a vertical list), each verb with
 //                 its one-line consequence under it; an armed Return or Reject reads its commit
-//                 label and a quiet Cancel link joins the same row;
+//                 label (no wider than its resting label, so the row keeps its two lines), only the
+//                 commit chord ⌘↵ stays as a chip, and a quiet Cancel link joins the same row;
 //   6             the attestation (small, under the verbs) and the policy line with its checks;
 //   7 lines       the agent's pre-signed line and the reviewer's line, which become the sealed
 //                 record after the decision (ink / AUTO / REJECTED, quote and provenance, amendment
 //                 redlines, the routed line). Sealed: no note field, no verbs.
 //
 // Renders selectSignature verbatim and calls only store actions. Every rule (two-press A, armed
-// Return / Reject, the policy countdown and its holds, the leaving and justSigned guards, focus
-// after a decision) lives in state/gate.ts; Esc in the card (disarm) and the armed verb's ⌘↵ live in
-// state/shortcuts.ts. Clicking the primary (or Enter, Space) is the deliberate act: it first
-// brings the reviewer line into view (instant, least distance, the verbs kept in view when both fit),
-// so the ink draws where the reviewer is looking, then signs (requestSign('card')). The A key signs
-// only while the reviewer line is on screen, which is why the root registers itself
+// Return / Reject with its settle window and on-screen rule, A never signing over an armed refusal,
+// the policy countdown and its holds, the leaving and justSigned guards, focus after a decision)
+// lives in state/gate.ts; Esc in the card (disarm) and the armed verb's ⌘↵ live in
+// state/shortcuts.ts. The one view-side rule: following the info item's "Show in memo" during a
+// policy countdown holds it first (reviewManually), since the link scrolls the card away.
+// Clicking the primary (or Enter, Space) is the deliberate act: it first brings the reviewer line
+// into view (instant, least distance, the verbs kept in view when both fit), so the ink draws
+// where the reviewer is looking, then signs (requestSign('card')). The A key signs only while the
+// reviewer line is on screen and nothing is armed, which is why the root registers itself
 // (registerDecision: state finds [data-sign-primary] button, the [data-verb] buttons and the reviewer
 // line inside it) and the note field registers too (registerNoteField: arming Return or Reject
-// focuses it and selects its text, also when it mounts after the press).
+// focuses it, selecting its text after a click and leaving the caret at the end after a key, also
+// when it mounts after the press).
 // The open reviewer line is a record awaiting ink, never a control (no onActivate).
 import { useCallback, useId, useRef, useState } from 'react';
 import {
@@ -255,7 +260,12 @@ export function DecisionCard({ dealId }: DecisionBlockProps) {
               v={v}
               disabled={dead}
               onShow={(o) => (sealedState ? a.cueMemo(o.target) : a.focusNoteById(o.noteId))}
-              onInfo={(info) => a.cueMemo(info.target)}
+              onInfo={(info) => {
+                // following the caveat during a policy countdown is reviewing: hold it first, so the
+                // policy never signs while the reviewer reads what the card just raised (off screen)
+                if (policy.armed) a.reviewManually();
+                a.cueMemo(info.target);
+              }}
             />
 
             {/* 2 · the reviewer note, on the record */}
@@ -329,20 +339,20 @@ export function DecisionCard({ dealId }: DecisionBlockProps) {
                 <ul className="decision__choices">
                   <li className="decision__choice" data-verb="sign">
                     <span ref={primaryRef} className="decision__primary" data-sign-primary="">
-                      <Button variant="primary" kbd={v.verbs.kbd.sign} onClick={signFromPrimary} disabled={dead}>
+                      <Button variant="primary" kbd={v.verbs.kbd.sign ?? undefined} onClick={signFromPrimary} disabled={dead}>
                         {v.verbs.primary}
                       </Button>
                     </span>
                     <span className="decision__caption decision-ink3 t-meta">{v.verbs.notes.sign}</span>
                   </li>
                   <li className="decision__choice" data-verb="rework">
-                    <Button variant="secondary" kbd={v.verbs.kbd.ret} onClick={a.tryRework} disabled={dead}>
+                    <Button variant="secondary" kbd={v.verbs.kbd.ret ?? undefined} onClick={() => a.tryRework('click')} disabled={dead}>
                       {v.verbs.returnLabel}
                     </Button>
                     <span className="decision__caption decision-ink3 t-meta">{v.verbs.notes.ret}</span>
                   </li>
                   <li className="decision__choice" data-verb="reject">
-                    <Button variant="danger" kbd={v.verbs.kbd.rej} onClick={a.tryReject} disabled={dead}>
+                    <Button variant="danger" kbd={v.verbs.kbd.rej ?? undefined} onClick={() => a.tryReject('click')} disabled={dead}>
                       {v.verbs.rejectLabel}
                     </Button>
                     <span className="decision__caption decision-ink3 t-meta">{v.verbs.notes.rej}</span>

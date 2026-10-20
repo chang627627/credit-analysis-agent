@@ -312,10 +312,14 @@ export function signatureOf(ctx: FileCtx): SignatureView | null {
     sealed && sealed.presented && sealed.presented.notesOpened.total === total
       ? sealed.presented.notesOpened.opened
       : signedOver.filter((o) => o.opened).length;
+  // a refusal signs nothing over, whatever the count (R4.3: the info item never sits under "Signed over" on one)
+  const refused = !!sealed && sealed.outcome === 'reject';
   const signedOverLabel =
     total === 0
-      ? 'Signed over · no notes'
-      : sealed && sealed.outcome === 'reject'
+      ? refused
+        ? 'Notes on the record · none'
+        : 'Signed over · no notes'
+      : refused
         ? `Notes on the record · you opened ${openedCount} of ${total}`
         : `Signed over · you opened ${openedCount} of ${total}`;
 
@@ -430,8 +434,13 @@ export function signatureOf(ctx: FileCtx): SignatureView | null {
           disabled: dead,
           armed,
           cancelLabel: armed !== null ? COPY.cancelArmed : null,
-          // the armed verb commits from its note (where S and R type) with the commit chord
-          kbd: { sign: 'A', ret: armed === 'rework' ? `${s.modKey}↵` : 'S', rej: armed === 'reject' ? `${s.modKey}↵` : 'R' },
+          // the armed verb commits from its note (where letters type) with the commit chord; while
+          // armed, the chips that cannot act from there drop (A never signs over an armed refusal,
+          // and the other refusal key types into the note), so every chip shown is true
+          kbd:
+            armed === null
+              ? { sign: 'A', ret: 'S', rej: 'R' }
+              : { sign: null, ret: armed === 'rework' ? `${s.modKey}↵` : null, rej: armed === 'reject' ? `${s.modKey}↵` : null },
           notes: decided.notes,
         }
       : null;

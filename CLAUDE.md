@@ -637,19 +637,28 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   signature lines (agent pre-signed, reviewer line). After the decision the same card is the sealed
   record (ink / AUTO / REJECTED + quote + provenance + routed line; no verbs, no note field).
   Clicking the primary signs at once. A (no modifier, not typing) signs only while the card's
-  reviewer line is on screen; otherwise the first A brings the card into view, focuses the primary
-  and announces "Countersign is focused. Press A again to sign." (P-02). **Return and Reject are
-  armed, never immediate** (P-30, THREE-PANE R4.1, Mobbin audit fix 1): a first press (click, S or R)
-  never acts. It arms that verb (`GateState.armed`), holds the countdown, clears the memo covers,
-  brings the note and the verb into view, focuses the note and SELECTS any text already typed; the
-  note label becomes the verb's question ("Why reject it? · on the record" / "What should the agent
-  revise? · quoted in Revision N"), the armed button reads "Reject with this reason" / "Return with
-  this note" with the commit chord ⌘↵ (from the note, where S and R type), its consequence stays, and
-  a quiet "Cancel" link joins the same verb row. A second press of the SAME verb commits only with a
-  note; on an empty note it stays armed with a calm t-small hint ("Write a reason first.", announced,
-  never a red alert). The other refusal verb re-arms; Cancel or Esc in the card disarms; the primary
-  still signs at once (the note goes on the record as the countersign note). So a stray R after an
-  optional note can no longer reject the memo with that note as its reason. After a return,
+  reviewer line is on screen and no refusal verb is armed; otherwise the first A brings the card
+  into view, focuses the primary and announces "Countersign is focused. Press A again to sign."
+  (P-02; while Return or Reject is armed A never signs: it focuses the primary and says "… Reject
+  memo is armed, so press Enter to countersign or Esc to cancel it."). **Return and Reject are
+  armed, never immediate** (P-30, THREE-PANE R4.1 + R4.4, Mobbin audit fix 1): a first press (click,
+  S or R) never acts. It arms that verb (`GateState.armed`, `armedAt`, `armedBy`), holds the
+  countdown, clears the memo covers, brings the note and the verb into view and focuses the note
+  (text SELECTED after a click; caret at the END after S or R, so a reflexive key types one letter
+  instead of replacing the note); the note label becomes the verb's question ("Why reject it? · on
+  the record" / "What should the agent revise? · quoted in Revision N"), the armed button reads
+  "Reject now" / "Return with note" (no wider than the resting labels, so the verb row keeps its two
+  lines at phone width) with the commit chord ⌘↵, the ONLY chip while armed (A and the other refusal
+  key cannot act from the note, so their chips drop), its consequence stays, and a quiet "Cancel"
+  link joins the same verb row (at phone width it may wrap alone; it is not a verb). A second press
+  of the SAME verb commits only with a note: a click, ⌘↵ from the card, or the key with focus
+  outside a field; on an empty note it stays armed with a calm t-small hint ("Write a reason
+  first.", announced, never a red alert). The second press must be its own gesture: within 500 ms
+  of arming (`ARM_SETTLE_MS`, a double-click) it does nothing, and a key press while neither the
+  armed verb nor the note is on screen only brings them back. The other refusal verb re-arms;
+  Cancel or Esc in the card disarms; the primary's click (or Enter, Space on it) still signs at once
+  (the note goes on the record as the countersign note). So neither a stray R after an optional
+  note, a double-click, nor a single A can put a typed reason under the wrong verb. After a return,
   focus that fell to the body lands on the card's pending line (the panel never takes focus). The panel's
   "Decision →", the doc bar's "Go to decision" and the composer's refusal link only scroll to the
   card; the palette has no sign command.
@@ -671,7 +680,12 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   first pass · every key figure at 90% or above → countersign after a visible 5 s countdown you can
   hold. Everything else waits for you." The top-bar switch wears the kit Tip with the one-line version
   ("Clean means APPROVE · no flags · first pass · every key figure at 90% or above → countersign after
-  a 5 s countdown you can hold."); the kit Switch forwards `aria-describedby` for it.
+  a 5 s countdown you can hold."); the kit Switch forwards `aria-describedby` for it. The terms are
+  ONE list, `POLICY_TERMS` (`vocab.ts`), which `AUTO_NOTE` quotes too: a policy signature records
+  "Auto-countersigned · clean-approval policy (APPROVE · no flags · first pass · every key figure at
+  90% or above)" (R4.4; it used to omit "first pass"). The narrow-width More menu item and the palette
+  command keep one-line labels without the rule (kit Menu has no tip slot; the palette hint is a
+  single 36px-row slot).
 - **Covenant inputs the CIM does not state are on the record** (P-32, THREE-PANE R4.3, Mobbin audit
   fix 3). Interest coverage, fixed-charge coverage and liquidity are stated in no sample CIM, yet
   they are 3 of the 4 covenant-tested actuals. Their evidence class reads "Not in the CIM ·
@@ -683,11 +697,14 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   the "Not in CIM" line, the Financials-row target, an aria label; `null` in the stress test): every
   Actual is a kit `LinkButton role="figure" tone="inherit"` (new variant: the row's own ink, quiet
   `--line` underline) that traces to its Financials row via `cueMemo`; columns and `stackBelow 640`
-  unchanged. The Decision card's Signed over closes with ONE info item, "3 covenant inputs are not
-  stated in the CIM · Show in memo" (`SignatureView.inputsNotInCim`, lands on the Covenants card):
-  not a flag, never counted in "you opened n of N", never read by the policy or the engine. The
-  sealed caption adds "signed with 3 inputs not stated in the CIM" ("decided with …" on a
-  rejection). Engine numbers unchanged.
+  unchanged; a row whose Actual carries "Not in CIM" is top-aligned (kit `TableRow.align: 'start'`,
+  R4.4), so that Actual sits on its neighbours' line instead of 8px above it. The Decision card's
+  Signed over closes with ONE info item, "3 covenant inputs are not stated in the CIM · Show in memo"
+  (`SignatureView.inputsNotInCim`, lands on the Covenants card): not a flag, never counted in "you
+  opened n of N", never read by the policy or the engine; following it during an auto-countersign
+  countdown holds the countdown first (`reviewManually`). The sealed caption adds "signed with 3
+  inputs not stated in the CIM" ("decided with …" on a rejection, whose list is always headed "Notes
+  on the record", "· none" with no notes, never "Signed over"). Engine numbers unchanged.
 - **Rejected by the owner during the V2 build (do not resurrect):** vertical "Source ¶" spine
   (source opens from a doc-bar button instead) · the ¶ citation mark (reads "CIM para 2") ·
   recommendation at the top of the memo · side margin column of notes (left empty gaps) ·

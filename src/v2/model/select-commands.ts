@@ -10,7 +10,7 @@ import { classifyFlag, isCounted } from './flags';
 import { fmtHM, fmtSpeed, plural } from './format';
 import { SPEED_STEPS, isRunLive, selectLiveDealId } from './select-top';
 import type { CommandView, ConfirmView } from './types';
-import { COPY, HOLD_CAPTION } from './vocab';
+import { COPY, HOLD_CAPTION, IMPERATIVE } from './vocab';
 
 function dealName(s: V2Store, dealId: string | null): string {
   if (!dealId) return 'this file';
@@ -163,7 +163,8 @@ export function announceFor(kind: AnnounceKind, s: V2Store): string {
       return r ? `Auto-countersign ${HOLD_CAPTION[r].replace(/^Held/, 'held')}.` : 'Auto-countersign held.';
     }
     case 'sign-ready':
-      return COPY.signReady;
+      // R4.1: with Return or Reject armed, A only focuses the primary; saying "press A again" would be false
+      return s.gate.armed === null ? COPY.signReady : COPY.signReadyArmed(s.gate.armed === 'reject' ? IMPERATIVE.rejectLabel : IMPERATIVE.returnLabel);
     case 'need-reason':
       return s.gate.armed === 'rework' ? COPY.reasonFirstRework : COPY.reasonFirstReject;
   }

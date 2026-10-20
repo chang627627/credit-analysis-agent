@@ -500,6 +500,8 @@
 .v2 .k-table__row[data-h="36"] { min-height: 36px; }
 .v2 .k-table__row[data-h="48"] { min-height: 48px; }
 .v2 .k-table__row[data-h="56"] { min-height: 56px; }
+/* a row whose cell carries a second line under its value tops every cell, so the first lines share one line box (P-32) */
+.v2 .k-table__row[data-align="start"] { align-items: start; }
 .v2 .k-table__row[data-activate] { cursor: pointer; transition: background-color var(--dur-1) var(--ease-out); }
 .v2 .k-table__row[data-activate]:hover { background: var(--sunken); }
 .v2 .k-table__row[data-activate]:focus-visible { outline-offset: -2px; }

@@ -269,14 +269,16 @@ export interface SignatureView {
   call: { lead: string; token: TokenView; title: string; why: string } | null;
   /**
    * R4 (Mobbin audit fix 1): a first press of Return or Reject arms it. armed: the armed refusal verb;
-   * its label is then the commit label ('Return with this note' / 'Reject with this reason') and its
-   * kbd the commit chord (⌘↵, from the note); cancelLabel ('Cancel', a quiet link in the same row)
-   * only while armed. The consequence captions (notes) never change.
+   * its label is then the commit label ('Return with note' / 'Reject now', no wider than the resting
+   * label) and its kbd the commit chord (⌘↵, from the note); cancelLabel ('Cancel', a quiet link in
+   * the same row) only while armed. kbd null = no chip: while armed, A and the other refusal key
+   * cannot act from the note where arming puts focus (A never signs over an armed refusal), so their
+   * chips drop. The consequence captions (notes) never change.
    */
   verbs: {
     primary: string; returnLabel: string; rejectLabel: string; disabled: boolean;
     armed: 'reject' | 'rework' | null; cancelLabel: string | null;
-    kbd: { sign: string; ret: string; rej: string }; notes: { sign: string; ret: string; rej: string };
+    kbd: { sign: string | null; ret: string | null; rej: string | null }; notes: { sign: string; ret: string; rej: string };
   } | null;
   sealed: { caption: string; quote: string | null; provenance: string | null; amendments: { label: string; from: string; to: string }[]; routed: string | null; routedLinkLabel: string | null; checks: { ok: boolean; text: string }[] | null } | null;
 }

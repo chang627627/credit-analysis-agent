@@ -1702,14 +1702,15 @@ export const FX_SIG_COBALT_GATE: SignatureView = {
 
 /**
  * R4 (Mobbin audit fix 1) · Atlas rev 1 with Return armed: the first press only armed it. The note
- * typed before the press is selected for review, the label asks the verb's question with the real
- * next revision, the armed button reads its commit label with the commit chord, and a quiet Cancel
- * shares the row. Nothing is decided until Return is pressed again.
+ * typed before the press is in focus for review (selected after a click), the label asks the verb's
+ * question with the real next revision, the armed button reads its commit label with the commit
+ * chord (the only chip left: A and R cannot act from the note), and a quiet Cancel shares the row.
+ * Nothing is decided until Return is pressed again.
  */
 export const FX_SIG_ATLAS_ARMED_RETURN: SignatureView = {
   ...FX_SIG_ATLAS_GATE,
   note: { ...NOTE_EMPTY, value: ATLAS_RETURN_NOTE, label: COPY.armedReworkLabel(2) },
-  verbs: { ...VERBS('Countersign escalation'), returnLabel: IMPERATIVE.returnCommit, armed: 'rework', cancelLabel: COPY.cancelArmed, kbd: { sign: 'A', ret: '⌘↵', rej: 'R' } },
+  verbs: { ...VERBS('Countersign escalation'), returnLabel: IMPERATIVE.returnCommit, armed: 'rework', cancelLabel: COPY.cancelArmed, kbd: { sign: null, ret: '⌘↵', rej: null } },
 };
 
 /**
@@ -1720,7 +1721,7 @@ export const FX_SIG_COBALT_ARMED_REJECT: SignatureView = {
   ...FX_SIG_COBALT_GATE,
   note: { ...NOTE_EMPTY, label: COPY.armedRejectLabel, hint: COPY.reasonFirstReject },
   verbs: FX_SIG_COBALT_GATE.verbs
-    ? { ...FX_SIG_COBALT_GATE.verbs, rejectLabel: IMPERATIVE.rejectCommit, armed: 'reject', cancelLabel: COPY.cancelArmed, kbd: { sign: 'A', ret: 'S', rej: '⌘↵' } }
+    ? { ...FX_SIG_COBALT_GATE.verbs, rejectLabel: IMPERATIVE.rejectCommit, armed: 'reject', cancelLabel: COPY.cancelArmed, kbd: { sign: null, ret: null, rej: '⌘↵' } }
     : null,
 };
 
@@ -1833,6 +1834,41 @@ export const FX_SIG_REJECTED: SignatureView = {
   sealed: {
     caption: `Rejected · Reviewer · 14:22 · ${COPY.sealedNotInCim(3, 'decided')}`,
     quote: '“No structure within policy clears four breaches. Not a credit we can restructure.”',
+    provenance: 'authored by the reviewer',
+    amendments: [],
+    routed: null,
+    routedLinkLabel: null,
+    checks: null,
+  },
+};
+
+/**
+ * R4.3 · Meridian rejected at its clean rev 1 gate: no notes, and a refusal signs nothing over, so
+ * the list reads "Notes on the record · none" above the info item, never "Signed over".
+ */
+export const FX_SIG_MERIDIAN_REJECTED: SignatureView = {
+  ...FX_SIG_MERIDIAN_COUNTDOWN,
+  state: 'rejected',
+  eyebrow: 'Countersignature record · CAM-2026-0418 · rev 1',
+  record: { state: 'rejected', headline: 'The agent recommended APPROVE. You rejected the memo.' },
+  signedOverLabel: 'Notes on the record · none',
+  reviewer: {
+    sigState: 'rejected',
+    caption: `Rejected · Reviewer · 14:13 · ${COPY.sealedNotInCim(3, 'decided')}`,
+    ink: 'none',
+    autoText: null,
+    rejectedWord: 'REJECTED',
+    fillMs: 5000,
+    reviewLabel: null,
+  },
+  policy: POLICY_OFF,
+  note: null,
+  attestation: null,
+  call: null,
+  verbs: null,
+  sealed: {
+    caption: `Rejected · Reviewer · 14:13 · ${COPY.sealedNotInCim(3, 'decided')}`,
+    quote: '“Liquidity has no source in the CIM. I will not approve on extracted figures.”',
     provenance: 'authored by the reviewer',
     amendments: [],
     routed: null,
@@ -2309,6 +2345,7 @@ export const FIXTURES = {
   FX_SIG_SEALED,
   FX_SIG_AUTO_SEALED,
   FX_SIG_REJECTED,
+  FX_SIG_MERIDIAN_REJECTED,
   FX_STRESS_ATLAS,
   FX_EXHIBITS,
   FX_BOOK_BREACH,

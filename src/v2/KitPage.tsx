@@ -87,6 +87,7 @@ import {
   FX_SIG_COBALT_GATE,
   FX_SIG_AUTO_SEALED,
   FX_SIG_MERIDIAN_COUNTDOWN,
+  FX_SIG_MERIDIAN_REJECTED,
   FX_SIG_REJECTED,
   FX_SIG_SEALED,
   FX_STRESS_ATLAS,
@@ -1570,6 +1571,8 @@ function CovActual({ c }: { c: CovenantRow }) {
 const covRow = (c: CovenantRow, extra: Partial<TableRow> = {}): TableRow => ({
   key: c.anchorId,
   height: 36,
+  // a row whose Actual carries "Not in CIM" tops its cells, as the memo does (P-32)
+  align: c.evidence && c.evidence.line ? 'start' : undefined,
   anchorId: `kit-${c.anchorId}`,
   cells: {
     name: <span className="t-strong">{c.name}</span>,
@@ -1706,7 +1709,7 @@ function TableBoard() {
     <Board
       id={B.table.id}
       name={B.table.name}
-      spec="Header 36 --sunken t-label --ink-3 · rows 36/48/56 with a 1px --line rule · cells 8 12 · group rows 32/40 · indent 24 · highlighted = --sunken · flash = v2-flash · stackBelow 760 / 640 / 480 is a container query on the table's own width"
+      spec="Header 36 --sunken t-label --ink-3 · rows 36/48/56 with a 1px --line rule · cells 8 12, centred; align 'start' tops a row's cells when one cell carries a second line under its value (P-32) · group rows 32/40 · indent 24 · highlighted = --sunken · flash = v2-flash · stackBelow 760 / 640 / 480 is a container query on the table's own width"
       action={
         <Button variant="secondary" size="sm" onClick={() => setFlash((n) => n + 1)}>
           Flash row
@@ -1714,7 +1717,7 @@ function TableBoard() {
       }
     >
       <Grid size="full">
-        <Cell caption="header · group 32 (status, meta, count) · end-aligned figures · highlighted (first row) · flash (last row, press Flash row)" block>
+        <Cell caption="header · group 32 (status, meta, count) · end-aligned figures · highlighted (first row) · flash (last row, press Flash row) · rows whose Actual carries “Not in CIM” are align 'start', so that Actual sits on its neighbours' line (P-32)" block>
           <Table columns={COV_COLUMNS} rows={covRows} caption="Covenant compliance (specimen)" />
         </Cell>
         <Cell caption={`activatable row 56 (click or Enter · activated ${activated}×) · indented sub-rows · muted (acknowledged)`} block>
@@ -2384,19 +2387,19 @@ function DecisionSpecimen({ v, anchor }: { v: SignatureView; anchor: string }) {
           </div>
           <ul className="kp-verbs">
             <li className="kp-verb">
-              <Button variant="primary" kbd={v.verbs.kbd.sign} disabled={v.verbs.disabled} onClick={noop}>
+              <Button variant="primary" kbd={v.verbs.kbd.sign ?? undefined} disabled={v.verbs.disabled} onClick={noop}>
                 {v.verbs.primary}
               </Button>
               <span className="t-small kp-ink2">{v.verbs.notes.sign}</span>
             </li>
             <li className="kp-verb">
-              <Button variant="secondary" kbd={v.verbs.kbd.ret} disabled={v.verbs.disabled} onClick={noop}>
+              <Button variant="secondary" kbd={v.verbs.kbd.ret ?? undefined} disabled={v.verbs.disabled} onClick={noop}>
                 {v.verbs.returnLabel}
               </Button>
               <span className="t-small kp-ink2">{v.verbs.notes.ret}</span>
             </li>
             <li className="kp-verb">
-              <Button variant="danger" kbd={v.verbs.kbd.rej} disabled={v.verbs.disabled} onClick={noop}>
+              <Button variant="danger" kbd={v.verbs.kbd.rej ?? undefined} disabled={v.verbs.disabled} onClick={noop}>
                 {v.verbs.rejectLabel}
               </Button>
               <span className="t-small kp-ink2">{v.verbs.notes.rej}</span>
@@ -2470,10 +2473,11 @@ const DECISION_CASES: { key: string; v: SignatureView; caption: string }[] = [
   { key: 'amended', v: FX_SIG_ATLAS_AMENDED, caption: 'amended in place on the covenant row · the amendment summary with Revert and Edit in memo; the lead token still reads the agent’s ESCALATE' },
   { key: 'rev2', v: FX_SIG_ATLAS_REV2, caption: 'rev 2 on the revised structure · policy on, not eligible (Show checks)' },
   { key: 'cobalt', v: FX_SIG_COBALT_GATE, caption: 'Cobalt rev 1 · DECLINE, five notes to sign over' },
-  { key: 'armed-return', v: FX_SIG_ATLAS_ARMED_RETURN, caption: 'Return armed (P-30) · the first press only armed it: the note typed before is selected for review, the label asks what to revise (quoted in Revision 2), the button reads its commit label with ⌘↵, a quiet Cancel shares the row; Esc in the card also disarms' },
-  { key: 'armed-reject', v: FX_SIG_COBALT_ARMED_REJECT, caption: 'Reject armed, pressed again on an empty note (P-30) · it stays armed and a calm hint asks for the reason (t-small, never a red alert); the other refusal verb would re-arm to it; the primary still signs at once' },
+  { key: 'armed-return', v: FX_SIG_ATLAS_ARMED_RETURN, caption: 'Return armed (P-30) · the first press only armed it: the note typed before is in focus for review (selected after a click, caret at the end after S), the label asks what to revise (quoted in Revision 2), the button reads its commit label “Return with note” (no wider than the resting label, so the row keeps two lines at phone width) with ⌘↵, the only chip left (A and R cannot act from the note; A never signs while a refusal is armed), a quiet Cancel shares the row; Esc in the card also disarms; a second click within 500 ms of arming never commits' },
+  { key: 'armed-reject', v: FX_SIG_COBALT_ARMED_REJECT, caption: 'Reject armed, pressed again on an empty note (P-30) · it stays armed and a calm hint asks for the reason (t-small, never a red alert); the button reads “Reject now” with ⌘↵ (from the note, the keyboard path to this hint); the other refusal verb would re-arm to it; the primary still signs at once' },
   { key: 'sealed', v: FX_SIG_SEALED, caption: 'countersigned · the same card becomes the sealed record: no verbs, no note field; headline, ink, quote, provenance, routed line · the caption ends “signed with 3 inputs not stated in the CIM” (P-32)' },
   { key: 'auto-sealed', v: FX_SIG_AUTO_SEALED, caption: 'auto-countersigned (Meridian) · no notes to sign over, so Signed over holds only the info item (P-32); the policy and its checks are unchanged by it' },
+  { key: 'rejected-no-notes', v: FX_SIG_MERIDIAN_REJECTED, caption: 'rejected with no notes (Meridian) · a refusal signs nothing over, so the list reads “Notes on the record · none” above the info item, never “Signed over”; the caption says “decided with”, not “signed with” (P-32)' },
 ];
 
 function DecisionCardBoard() {

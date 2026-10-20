@@ -29,7 +29,7 @@ import { Button, LinkButton, StatusGlyph } from '../../kit';
 import { newActivityLabel } from '../../model';
 import type { FileAt, StatusKey, ThreadLine } from '../../model';
 import { useV2 } from '../../state/store';
-import { focusComposerIfLost } from './focus';
+import { focusComposerIfLost, heldByKeyboard } from './focus';
 
 /** A thread within this many px of its foot is pinned (follows new lines). */
 const PIN_SLACK = 24;
@@ -131,9 +131,10 @@ export function Thread({ dealId, lines, labelledBy, sendSeq, children }: ThreadP
 
   // the pill leaves once the thread is at its foot: focus it held goes to the composer
   const onPill = () => {
+    const keyboard = heldByKeyboard(document.activeElement);
     setUnseen(0);
     jump();
-    focusComposerIfLost(scrollRef.current ? scrollRef.current.closest('[data-chat-pane]') : null);
+    if (keyboard) focusComposerIfLost(scrollRef.current ? scrollRef.current.closest('[data-chat-pane]') : null);
   };
 
   return (

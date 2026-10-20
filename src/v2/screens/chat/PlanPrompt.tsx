@@ -13,7 +13,7 @@ import { useLayoutEffect, useRef } from 'react';
 import { Button, Checkbox, LinkButton } from '../../kit';
 import type { PlanPromptView } from '../../model';
 import { useV2 } from '../../state/store';
-import { focusComposerIfLost } from './focus';
+import { focusComposerIfLost, heldByKeyboard } from './focus';
 
 export interface PlanPromptProps {
   plan: PlanPromptView;
@@ -26,12 +26,13 @@ export function PlanPrompt({ plan, dealId }: PlanPromptProps) {
   const rootRef = useRef<HTMLDivElement>(null);
 
   // the prompt's DOM is still attached when this cleanup runs on unmount, so focus inside it is
-  // still visible here; the hand-off itself waits for the commit
+  // still visible here; the hand-off itself waits for the commit. Keyboard only: after a mouse click
+  // focus is left where it falls, so the composer is not lit while the analysis runs
   useLayoutEffect(() => {
     const root = rootRef.current;
     return () => {
       const held = document.activeElement;
-      if (root && held && root.contains(held)) focusComposerIfLost(root.closest('[data-chat-pane]'));
+      if (root && held && root.contains(held) && heldByKeyboard(held)) focusComposerIfLost(root.closest('[data-chat-pane]'));
     };
   }, []);
 

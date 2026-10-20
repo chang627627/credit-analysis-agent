@@ -64,14 +64,11 @@
 }
 
 /* The kit hides Facility below a 1120 VIEWPORT, but the table's width is the viewport minus the
-   sidebar (216, or the 64 rail) and the column's 80 of padding: at 1120 to 1333 with the sidebar
-   expanded the full template (File 220 floor + 200 + 88 + 120 + 200 + 208 = 1036) no longer fits
-   and the right edge, the Action column with "Review and countersign", was clipped by the table's
-   overflow. So Facility also hides on the table's OWN width (the kit's k-table container, measured
-   inside its 1px border), switching to the kit's Facility-less template; the facility then shows
-   under the borrower. The template without Facility is 760 at File's 144 floor, which is exactly
-   the kit's stack point, so every width from 360 up either fits or stacks. */
-@container k-table (max-width: 1035.98px) {
+   sidebar, the agent panel and the column's padding. So Facility also hides on the table's OWN
+   width (the kit's k-table container, inside its 1px border) once the full template
+   (File 220 floor + 200 + 88 + 120 + 200 = 828) no longer fits, switching to the kit's
+   Facility-less template; the facility then shows under the borrower. */
+@container k-table (max-width: 827.98px) {
   .v2 .desk [role="table"] {
     --k-cols-active: var(--k-cols-1120);
   }
@@ -110,11 +107,6 @@
 .desk-stage__meta {
   padding-left: 24px;
   color: var(--ink-3);
-}
-
-.desk-action {
-  display: inline-flex;
-  justify-content: flex-end;
 }
 
 .desk-parsing {

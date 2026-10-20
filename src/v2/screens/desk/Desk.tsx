@@ -1,26 +1,22 @@
 // ---------------------------------------------------------------------------
 // Countersign V2 · Desk (spec §7.1). One calm list of every case file, grouped
 // by the stage the engine reports, plus the CIM drop zone. A pure reduction of
-// `selectDesk(s)`: every word, number and tone arrives composed by the model;
-// this file only lays it out and maps clicks onto `s.actions`.
+// `selectDesk(s)`: every word, number and tone arrives composed by the model.
+// Display only (owner rule: commands live in the agent panel): no row actions;
+// a row or its name opens the case file, where the panel starts and steers work.
 // ---------------------------------------------------------------------------
-import { Button, Chip, ConfirmStrip, DropZone, LinkButton, StatusLabel, Table, Token } from '../../kit';
+import { Chip, DropZone, LinkButton, StatusLabel, Table, Token } from '../../kit';
 import type { TableColumn, TableRow } from '../../kit';
 import { COPY, selectDesk } from '../../model';
-import type { DeskRow, DeskView, Route } from '../../model';
+import type { DeskRow, DeskView } from '../../model';
 import { useV2 } from '../../state/store';
 import type { V2Actions } from '../../state/store';
 
 /**
- * Column template from §7.1. Facility reappears under the borrower whenever its column hides:
- * below a 1120 viewport (kit) and whenever the TABLE is narrower than 1036 (desk.css container
- * query), since the sidebar takes 216 (or the 64 rail) out of the viewport.
- * Action is 208: the md primary "Review and countersign" measures about 175 to 178 with its
- * 1px border and 12 + 12 padding, and the cell pads 12 + 12, so 192 left it 168 and ellipsized
- * the screen's one primary. File keeps its 1fr share, 222 at the 1040 column, above the 220
- * floor; desk.css hides Facility below a 1036 table (where File would drop under 220). File's
- * own floor is 144 so that, once Facility hides, the row (144 + 88 + 120 + 200 + 208 = 760)
- * fits every table width down to the 760 stack point instead of clipping the Action column.
+ * Column template from §7.1, without the Action column (the Desk is display only). Facility
+ * reappears under the borrower whenever its column hides: below a 1120 viewport (kit) and whenever
+ * the TABLE is narrower than the full template (desk.css container query), since the sidebar and
+ * the agent panel take their share of the viewport.
  */
 const COLUMNS: TableColumn[] = [
   { key: 'file', label: 'File', width: 'minmax(144px, 1fr)' },
@@ -28,32 +24,7 @@ const COLUMNS: TableColumn[] = [
   { key: 'leverage', label: 'Leverage', width: '88px', align: 'end' },
   { key: 'call', label: "Agent's call", width: '120px' },
   { key: 'stage', label: 'Stage', width: '200px' },
-  { key: 'action', label: 'Action', width: '208px', align: 'end' },
 ];
-
-type DeskAction = NonNullable<DeskRow['action']>;
-
-/** Where each row action leads. Starts go through the store so the confirm and parsing guards apply. */
-function runAction(actions: V2Actions, dealId: string, kind: DeskAction['kind']) {
-  const go = (to: Route) => actions.navigate(to);
-  switch (kind) {
-    case 'review':
-      // review starts at step 1; the recommendation sits at the foot, above the signature
-      go({ name: 'file', dealId, at: 'financials' });
-      return;
-    case 'open-record':
-      go({ name: 'file', dealId, at: 'signature' });
-      return;
-    case 'open-plan':
-    case 'open':
-      go({ name: 'file', dealId, at: null });
-      return;
-    case 'draft':
-    case 're-run':
-      actions.startFile(dealId);
-      return;
-  }
-}
 
 function FileCell({ row, onOpen }: { row: DeskRow; onOpen: () => void }) {
   return (
@@ -83,7 +54,6 @@ function StageCell({ row }: { row: DeskRow }) {
 
 function fileRow(row: DeskRow, actions: V2Actions): TableRow {
   const open = () => actions.navigate({ name: 'file', dealId: row.dealId, at: null });
-  const action = row.action;
   return {
     key: `file:${row.dealId}`,
     height: 56,
@@ -103,29 +73,7 @@ function fileRow(row: DeskRow, actions: V2Actions): TableRow {
         <span className="desk-nocall t-body">{COPY.noCall}</span>
       ),
       stage: <StageCell row={row} />,
-      action: action ? (
-        <span className="desk-action">
-          <Button
-            variant={action.variant}
-            size={action.variant === 'primary' ? 'md' : 'sm'}
-            disabled={action.disabled}
-            onClick={() => runAction(actions, row.dealId, action.kind)}
-          >
-            {action.label}
-          </Button>
-        </span>
-      ) : null,
     },
-    detail: row.confirm ? (
-      <ConfirmStrip
-        text={row.confirm.text}
-        confirmLabel={row.confirm.confirmLabel}
-        cancelLabel={row.confirm.cancelLabel}
-        tone={row.confirm.tone}
-        onConfirm={() => actions.confirmStart()}
-        onCancel={() => actions.cancelConfirm()}
-      />
-    ) : undefined,
   };
 }
 

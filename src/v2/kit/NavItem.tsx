@@ -1,5 +1,5 @@
 // NavItem: one row of the sidebar navigation. Icon + label + an optional attention dot; the active
-// row is ink on --sunken with a 2px ink rule on its left edge (never teal, like the old tab
+// row is ink on --sunken with a 2px ink rule on its left edge (never the accent, like the old tab
 // underline). Below 1100px the sidebar folds to an icon rail: the label hides visually but stays the
 // accessible name, and the dot rides the icon square's corner. No counts: a badge only means that
 // something waits on the reviewer (`attention` is its words, appended to the accessible name).

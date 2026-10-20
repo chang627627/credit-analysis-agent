@@ -1,4 +1,4 @@
-// Cite: an inline ¶ address. The active cite carries a 2px ink outline (never teal).
+// Cite: an inline ¶ address. The active cite carries a 2px ink outline (never the accent).
 import type { ForceState } from './types';
 
 export interface CiteProps {

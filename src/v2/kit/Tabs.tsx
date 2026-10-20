@@ -1,4 +1,4 @@
-// Tabs: the top-bar route tabs. The active tab is ink with a 2px ink underline (never teal).
+// Tabs: the top-bar route tabs. The active tab is ink with a 2px ink underline (never the accent).
 export interface TabsItem {
   id: string;
   label: string;

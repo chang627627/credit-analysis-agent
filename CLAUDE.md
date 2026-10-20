@@ -546,11 +546,14 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   SPEC.md; the owner decisions below supersede all of them.
 - **Guardrails:** `npm run v2-check` (28 greps: tokens only, 400/500/600, 4px grid, one
   infinite animation, no hand-rolled controls outside the kit, V1 + engine hashes untouched, …).
-  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-28, rendered on `/?kit`) for
+  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-29, rendered on `/?kit`) for
   owner approval; every `data-pattern` id needs an entry there, every kit export a kit-page specimen.
 - **Storage** (only in `src/v2/state/`): `v2.navCollapsed`, `v2.chatOpen` (only `state/panes.ts`),
   `v2.autonomy`. (`v2.showReasoning` was retired with R2: reasoning lives in each card's Record.)
 - **Light mode only** (owner decision): no dark theme, no toggle.
+- **Accent = signature-ink blue** `#1f4fbf` (owner decision, 2026-10-20; was teal `#0f7d8c`, which sat
+  11.5 dE from the approve green so the primary verb read as "approve"). Green means pass/approve only.
+  V1 keeps "Graphite & Teal". Brand mark tile and favicon follow the accent.
 - **Thesis:** the credit memo is the product; the agent panel beside it is command and control.
   Owner, verbatim: 中间只搞high level。命令与指挥。显示的都看右边。("The middle is high level only:
   command and control. Everything displayed goes on the right.") Then: countersign也要移到右边去。
@@ -642,7 +645,7 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   row). Any composer use, typing included, holds a running countdown. Q&A persists per file, scoped
   by a per-file epoch (a re-run starts fresh).
 - **Shell:** collapsible left sidebar (Desk · Book · Ledger, 64px icon rail, persisted; **no counts**: only
-  a small teal dot on the Desk while a file waits on you at plan review or the countersignature);
+  a small accent dot on the Desk while a file waits on you at plan review or the countersignature);
   top bar = section name + auto-countersign switch + search.
 - **Rejected by the owner during the V2 build (do not resurrect):** vertical "Source ¶" spine
   (source opens from a doc-bar button instead) · the ¶ citation mark (reads "CIM para 2") ·

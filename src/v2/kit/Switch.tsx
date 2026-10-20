@@ -1,4 +1,4 @@
-// Switch: a 28×16 pill (P-10). Off = sunken track with an ink-3 edge; on = ink track (never teal).
+// Switch: a 28×16 pill (P-10). Off = sunken track with an ink-3 edge; on = ink track (never the accent).
 import type { ForceState } from './types';
 
 export interface SwitchProps {

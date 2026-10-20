@@ -139,7 +139,7 @@ export const PENDING: PendingPattern[] = [
     type: 'component',
     name: 'Policy checks printed on every gate + ink-coloured policy switch',
     description:
-      "Every gate prints the clean-approval policy's four checks and their results, eligible or not, and the top-bar policy switch is ink when on, never teal, so the accent stays reserved for the reviewer line. V1 showed the policy trace only while it auto-countersigned.",
+      "Every gate prints the clean-approval policy's four checks and their results, eligible or not, and the top-bar policy switch is ink when on, never the accent, so the accent stays reserved for the reviewer line. V1 showed the policy trace only while it auto-countersigned.",
     evidence: 'V2 spec §3 top bar, §8 and §10 policy checks; V1 autonomy dial (CLAUDE.md, 2026 conventions wave)',
     proposedBy: BY,
     proposedDate: ON,
@@ -271,7 +271,7 @@ export const PENDING: PendingPattern[] = [
     type: 'layout',
     name: 'Sidebar navigation (owner request)',
     description:
-      'Desk, Book and Ledger move from top-bar tabs into a 216px sidebar of NavItems. No counts (owner feedback: a badge is a promise that something needs you): only the Desk carries a small teal dot, and only while a file waits on the reviewer at plan review or the countersignature; in the rail the dot rides the icon square\'s corner with a paper ring. The Book\'s monitor items stay on the Book screen. The active row is ink on --sunken with a 2px ink left rule, never teal. Below 1100px it folds to a 64px icon rail, and beside an open agent panel it rails itself below 1400px without overwriting the stored choice (P-22). The top bar keeps the section name and the global controls.',
+      'Desk, Book and Ledger move from top-bar tabs into a 216px sidebar of NavItems. No counts (owner feedback: a badge is a promise that something needs you): only the Desk carries a small accent dot, and only while a file waits on the reviewer at plan review or the countersignature; in the rail the dot rides the icon square\'s corner with a paper ring. The Book\'s monitor items stay on the Book screen. The active row is ink on --sunken with a 2px ink left rule, never the accent. Below 1100px it folds to a 64px icon rail, and beside an open agent panel it rails itself below 1400px without overwriting the stored choice (P-22). The top bar keeps the section name and the global controls.',
     evidence: 'Owner request during the V2 build (2026-10-17); V1 shipped a sidebar rail',
     proposedBy: 'Owner request',
     proposedDate: ON,
@@ -353,15 +353,28 @@ export const PENDING: PendingPattern[] = [
   {
     id: 'P-28',
     type: 'token',
-    name: 'Brand mark: a signature written on a line, on the teal tile',
+    name: 'Brand mark: a signature written on a line, on the accent tile',
     description:
-      'The Countersign mark is a 20px tile in the accent with rounded corners (rx 5 of 20) carrying a short handwritten signature stroke above a fainter signature line, both in on-accent strokes at 1.5. It reads the product name literally: the second signature on the line. It replaces the Unicode half-filled square glyph, which rendered as a crude black box. Kit BrandMark (sidebar and kit page), the V1 header, empty state and agent avatar, the design-system page and the new favicon all use the same drawing. Identity, not an icon: Lucide stays the icon system.',
+      'The Countersign mark is a 20px tile in the accent (signature-ink blue) with rounded corners (rx 5 of 20) carrying a short handwritten signature stroke above a fainter signature line, both in on-accent strokes at 1.5. It reads the product name literally: the second signature on the line. It replaces the Unicode half-filled square glyph, which rendered as a crude black box. Kit BrandMark (sidebar and kit page), the V1 header, empty state and agent avatar, the design-system page and the new favicon all use the same drawing. Identity, not an icon: Lucide stays the icon system.',
     evidence: 'Owner feedback ("this icon is so ugly"); four options shown side by side, the owner chose option A',
     proposedBy: OWNER,
     proposedDate: ON_3P,
     status: 'approved',
     kitAnchor: null,
     ownerNote: 'Chosen by the owner from four options (A, signature on a line).',
+  },
+  {
+    id: 'P-29',
+    type: 'token',
+    name: 'Accent: signature-ink blue instead of teal',
+    description:
+      'The one accent moves from teal to signature-ink blue (fills and state strokes, hover, accent text, wash). The teal sat at nearly the approve green\'s lightness (OKLCH L 0.54 vs 0.56) and only 11.5 dE from it, so the Decision card\'s primary verb read as approve next to the green APPROVE token even when the agent escalated. Blue is 27.8 dE from the approve green (25.6 for deuteranopia), white on it is 7.17:1, and blue ink is the countersignature convention, so it backs the product name and the brand mark. Green now means pass and approve only. V1 keeps its Graphite & Teal identity.',
+    evidence: 'Owner feedback ("the theme color cyan is too close to the approve color green"); three options shown on the Decision card elements, the owner chose B',
+    proposedBy: OWNER,
+    proposedDate: ON_3P,
+    status: 'approved',
+    kitAnchor: null,
+    ownerNote: 'Chosen by the owner (option B, signature-ink blue).',
   },
 ];
 

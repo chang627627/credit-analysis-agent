@@ -1392,7 +1392,7 @@ function NavBoard() {
           <Tabs items={FX_TOPBAR.tabs.map((t) => ({ id: t.id, label: t.label, count: null, countTone: 'ink-3' as const }))} active={tab} onSelect={setTab} ariaLabel="Sections (specimen)" />
         </div>
       </Group>
-      <Group label="NavItem (sidebar navigation, P-21; click to switch). No counts: the teal dot shows only while something waits on the reviewer (the Desk, at plan review or the countersignature)">
+      <Group label="NavItem (sidebar navigation, P-21; click to switch). No counts: the accent dot shows only while something waits on the reviewer (the Desk, at plan review or the countersignature)">
         <div className="kp-navframe">
           {FX_TOPBAR.tabs.map((t) => (
             <NavItem
@@ -2413,7 +2413,7 @@ function SignatureBoard() {
     <Board
       id={B.sig.id}
       name={B.sig.name}
-      spec="The signature lines at the foot of the memo's Decision card (P-01): pad 40 + rule · open reviewer line = 2px --accent (the only 2px teal stroke on app screens), the record awaiting ink and never a control: the verbs directly above it sign (P-23) · ink: fixed 200×40 svg, --ink 2px, v2-ink over --dur-3 · countdown fill v2-fill over AUTO_COUNTDOWN_MS · caption t-meta --ink-3, a sibling of the line (P-11, P-20)"
+      spec="The signature lines at the foot of the memo's Decision card (P-01): pad 40 + rule · open reviewer line = 2px --accent (the only 2px accent stroke on app screens), the record awaiting ink and never a control: the verbs directly above it sign (P-23) · ink: fixed 200×40 svg, --ink 2px, v2-ink over --dur-3 · countdown fill v2-fill over AUTO_COUNTDOWN_MS · caption t-meta --ink-3, a sibling of the line (P-11, P-20)"
       action={
         <Button variant="secondary" size="sm" icon={RotateCcw} onClick={() => setReplay((n) => n + 1)}>
           Replay

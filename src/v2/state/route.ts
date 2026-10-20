@@ -99,7 +99,17 @@ interface RouterState {
 }
 
 export function useHashRoute(): { route: Route; navSeq: number; navigate: (to: Route) => void } {
-  const [state, setState] = useState<RouterState>(() => ({ route: parseHash(window.location.hash), navSeq: 0 }));
+  // Owner rule: a page load (refresh) always opens on the Desk. Every run lives in memory, so a
+  // reload starts the session over, and step one is selecting the project. The address is reset
+  // in place (no extra history entry, no hashchange) so back/forward and later links still work.
+  const [state, setState] = useState<RouterState>(() => {
+    const desk: Route = { name: 'desk' };
+    const hash = toHash(desk);
+    if (window.location.hash !== hash) {
+      window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}${hash}`);
+    }
+    return { route: desk, navSeq: 0 };
+  });
 
   // back / forward / a typed URL: follow the hash (our own writes parse back to
   // the route we already hold, so they are ignored here)

@@ -271,7 +271,7 @@ export const PENDING: PendingPattern[] = [
     type: 'layout',
     name: 'Sidebar navigation (owner request)',
     description:
-      'Desk, Book and Ledger move from top-bar tabs into a 216px sidebar of NavItems with their live counts (Desk awaiting you in accent, Book open escalations in warn). The active row is ink on --sunken with a 2px ink left rule, never teal. Below 1100px it folds to a 64px icon rail, and beside an open agent panel it rails itself below 1400px without overwriting the stored choice (P-22). The top bar keeps the section name and the global controls.',
+      'Desk, Book and Ledger move from top-bar tabs into a 216px sidebar of NavItems. No counts (owner feedback: a badge is a promise that something needs you): only the Desk carries a small teal dot, and only while a file waits on the reviewer at plan review or the countersignature; in the rail the dot rides the icon square\'s corner with a paper ring. The Book\'s monitor items stay on the Book screen. The active row is ink on --sunken with a 2px ink left rule, never teal. Below 1100px it folds to a 64px icon rail, and beside an open agent panel it rails itself below 1400px without overwriting the stored choice (P-22). The top bar keeps the section name and the global controls.',
     evidence: 'Owner request during the V2 build (2026-10-17); V1 shipped a sidebar rail',
     proposedBy: 'Owner request',
     proposedDate: ON,

@@ -1389,25 +1389,25 @@ function NavBoard() {
     <Board id={B.nav.id} name={B.nav.name} spec="Tabs 48, active = 2px --ink underline · Menu and Palette: paper, --shadow-pop, --r-md; keyboard-active row = --accent-wash + --accent-ink + 2px inset --accent outline · FilterChips 28, --ink-3 edge · ConfirmStrip 44, --sunken (P-19)">
       <Group label="Tabs (top-bar fixture; click to switch)">
         <div className="kp-tabsframe">
-          <Tabs items={FX_TOPBAR.tabs} active={tab} onSelect={setTab} ariaLabel="Sections (specimen)" />
+          <Tabs items={FX_TOPBAR.tabs.map((t) => ({ id: t.id, label: t.label, count: null, countTone: 'ink-3' as const }))} active={tab} onSelect={setTab} ariaLabel="Sections (specimen)" />
         </div>
       </Group>
-      <Group label="NavItem (sidebar navigation, P-21; click to switch)">
+      <Group label="NavItem (sidebar navigation, P-21; click to switch). No counts: the teal dot shows only while something waits on the reviewer (the Desk, at plan review or the countersignature)">
         <div className="kp-navframe">
           {FX_TOPBAR.tabs.map((t) => (
             <NavItem
               key={t.id}
               icon={t.id === 'book' ? Activity : t.id === 'ledger' ? ScrollText : FileStack}
               label={t.label}
-              count={t.count}
-              countTone={t.countTone}
+              attention={t.attention}
               active={t.id === tab}
               onClick={() => setTab(t.id)}
             />
           ))}
           <NavItem icon={FileStack} label="Hover (forced)" force="hover" onClick={() => undefined} />
           <NavItem icon={FileStack} label="Focus (forced)" force="focus" onClick={() => undefined} />
-          <NavItem icon={Activity} label="Compact (icon rail)" count="7" countTone="warn" compact onClick={() => undefined} />
+          <NavItem icon={FileStack} label="Compact (icon rail), a file waiting" attention={COPY.fileWaiting} compact onClick={() => undefined} />
+          <NavItem icon={Activity} label="Compact (icon rail), nothing waiting" compact onClick={() => undefined} />
         </div>
       </Group>
       <Group id="board-menu" label="Menu">

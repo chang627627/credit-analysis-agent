@@ -386,6 +386,7 @@ export const COPY = {
 
   // three-pane case file (THREE-PANE §5, R2)
   agentName: 'Credit Analyst',
+  fileWaiting: 'a file is waiting for you',
   selectProject: 'Select a project to analyze.',
   agentPanel: 'Agent panel',
   hideAgentPanel: 'Hide agent panel (])',

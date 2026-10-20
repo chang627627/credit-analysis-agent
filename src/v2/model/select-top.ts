@@ -106,13 +106,15 @@ export function selectTopBar(s: V2Store): TopBarView {
   const r = s.route.name;
   const active: TopBarView['active'] = r === 'book' ? 'book' : r === 'ledger' ? 'ledger' : r === 'settings' ? 'settings' : 'desk';
   const st = s.agent.status;
-  const deskCount = selectLiveDealId(s) !== null && (st === 'plan_review' || st === 'awaiting_approval') ? '1' : null;
-  const open = s.monitor.escalations.filter((e) => e.status === 'open' && s.agent.dealsFull.some((d) => d.id === e.dealId)).length;
+  // a badge is a promise that something needs you: only the Desk, only while a file waits on the
+  // reviewer (plan review or the countersignature). The Book's monitor items are ambient and live on
+  // its own screen, so they carry no count here.
+  const waiting = selectLiveDealId(s) !== null && (st === 'plan_review' || st === 'awaiting_approval');
   return {
     tabs: [
-      { id: 'desk', label: COPY.tabDesk, count: deskCount, countTone: 'accent' },
-      { id: 'book', label: COPY.tabBook, count: open > 0 ? String(open) : null, countTone: 'warn' },
-      { id: 'ledger', label: COPY.tabLedger, count: null, countTone: 'ink-3' },
+      { id: 'desk', label: COPY.tabDesk, attention: waiting ? COPY.fileWaiting : null },
+      { id: 'book', label: COPY.tabBook, attention: null },
+      { id: 'ledger', label: COPY.tabLedger, attention: null },
     ],
     active,
     policyOn: s.policy === 'auto',

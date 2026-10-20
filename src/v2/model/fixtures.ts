@@ -69,12 +69,12 @@ const SPEEDS_1X = [
   { value: 4, label: '4×', checked: false },
 ];
 
-/** Atlas at the gate, three open monitor items, policy off. */
+/** Atlas at the gate (the Desk's attention dot), policy off. */
 export const FX_TOPBAR: TopBarView = {
   tabs: [
-    { id: 'desk', label: 'Desk', count: '1', countTone: 'accent' },
-    { id: 'book', label: 'Book', count: '3', countTone: 'warn' },
-    { id: 'ledger', label: 'Ledger', count: null, countTone: 'ink-3' },
+    { id: 'desk', label: 'Desk', attention: COPY.fileWaiting },
+    { id: 'book', label: 'Book', attention: null },
+    { id: 'ledger', label: 'Ledger', attention: null },
   ],
   active: 'desk',
   policyOn: false,

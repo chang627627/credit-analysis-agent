@@ -87,7 +87,8 @@ export interface SectionFooter {
 export interface SectionFlagLine { id: string; flagId: string | null; state: StatusKey; text: string; anchorId: string }
 
 export interface TopBarView {
-  tabs: { id: 'desk' | 'book' | 'ledger'; label: string; count: string | null; countTone: 'accent' | 'warn' | 'ink-3' }[];
+  /** attention: set only while something waits on the reviewer (a dot in the sidebar, appended to the accessible name); no totals, no ambient counts */
+  tabs: { id: 'desk' | 'book' | 'ledger'; label: string; attention: string | null }[];
   active: 'desk' | 'book' | 'ledger' | 'settings'; policyOn: boolean; policyLabel: string; policyShort: string;
   speedLabel: string; speeds: { value: number; label: string; checked: boolean }[]; searchKbd: string;
   /** the top bar's left side now that navigation lives in the sidebar */

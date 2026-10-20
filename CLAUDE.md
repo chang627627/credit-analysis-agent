@@ -641,7 +641,8 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   or write the note: such text gets "Decide in the memo: Decision →" (or a pointer to the covenant
   row). Any composer use, typing included, holds a running countdown. Q&A persists per file, scoped
   by a per-file epoch (a re-run starts fresh).
-- **Shell:** collapsible left sidebar (Desk · Book · Ledger, counts, 64px icon rail, persisted);
+- **Shell:** collapsible left sidebar (Desk · Book · Ledger, 64px icon rail, persisted; **no counts**: only
+  a small teal dot on the Desk while a file waits on you at plan review or the countersignature);
   top bar = section name + auto-countersign switch + search.
 - **Rejected by the owner during the V2 build (do not resurrect):** vertical "Source ¶" spine
   (source opens from a doc-bar button instead) · the ¶ citation mark (reads "CIM para 2") ·
@@ -652,7 +653,7 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   build's step lines with confidences and durations, Record / Reasoning disclosures, flag sentences
   as MarginNote messages, the plan step checklist, the file context block, the head's note stepper
   and Show all reasoning: "do I look at the middle or the right?") · **the decision card in the agent
-  panel** (it was docked between the thread and the composer; the countersign moved to the right). · any show/hide toggle or collapse control for the agent panel (after the Desk, a case file is always three panes) · a project picker or project switch in the agent panel (step one, selecting the project, happens on the Desk; the agent panel exists only inside a case file) · the plan prompt pinned above the composer, bottom-anchored ("chat grows upward") thread lines and an empty-thread filler sentence ("Just do what normal claude code did") · a composer whose send button sits outside its field as a grey square · skeleton / "Not drafted yet" placeholder cards in the memo (cards appear as they are drafted)
+  panel** (it was docked between the thread and the composer; the countersign moved to the right). · any show/hide toggle or collapse control for the agent panel (after the Desk, a case file is always three panes) · a project picker or project switch in the agent panel (step one, selecting the project, happens on the Desk; the agent panel exists only inside a case file) · the plan prompt pinned above the composer, bottom-anchored ("chat grows upward") thread lines and an empty-thread filler sentence ("Just do what normal claude code did") · a composer whose send button sits outside its field as a grey square · skeleton / "Not drafted yet" placeholder cards in the memo (cards appear as they are drafted) · count badges on the sidebar items (Desk "1", Book "7" monitor totals): a badge only marks something waiting on you
 
 ## Backlog (to-do)
 

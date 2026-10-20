@@ -58,12 +58,11 @@ export function SideNav({
         {v.tabs.map((t) => (
           <li key={t.id}>
             {rail ? (
-              <Tip label={t.count ? `${t.label} · ${t.count}` : t.label}>
+              <Tip label={t.attention ? `${t.label} · ${t.attention}` : t.label}>
                 <NavItem
                   icon={ICONS[t.id]}
                   label={t.label}
-                  count={t.count}
-                  countTone={t.countTone}
+                  attention={t.attention}
                   active={t.id === v.active}
                   compact
                   onClick={() => a.navigate(routeFor(t.id))}
@@ -73,8 +72,7 @@ export function SideNav({
               <NavItem
                 icon={ICONS[t.id]}
                 label={t.label}
-                count={t.count}
-                countTone={t.countTone}
+                attention={t.attention}
                 active={t.id === v.active}
                 onClick={() => a.navigate(routeFor(t.id))}
               />

@@ -2156,7 +2156,7 @@ export const FX_STRESS_ATLAS: StressView = {
     base: ESCALATE,
     live: APPROVE,
     text: `flips · risk 58 → 47 · headroom ${M}6.5% → 15.1% · breaches 1 → 0`,
-    key: 'ebitda=22.60|debt=76.80|rate=11.18|liquidity=14.20',
+    key: 'escalate>approve',
   },
   // the stress test's actuals are scenario values, so they carry no evidence (R4.3)
   covenants: [

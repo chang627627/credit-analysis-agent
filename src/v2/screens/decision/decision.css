@@ -174,7 +174,8 @@
 .decision-stress__label { min-width: 0; }
 .decision-stress__value { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
 
-/* the outcome line (40px) is re-keyed on every recompute, so it enters each time */
+/* the outcome line (40px) is keyed on the stressed call, so it enters when the call changes and
+   updates in place while a driver moves */
 .decision-stress__outcome {
   display: flex;
   flex-wrap: wrap;

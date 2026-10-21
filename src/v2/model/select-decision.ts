@@ -569,7 +569,9 @@ export function selectStress(s: V2Store, dealId: string): StressView | null {
         ? 'matches the filed figures'
         : 'the model approximates this file and differs from the filed figures'
       : `${result} · risk ${filed.score} → ${l.risk.score} · headroom ${headroomText(filed.minHeadroom)} → ${headroomText(l.minHeadroom)} · breaches ${filed.breaches} → ${l.breaches}`,
-    key: scenarioKey(deal, scenario),
+    // keyed on the call, not the figures: the line enters when the stressed call changes and its
+    // numbers update in place while a driver moves (a per-step key replayed the enter on every step)
+    key: `${filed.rec}>${atBase ? filed.rec : l.recommendation}`,
   };
 
   let attach: StressView['attach'] = null;

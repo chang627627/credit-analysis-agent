@@ -320,6 +320,9 @@ export const COPY = {
   tabLedger: 'Ledger',
   policyLabel: 'Auto-countersign clean approvals',
   policyShort: 'Auto-countersign',
+  /** the palette's policy commands (their description is policyRule().short, R4.9) */
+  policyOnCommand: 'Turn on auto-countersign for clean approvals',
+  policyOffCommand: 'Turn off auto-countersign',
   paceLabel: 'Demo pace',
   search: 'Search',
   compareV1: 'Compare V1 ↗',

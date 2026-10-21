@@ -2,6 +2,10 @@
 // combobox input over a listbox of commands grouped by section; substring filter; the active row
 // is accent-wash + accent-ink label + a 2px accent inset outline. Focus is trapped on the input,
 // Esc closes, and focus returns to the opener when nothing else took it.
+// A command's optional `description` (R4.9, P-36) is shown in the footer, the palette's hint row,
+// for the command the reviewer last pointed at or moved to (hover, else the keyboard-active row),
+// beside the count; rows keep their fixed 36px height. It is also each option's accessible
+// description (a visually hidden copy inside the option), so it is read with the active option.
 // `specimen` (kit page only) renders the panel in normal flow: no portal, no scrim, no fixed
 // positioning, no focus trap, no autofocus, no document listeners.
 import { useEffect, useId, useRef, useState } from 'react';
@@ -16,6 +20,8 @@ export interface PaletteCommand {
   section: string;
   hint?: string;
   kbd?: string;
+  /** shown in the footer while this command is hovered or active (wraps there), and read as its description */
+  description?: string;
   run: () => void;
 }
 
@@ -37,6 +43,8 @@ export function Palette({ open, onClose, placeholder, commands, footer, specimen
   const listRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
+  // the row under the pointer, until the keyboard moves the active row or the pointer leaves the list
+  const [pointed, setPointed] = useState<number | null>(null);
   const shown = specimen || open;
 
   // Substring filter, then group by section in order of first appearance. Navigation follows the
@@ -53,6 +61,9 @@ export function Palette({ open, onClose, placeholder, commands, footer, specimen
   }
   const ordered = sections.flatMap((s) => s.cmds);
   const activeIndex = ordered.length === 0 ? -1 : Math.min(active, ordered.length - 1);
+  // the footer describes the command last pointed at or moved to (R4.9)
+  const describedIndex = pointed !== null && pointed < ordered.length ? pointed : activeIndex;
+  const description = describedIndex >= 0 ? ordered[describedIndex]?.description : undefined;
 
   // Opening: remember the opener, focus the input. Closing: reset, and hand focus back to the
   // opener only if focus was lost with the panel (a command may have moved it on purpose).
@@ -64,6 +75,7 @@ export function Palette({ open, onClose, placeholder, commands, footer, specimen
     return () => {
       setQuery('');
       setActive(0);
+      setPointed(null);
       const now = document.activeElement;
       if ((!now || now === document.body) && opener && opener.isConnected) opener.focus();
     };
@@ -94,9 +106,11 @@ export function Palette({ open, onClose, placeholder, commands, footer, specimen
     const n = ordered.length;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
+      setPointed(null);
       if (n) setActive((activeIndex + 1) % n);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
+      setPointed(null);
       if (n) setActive(activeIndex <= 0 ? n - 1 : activeIndex - 1);
     } else if (e.key === 'Enter') {
       if (e.nativeEvent.isComposing) return;
@@ -146,12 +160,13 @@ export function Palette({ open, onClose, placeholder, commands, footer, specimen
           onChange={(e) => {
             setQuery(e.target.value);
             setActive(0);
+            setPointed(null);
           }}
           onKeyDown={onKeyDown}
         />
         <Kbd>esc</Kbd>
       </div>
-      <div ref={listRef} id={listId} role="listbox" aria-label={placeholder} className="k-palette__list">
+      <div ref={listRef} id={listId} role="listbox" aria-label={placeholder} className="k-palette__list" onMouseLeave={() => setPointed(null)}>
         {sections.map((s, si) => (
           <div key={s.name} role="group" aria-labelledby={`${baseId}-sec-${si}`} className="k-palette__section">
             <div id={`${baseId}-sec-${si}`} role="presentation" className="k-palette__sectionlabel t-label">
@@ -161,6 +176,7 @@ export function Palette({ open, onClose, placeholder, commands, footer, specimen
               index += 1;
               const i = index;
               const on = i === activeIndex;
+              const desc = cmd.description ? cmd.description : null;
               return (
                 <div
                   key={cmd.id}
@@ -168,19 +184,34 @@ export function Palette({ open, onClose, placeholder, commands, footer, specimen
                   data-index={i}
                   role="option"
                   aria-selected={on}
+                  aria-describedby={desc ? `${optId(i)}-desc` : undefined}
                   className={on ? 'k-palette__row is-active' : 'k-palette__row'}
                   onClick={() => runAt(i)}
+                  onMouseEnter={() => setPointed(i)}
                 >
                   <span className="k-palette__label t-body">{cmd.label}</span>
                   {cmd.hint ? <span className="k-palette__hint t-meta">{cmd.hint}</span> : null}
                   {cmd.kbd ? <Kbd>{cmd.kbd}</Kbd> : null}
+                  {desc ? (
+                    <span id={`${optId(i)}-desc`} className="v2-sr">
+                      {desc}
+                    </span>
+                  ) : null}
                 </div>
               );
             })}
           </div>
         ))}
       </div>
-      <div className="k-palette__footer t-meta">{footer(ordered.length)}</div>
+      <div className="k-palette__footer t-meta" data-pattern={description ? 'P-36' : undefined}>
+        {/* the hint row: the described command's line (wraps), then the count */}
+        {description ? (
+          <span className="k-palette__desc" aria-hidden="true">
+            {description}
+          </span>
+        ) : null}
+        <span className="k-palette__count">{footer(ordered.length)}</span>
+      </div>
     </div>
   );
 

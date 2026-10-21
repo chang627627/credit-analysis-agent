@@ -224,9 +224,9 @@ last until you refresh, like everything in this demo." The one setting that lets
 was the one described wrongly. The top-bar switch ("Auto-countersign clean approvals") never said
 what "clean" means, and Settings restated the policy's numbers by hand.
 
-**The rule.** Auto-countersign is session only, and in Settings and on the wide top bar's switch
-the rule is stated in words built from the same terms the eligibility check tests (the narrow-width
-More menu item and the palette command keep one-line labels; see the Top bar bullet). This
+**The rule.** Auto-countersign is session only, and wherever the policy can be switched the rule is
+stated in words built from the same terms the eligibility check tests: in Settings, on the wide top
+bar's switch, and (R4.9) on the narrow-width More menu item and the palette command. This
 supersedes SPEC.md §9.2 "Persistence" (`v2.autonomy`) and the `V2Store.policy` comment "persisted
 'v2.autonomy'".
 
@@ -256,9 +256,11 @@ supersedes SPEC.md §9.2 "Persistence" (`v2.autonomy`) and the `V2Store.policy` 
   wears the kit `Tip` (P-15, placement bottom; no native title): "Clean means APPROVE · no flags ·
   first pass · every key figure at 90% or above → countersign after a 5 s countdown you can hold."
   The kit `Switch` now forwards `aria-describedby`, so the Tip's text reaches the switch's
-  accessible description while the bubble shows. The narrow-width "More" menu item and the palette
-  command keep their one-line label, without the rule: kit Menu items have no tip slot, and the
-  palette's hint is a single unshrinking 36px-row slot, too narrow for the rule.
+  accessible description while the bubble shows. At narrow widths the switch moves into the "More"
+  menu, and the palette can switch the policy too; as first built both kept a one-line label without
+  the rule (kit Menu items had no tip slot, and the palette's hint was a single unshrinking 36px-row
+  slot). **R4.9 closes that gap:** the More menu item carries the rule as a secondary line and the
+  palette shows it in its hint row.
 - **Kit page:** the Switch board adds "The clean-approval rule in words (P-31)": the switch inside
   an open Tip specimen with the short rule, and the Settings help line with the full rule.
   `FX_TOPBAR.policyRule` is `policyRule().short`.
@@ -354,7 +356,8 @@ names, and listed here so the change is traceable.
   labels; Cancel, not a verb, may wrap on its own.
 - **R4.2 · `AUTO_NOTE` restated the rule and dropped "first pass".** It now quotes `POLICY_TERMS`,
   the list Settings and the Tip state. The R4.2 claim that the rule shows "wherever it can be
-  switched" is narrowed to Settings and the wide top bar.
+  switched" is narrowed to Settings and the wide top bar (R4.9 restores the claim: the More menu
+  item and the palette command state it too).
 - **R4.3 · the Actual column zigzagged.** Rows with "Not in CIM" are top-aligned (kit
   `TableRow.align`).
 - **R4.3 · a rejected record headed the info item "Signed over · no notes".** A rejection's label is
@@ -604,6 +607,41 @@ covenant Actual").
 - **Kit page:** the EvidenceTag specimen renders the short form with `srText` and says so; the
   KeyFigure warn specimen and the Financials card caption name the short caption; `FX_*` key figures
   carry "Not in CIM" with the full wording in their accessible names.
+
+### R4.9 The rule in the narrow More menu and the palette (improvement batch 2, item 6, P-36)
+
+**The problem (verified in the build).** At narrow top-bar widths the auto-countersign switch moves
+into the "More" menu (`TopBar.tsx`, `.app-topbar__more`), and the ⌘K palette offers "Turn on
+auto-countersign for clean approvals" / "Turn off auto-countersign". Both showed one-line labels
+without the rule, so "clean" went undefined at two of the four places that switch on the one setting
+that lets the machine sign (R4.2 put the rule in Settings and the wide top bar's Tip only, and
+documented the gap).
+
+**The rule.** The clean-approval rule is visible wherever the policy can be switched, built from the
+same `POLICY_TERMS` (`policyRule().short`), never restated by hand. This restores R4.2's claim.
+
+- **Kit Menu** (`MenuItem.description?`): a secondary line under the item's label, t-meta ink-3,
+  wrapping within the menu's 320px while the label stays one line (`.k-menu__item--desc`: the row
+  grows, `height: auto`, `min-height` 32, padding 8 12, `align-items: flex-start`; the check column
+  centres on the label's line box; `.k-menu__text` stacks label and line). The item is
+  `aria-labelledby` its label and `aria-describedby` the line, so the rule is read as its
+  description, not its name; `data-pattern="P-36"`. Items without a description are unchanged.
+- **The More menu** (`TopBar.tsx`): the auto-countersign item reads "Auto-countersign clean
+  approvals" with the line "Clean means APPROVE · no flags · first pass · every key figure at 90% or
+  above → countersign after a 5 s countdown you can hold." (`TopBarView.policyRule`).
+- **Kit Palette** (`PaletteCommand.description?`): shown in the footer, the palette's hint row, for
+  the command the reviewer last pointed at or moved to (the hovered row, else the keyboard-active
+  row; an arrow key, typing or leaving the list hands it back to the active row): t-meta ink-2,
+  wrapping, `flex: 1`, with the count kept at the right edge (alone, the count stays left as
+  before). Rows keep their fixed 36px height. Each option with a description also carries a
+  visually hidden copy as its `aria-describedby`, so the rule is read with the active option.
+  `data-pattern="P-36"` on the footer while it shows one.
+- **The palette's policy commands** (`selectCommands`, `CommandView.description?`, mapped by
+  `paletteCommands`; labels now `COPY.policyOnCommand` / `COPY.policyOffCommand`): both carry
+  `policyRule().short`; `AppPalette`'s change signature includes it.
+- **Kit page:** the Menu group adds the More menu item with its line (specimen and live) and the
+  Palette group a specimen with the policy command active (its rule in the hint row); the live
+  palette list ends in the policy command, whose rule shows on hover.
 
 ## 0. Owner decisions that survive (each is checked in §9)
 

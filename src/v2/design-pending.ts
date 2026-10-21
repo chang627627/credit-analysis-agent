@@ -394,7 +394,7 @@ export const PENDING: PendingPattern[] = [
     type: 'copy',
     name: 'Honest auto-countersign: session only, and the rule stated in words',
     description:
-      'Auto-countersign is the one setting that lets the machine sign, and Settings says every setting lasts until a refresh. It now does: the policy starts off on every load and is never stored, and a value an earlier build saved is removed once on load, so a forgotten On can never sign a memo after a refresh. Settings shows the policy as a readable rule instead of a loose description: "If the agent recommends APPROVE · no flags · first pass · every key figure at 90% or above → countersign after a visible 5 s countdown you can hold. Everything else waits for you." The top-bar switch wears the kit Tip (P-15) with the same rule in one line, so "clean" is never left undefined. Both sentences are built in the model from the constants the eligibility check reads (policyChecks, the 90% threshold, the 5 s countdown), never hand-restated numbers, and the note a policy signature writes onto the record quotes the same four terms ("Auto-countersigned · clean-approval policy (APPROVE · no flags · first pass · every key figure at 90% or above)"). The narrow-width More menu item and the palette command keep their one-line labels. Before, the policy persisted in browser storage while Settings said it did not, and the switch never said what clean meant.',
+      'Auto-countersign is the one setting that lets the machine sign, and Settings says every setting lasts until a refresh. It now does: the policy starts off on every load and is never stored, and a value an earlier build saved is removed once on load, so a forgotten On can never sign a memo after a refresh. Settings shows the policy as a readable rule instead of a loose description: "If the agent recommends APPROVE · no flags · first pass · every key figure at 90% or above → countersign after a visible 5 s countdown you can hold. Everything else waits for you." The top-bar switch wears the kit Tip (P-15) with the same rule in one line, so "clean" is never left undefined. Both sentences are built in the model from the constants the eligibility check reads (policyChecks, the 90% threshold, the 5 s countdown), never hand-restated numbers, and the note a policy signature writes onto the record quotes the same four terms ("Auto-countersigned · clean-approval policy (APPROVE · no flags · first pass · every key figure at 90% or above)"). The narrow-width More menu item and the palette command state the same rule too (P-36, R4.9: a secondary line under the menu item, the palette\'s hint row for the command). Before, the policy persisted in browser storage while Settings said it did not, and the switch never said what clean meant.',
     evidence: 'Mobbin audit of the case file, fix 2 (verified: state/gate.ts persisted v2.autonomy while the Settings intro said settings last until a refresh); THREE-PANE.md R4.2',
     proposedBy: OWNER,
     proposedDate: ON_3P,
@@ -452,6 +452,19 @@ export const PENDING: PendingPattern[] = [
     proposedDate: ON_3P,
     status: 'approved',
     kitAnchor: '#board-deskundo',
+    ownerNote: 'Owner asked for it (improvement batch 2)',
+  },
+  {
+    id: 'P-36',
+    type: 'component',
+    name: 'The clean-approval rule wherever the policy can be switched: a Menu item\'s secondary line and the palette\'s hint row',
+    description:
+      'At narrow top-bar widths the auto-countersign switch moves into the "More" menu, and the command palette can switch the policy too; both showed one-line labels, so "clean" went undefined exactly where the machine is allowed to sign. The kit Menu item gains an optional description: a secondary line under its label (t-meta, ink-3) that wraps within the menu\'s 320px while the label stays one line; the row grows to fit (padding 8 12) and the line is the item\'s accessible description, not part of its name. The More menu\'s auto-countersign item uses it for the one-line rule, "Clean means APPROVE · no flags · first pass · every key figure at 90% or above → countersign after a 5 s countdown you can hold." A palette command gains an optional description too, shown in the footer, the palette\'s hint row, for the command the reviewer last pointed at or moved to (hover, else the keyboard-active row), in ink-2 beside the count, which keeps the right edge; the rows keep their fixed 36px height, and the description is also the option\'s accessible description. Both auto-countersign commands carry the rule. Every copy of the rule is built in the model from POLICY_TERMS and the countdown constant (policyRule), never restated by hand, so Settings, the wide top bar\'s Tip, the More menu and the palette state one rule.',
+    evidence: 'THREE-PANE.md R4.2 (the gap it documented: kit Menu items had no tip slot and the palette hint was a single 36px-row slot) and R4.9; Linear and Raycast command menus show a selected command\'s detail in a footer row rather than growing the row',
+    proposedBy: OWNER,
+    proposedDate: ON_3P,
+    status: 'approved',
+    kitAnchor: '#board-menu',
     ownerNote: 'Owner asked for it (improvement batch 2)',
   },
 ];

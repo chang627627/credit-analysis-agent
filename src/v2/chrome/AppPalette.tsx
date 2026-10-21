@@ -15,7 +15,7 @@ export function AppPalette() {
   const open = s.ui.paletteOpen;
   const fresh = open ? paletteCommands(s, () => latest.current) : [];
   // the store re-renders every second; hand the palette a new list only when the offer changes
-  const signature = fresh.map((c) => `${c.id}|${c.label}|${c.hint ?? ''}|${c.kbd ?? ''}`).join('\n');
+  const signature = fresh.map((c) => `${c.id}|${c.label}|${c.hint ?? ''}|${c.kbd ?? ''}|${c.description ?? ''}`).join('\n');
   const commands = useMemo(() => fresh, [signature]);
   return (
     <Palette

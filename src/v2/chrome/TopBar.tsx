@@ -2,7 +2,9 @@
 // Navigation lives in the sidebar (P-21). Demo pace and Compare V1 were removed on owner
 // request (V1 stays reachable at /?v=1). No theme toggle, no primary.
 // The switch wears the kit Tip with the clean-approval rule in one line (R4.2, P-31), so
-// "clean" is never left undefined at the one control that lets the machine sign.
+// "clean" is never left undefined at the one control that lets the machine sign. At narrow widths
+// the switch moves into the More menu, whose item carries the same rule as its secondary line
+// (R4.9, P-36); the palette's policy command shows it in the palette's hint row.
 import { Search } from 'lucide-react';
 import { Button, IconButton, Menu, Switch, Tip } from '../kit';
 import { COPY, selectTopBar } from '../model';
@@ -51,6 +53,7 @@ export function TopBar() {
               {
                 id: 'policy',
                 label: v.policyLabel,
+                description: v.policyRule,
                 checked: v.policyOn,
                 onSelect: () => togglePolicy(!v.policyOn),
               },

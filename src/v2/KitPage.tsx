@@ -1403,6 +1403,16 @@ const PALETTE_COMMANDS: PaletteCommand[] = [
   { id: 'route:book', label: 'Go to Book', section: 'Go to', run: noop },
   { id: 'route:ledger', label: 'Go to Ledger', section: 'Go to', run: noop },
   { id: 'export-session', label: COPY.exportSession, section: 'Export', run: noop },
+  // R4.9 (P-36): the policy command carries the clean-approval rule; hover it or arrow to it
+  { id: 'policy:auto', label: COPY.policyOnCommand, section: 'Settings', description: FX_TOPBAR.policyRule, run: noop },
+];
+
+/** R4.9 (P-36): the Settings section with the policy command active, so the hint row shows its rule. */
+const PALETTE_POLICY: PaletteCommand[] = [
+  { id: 'policy:auto', label: COPY.policyOnCommand, section: 'Settings', description: FX_TOPBAR.policyRule, run: noop },
+  ...FX_TOPBAR.speeds
+    .filter((sp) => !sp.checked)
+    .map((sp) => ({ id: `speed:${sp.value}`, label: `${COPY.paceLabel} · ${sp.label}`, section: 'Settings', run: noop })),
 ];
 
 /** The confirm strips focus their cancel button on mount (by design); on the kit page they mount
@@ -1601,8 +1611,9 @@ function NavBoard() {
   const [speed, setSpeed] = useState(1);
   const [chip, setChip] = useState<string>(FX_LEDGER_AFTER_ATLAS.activeChip);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [policyOn, setPolicyOn] = useState(FX_TOPBAR.policyOn);
   return (
-    <Board id={B.nav.id} name={B.nav.name} spec="Tabs 48, active = 2px --ink underline · Menu and Palette: paper, --shadow-pop, --r-md; keyboard-active row = --accent-wash + --accent-ink + 2px inset --accent outline · FilterChips 28, --ink-3 edge · ConfirmStrip 44, --sunken (P-19); with a reason (P-34) a kit TextInput leads with the actions beside it, padding 12, then a calm t-small ink hint (after a refused confirm) and the t-small ink-2 consequence line, both describing the field">
+    <Board id={B.nav.id} name={B.nav.name} spec="Tabs 48, active = 2px --ink underline · Menu and Palette: paper, --shadow-pop, --r-md; keyboard-active row = --accent-wash + --accent-ink + 2px inset --accent outline; a Menu item's description (P-36) is a t-meta --ink-3 line under its label (the row grows, padding 8 12, the label stays one line); a Palette command's description shows in the footer (the hint row) for the hovered or active command, t-meta --ink-2 beside the count, rows stay 36 · FilterChips 28, --ink-3 edge · ConfirmStrip 44, --sunken (P-19); with a reason (P-34) a kit TextInput leads with the actions beside it, padding 12, then a calm t-small ink hint (after a refused confirm) and the t-small ink-2 consequence line, both describing the field">
       <Group label="Tabs (top-bar fixture; click to switch)">
         <div className="kp-tabsframe">
           <Tabs items={FX_TOPBAR.tabs.map((t) => ({ id: t.id, label: t.label, count: null, countTone: 'ink-3' as const }))} active={tab} onSelect={setTab} ariaLabel="Sections (specimen)" />
@@ -1643,11 +1654,29 @@ function NavBoard() {
               items={FX_TOPBAR.speeds.map((s) => ({ id: `live-${s.value}`, label: s.label, checked: s.value === speed, onSelect: () => setSpeed(s.value) }))}
             />
           </Cell>
+          <Cell caption="with a secondary line (P-36, R4.9) · the narrow top bar's More menu: the auto-countersign item states the clean-approval rule under its label (policyRule().short, from POLICY_TERMS)" block>
+            <Menu
+              label={COPY.more}
+              trigger={{ text: COPY.more, variant: 'ghost' }}
+              items={[{ id: 'spec-policy', label: FX_TOPBAR.policyLabel, description: FX_TOPBAR.policyRule, checked: FX_TOPBAR.policyOn, onSelect: noop }]}
+              specimen
+            />
+          </Cell>
+          <Cell caption="live · the More menu as the narrow top bar renders it; Enter toggles the policy, the rule is the item's accessible description">
+            <Menu
+              label={COPY.more}
+              trigger={{ text: COPY.more, variant: 'secondary' }}
+              items={[{ id: 'live-policy', label: FX_TOPBAR.policyLabel, description: FX_TOPBAR.policyRule, checked: policyOn, onSelect: () => setPolicyOn((on) => !on) }]}
+            />
+          </Cell>
         </Grid>
       </Group>
       <Group id="board-palette" label="Palette">
-        <Cell caption="specimen · open in normal flow, first row active; type to filter (no focus trap in specimen)" block>
+        <Cell caption="specimen · open in normal flow, first row active; type to filter (no focus trap in specimen); hover the last row (the policy command) and the footer shows its rule" block>
           <Palette open={false} onClose={noop} placeholder={COPY.palettePlaceholder} commands={PALETTE_COMMANDS} footer={paletteFooter} specimen />
+        </Cell>
+        <Cell caption="with a description (P-36, R4.9) · the policy command active: the footer, the palette's hint row, shows the clean-approval rule beside the count (wraps; rows keep 36); it is also the option's accessible description" block>
+          <Palette open={false} onClose={noop} placeholder={COPY.palettePlaceholder} commands={PALETTE_POLICY} footer={paletteFooter} specimen />
         </Cell>
         <Cell caption="live · scrim, focus trap, Esc closes, focus returns to the opener">
           <Button variant="secondary" size="sm" icon={Search} kbd={FX_TOPBAR.searchKbd} onClick={() => setPaletteOpen(true)}>

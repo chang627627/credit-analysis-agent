@@ -462,6 +462,12 @@
 .v2 .k-menu__check { display: inline-flex; justify-content: center; flex: none; width: 16px; }
 .v2 .k-menu__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .v2 .k-menu__meta { flex: none; color: var(--ink-3); }
+/* an item with a secondary line (P-36): the row grows, the label stays one line, the line wraps */
+.v2 .k-menu__item--desc { align-items: flex-start; height: auto; min-height: 32px; padding: 8px 12px; white-space: normal; }
+.v2 .k-menu__item--desc .k-menu__check { align-items: center; height: var(--t-body-lh); }
+.v2 .k-menu__text { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.v2 .k-menu__item--desc .k-menu__label { white-space: nowrap; }
+.v2 .k-menu__desc { color: var(--ink-3); }
 
 /* ---- Meter (risk 6px full width · cushion 64×4 on one ±50% scale) ---- */
 .v2 .k-meter { position: relative; display: block; background: var(--line); }
@@ -857,7 +863,10 @@
 .v2 .k-palette__row.is-active { background: var(--accent-wash); color: var(--accent-ink); outline: 2px solid var(--accent); outline-offset: -2px; }
 .v2 .k-palette__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .v2 .k-palette__hint { flex: none; color: var(--ink-3); }
-.v2 .k-palette__footer { flex: none; padding: 8px 16px; border-top: 1px solid var(--line); color: var(--ink-3); }
+.v2 .k-palette__footer { display: flex; flex: none; align-items: flex-start; gap: var(--s-4); padding: 8px 16px; border-top: 1px solid var(--line); color: var(--ink-3); }
+/* the hint row's description of the hovered or active command (P-36): ink-2, wraps, and pushes the count to the right edge (alone, the count stays left as before) */
+.v2 .k-palette__desc { flex: 1; min-width: 0; color: var(--ink-2); }
+.v2 .k-palette__count { flex: none; }
 
 /* ---- FilterChips ---- */
 .v2 .k-fchips { display: flex; flex-wrap: wrap; gap: var(--s-2); }

@@ -1,6 +1,10 @@
 // Menu: a small-button trigger (+ ChevronDown) opening a popover of rows.
 // Hover row = sunken; the keyboard-active row = accent-wash + accent-ink label + a 2px accent inset
 // outline. ↑↓ Home End move, Enter/Space select, Esc or Tab close, and focus returns to the trigger.
+// An item's optional `description` (R4.9, P-36) is a secondary line under its label (t-meta, ink-3,
+// wraps within the menu's 320px): the row grows to fit it, the label stays one line, and the line is
+// the item's accessible description, not part of its name (the More menu's auto-countersign item
+// states the clean-approval rule there).
 // `specimen` (kit page only) renders the popover open in normal flow, with a keyboard-active row,
 // no portal, no fixed positioning, no autofocus and no document listeners.
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
@@ -13,6 +17,8 @@ export interface MenuItem {
   id: string;
   label: string;
   meta?: string;
+  /** a secondary line under the label (t-meta, ink-3; wraps), read as the item's description */
+  description?: string;
   checked?: boolean;
   onSelect: () => void;
 }
@@ -172,24 +178,47 @@ export function Menu({ label, trigger, items, specimen = false }: MenuProps) {
       aria-activedescendant={activeIndex >= 0 ? itemId(activeIndex) : undefined}
       onKeyDown={onListKey}
     >
-      {items.map((it, i) => (
-        <div
-          key={it.id}
-          id={itemId(i)}
-          role={it.checked !== undefined ? 'menuitemradio' : 'menuitem'}
-          aria-checked={it.checked !== undefined ? it.checked : undefined}
-          className={i === activeIndex ? 'k-menu__item is-active' : 'k-menu__item'}
-          onClick={() => select(i)}
-        >
-          {hasChecks ? (
-            <span className="k-menu__check" aria-hidden="true">
-              {it.checked ? <Check size={14} /> : null}
-            </span>
-          ) : null}
-          <span className="k-menu__label t-body">{it.label}</span>
-          {it.meta ? <span className="k-menu__meta t-meta">{it.meta}</span> : null}
-        </div>
-      ))}
+      {items.map((it, i) => {
+        const desc = it.description ? it.description : null;
+        const cls = ['k-menu__item'];
+        if (desc) cls.push('k-menu__item--desc');
+        if (i === activeIndex) cls.push('is-active');
+        const label = (
+          <span id={desc ? `${itemId(i)}-label` : undefined} className="k-menu__label t-body">
+            {it.label}
+          </span>
+        );
+        return (
+          <div
+            key={it.id}
+            id={itemId(i)}
+            role={it.checked !== undefined ? 'menuitemradio' : 'menuitem'}
+            aria-checked={it.checked !== undefined ? it.checked : undefined}
+            aria-labelledby={desc ? `${itemId(i)}-label` : undefined}
+            aria-describedby={desc ? `${itemId(i)}-desc` : undefined}
+            className={cls.join(' ')}
+            data-pattern={desc ? 'P-36' : undefined}
+            onClick={() => select(i)}
+          >
+            {hasChecks ? (
+              <span className="k-menu__check" aria-hidden="true">
+                {it.checked ? <Check size={14} /> : null}
+              </span>
+            ) : null}
+            {desc ? (
+              <span className="k-menu__text">
+                {label}
+                <span id={`${itemId(i)}-desc`} className="k-menu__desc t-meta">
+                  {desc}
+                </span>
+              </span>
+            ) : (
+              label
+            )}
+            {it.meta ? <span className="k-menu__meta t-meta">{it.meta}</span> : null}
+          </div>
+        );
+      })}
     </div>
   ) : null;
 

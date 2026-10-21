@@ -8,7 +8,7 @@
 import type { AnnounceKind, V2Store } from '../state/contracts';
 import { classifyFlag, isCounted } from './flags';
 import { fmtHM, fmtSpeed, plural } from './format';
-import { SPEED_STEPS, isRunLive, selectLiveDealId } from './select-top';
+import { SPEED_STEPS, isRunLive, policyRule, selectLiveDealId } from './select-top';
 import type { CommandView, ConfirmView } from './types';
 import { COPY, HOLD_CAPTION, IMPERATIVE } from './vocab';
 
@@ -69,10 +69,13 @@ export function selectCommands(s: V2Store): CommandView[] {
     if (v === a.speed) continue;
     out.push({ id: `speed:${v}`, label: `${COPY.paceLabel} · ${fmtSpeed(v)}`, section: 'Settings', action: { kind: 'speed', value: v } });
   }
+  // the rule rides the command where the policy can be switched (R4.9): the palette's hint row shows
+  // it while the command is hovered or active, from the same POLICY_TERMS as Settings and the Tip
+  const rule = policyRule().short;
   out.push(
     s.policy === 'auto'
-      ? { id: 'policy:gate', label: 'Turn off auto-countersign', section: 'Settings', action: { kind: 'policy', value: 'gate' } }
-      : { id: 'policy:auto', label: 'Turn on auto-countersign for clean approvals', section: 'Settings', action: { kind: 'policy', value: 'auto' } },
+      ? { id: 'policy:gate', label: COPY.policyOffCommand, section: 'Settings', description: rule, action: { kind: 'policy', value: 'gate' } }
+      : { id: 'policy:auto', label: COPY.policyOnCommand, section: 'Settings', description: rule, action: { kind: 'policy', value: 'auto' } },
   );
   out.push({ id: 'href:v1', label: COPY.compareV1, section: 'Settings', action: { kind: 'href', href: '/?v=1' } });
   return out;

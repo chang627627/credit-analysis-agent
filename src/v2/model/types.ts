@@ -34,7 +34,8 @@ export type CommandAction =
   | { kind: 'sweep' } | { kind: 'speed'; value: number } | { kind: 'policy'; value: Policy } | { kind: 'href'; href: string };
 
 /** One row of `selectCommands`. */
-export interface CommandView { id: string; label: string; section: string; hint?: string; kbd?: string; action: CommandAction }
+/** description (R4.9): a line the palette's hint row shows while the command is hovered or active (the auto-countersign commands carry the clean-approval rule) */
+export interface CommandView { id: string; label: string; section: string; hint?: string; kbd?: string; description?: string; action: CommandAction }
 
 /** The text a covenant cushion meter and its figure carry (`cushionOf`). */
 export interface CushionView { pct: number; text: string; tone: 'neutral' | 'warn' | 'bad' }

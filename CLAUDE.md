@@ -547,7 +547,7 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   supersede all of them.
 - **Guardrails:** `npm run v2-check` (28 greps: tokens only, 400/500/600, 4px grid, one
   infinite animation, no hand-rolled controls outside the kit, V1 + engine hashes untouched, …).
-  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-35, rendered on `/?kit`) for
+  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-36, rendered on `/?kit`) for
   owner approval; every `data-pattern` id needs an entry there, every kit export a kit-page specimen.
 - **Storage** (only in `src/v2/state/`): `v2.navCollapsed`, `v2.chatOpen` (only `state/panes.ts`).
   (`v2.showReasoning` was retired with R2: reasoning lives in each card's Record.) **Auto-countersign
@@ -714,9 +714,13 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   a 5 s countdown you can hold."); the kit Switch forwards `aria-describedby` for it. The terms are
   ONE list, `POLICY_TERMS` (`vocab.ts`), which `AUTO_NOTE` quotes too: a policy signature records
   "Auto-countersigned · clean-approval policy (APPROVE · no flags · first pass · every key figure at
-  90% or above)" (R4.4; it used to omit "first pass"). The narrow-width More menu item and the palette
-  command keep one-line labels without the rule (kit Menu has no tip slot; the palette hint is a
-  single 36px-row slot).
+  90% or above)" (R4.4; it used to omit "first pass"). **The rule shows wherever the policy can be
+  switched** (P-36, THREE-PANE R4.9): at narrow widths the switch moves into the top bar's "More"
+  menu, whose item carries the one-line rule as a secondary line (the kit Menu item's new
+  `description`, t-meta ink-3, read as its accessible description); the palette's two policy
+  commands carry it as a `description` that the palette shows in its footer hint row for the hovered
+  or keyboard-active command (ink-2 beside the count; rows keep 36px; also the option's
+  `aria-describedby`). All four copies come from `policyRule()` / `POLICY_TERMS`.
 - **Covenant inputs the CIM does not state are on the record** (P-32, THREE-PANE R4.3, Mobbin audit
   fix 3). Interest coverage, fixed-charge coverage and liquidity are stated in no sample CIM, yet
   they are 3 of the 4 covenant-tested actuals. Their evidence class is "Not in the CIM ·

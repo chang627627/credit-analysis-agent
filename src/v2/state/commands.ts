@@ -22,6 +22,8 @@ export interface PaletteCommand {
   section: string;
   hint?: string;
   kbd?: string;
+  /** R4.9: shown in the palette's hint row while the command is hovered or active */
+  description?: string;
   run: () => void;
 }
 
@@ -82,6 +84,7 @@ export function paletteCommands(s: V2Store, latest: () => V2Store = () => s): Pa
     section: cmd.section,
     hint: cmd.hint,
     kbd: cmd.kbd,
+    description: cmd.description,
     run: () => {
       s.actions.setPaletteOpen(false);
       window.setTimeout(() => runCommand(latest(), cmd.action), 0);

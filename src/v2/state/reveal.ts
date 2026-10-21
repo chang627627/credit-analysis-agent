@@ -2,8 +2,10 @@
 // DOM hand-offs shared by the state modules (THREE-PANE.md R2.3): retrying a
 // focus or a reveal for a few frames while its target mounts, bringing memo
 // elements into the band below the sticky doc bar, and telling whether an
-// element is really on screen (inside that band and not covered by the agent
-// drawer or an overlaid source). Every function is null-safe and never throws:
+// element is really on screen (inside that band and not covered by an
+// overlaid source). The band ends at the memo pane's bottom edge: the window's
+// in the column layout, the docked agent strip's top edge in the stacked one
+// (R4.13). Every function is null-safe and never throws:
 // a missing hook only means nothing moves.
 // ---------------------------------------------------------------------------
 
@@ -50,6 +52,21 @@ function bandTop(): number {
   }
 }
 
+/**
+ * The bottom of the readable band: the memo pane's bottom edge, clipped to the window. In the
+ * stacked layout (below 900px, R4.13) the agent strip is docked under the memo, so the memo ends
+ * above the window's bottom edge; anything below that edge is scrolled out of the memo, not shown.
+ */
+function bandBottom(): number {
+  try {
+    const viz = document.querySelector('[data-viz]');
+    const b = viz ? viz.getBoundingClientRect().bottom : window.innerHeight;
+    return Math.min(b, window.innerHeight);
+  } catch {
+    return window.innerHeight;
+  }
+}
+
 /** The nearest scrolling ancestor (the memo canvas), else the document scroller. */
 function scrollerOf(el: HTMLElement): Element | null {
   let box = el.parentElement;
@@ -62,8 +79,8 @@ function scrollerOf(el: HTMLElement): Element | null {
 }
 
 /**
- * Bring the union of `els` into the band between the doc bar and the window's
- * bottom edge, in one scroll of their scroller. 'center' centres the union when
+ * Bring the union of `els` into the band between the doc bar and the memo
+ * pane's bottom edge, in one scroll of their scroller. 'center' centres the union when
  * any part of it is outside the band; 'nearest' moves it the least distance.
  * A union taller than the band aligns its LAST element's bottom with the band's
  * bottom (the reviewer line is listed last, so the line wins).
@@ -76,7 +93,7 @@ export function revealInBand(els: (HTMLElement | null)[], mode: 'center' | 'near
     const top = Math.min(...rects.map((r) => r.top));
     const bottom = Math.max(...rects.map((r) => r.bottom));
     const lo = bandTop() + REVEAL_PAD;
-    const hi = window.innerHeight - REVEAL_PAD;
+    const hi = bandBottom() - REVEAL_PAD;
     let dy = 0;
     if (bottom - top > hi - lo) {
       dy = rects[rects.length - 1].bottom - hi;
@@ -92,17 +109,17 @@ export function revealInBand(els: (HTMLElement | null)[], mode: 'center' | 'near
 }
 
 /**
- * The element is fully inside the readable band (below the doc bar, inside the
- * window) and not covered: a point on its left part or its centre hits the
- * element itself, so the agent drawer or an overlaid source on top of it means
- * it is not on screen.
+ * The element is fully inside the readable band (below the doc bar, above the
+ * memo pane's bottom edge) and not covered: a point on its left part or its
+ * centre hits the element itself, so an overlaid source on top of it means it
+ * is not on screen.
  */
 export function onScreen(el: HTMLElement | null): boolean {
   try {
     if (!rendered(el)) return false;
     const r = el.getBoundingClientRect();
     if (r.height <= 0 || r.width <= 0) return false;
-    if (r.top < bandTop() || r.bottom > window.innerHeight) return false;
+    if (r.top < bandTop() || r.bottom > bandBottom()) return false;
     const y = r.top + Math.min(r.height / 2, 20);
     for (const x of [r.left + Math.min(24, r.width / 2), r.left + r.width / 2]) {
       const hit = document.elementFromPoint(x, y);

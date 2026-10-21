@@ -283,7 +283,7 @@ export const PENDING: PendingPattern[] = [
     type: 'layout',
     name: 'Three-pane case file: navigation, a command-and-control agent panel, the memo',
     description:
-      'A case file opens in three panes: the sidebar; the agent panel, which only commands and reports (P-27); and the memo, which holds everything shown: the header, the section cards, the Decision card after step 5, the stress test, the exhibits, the appendix and the source CIM on its right edge. The sidebar rails itself beside an open panel below 1400px without overwriting the stored choice; the panel is collapsible (persisted) in column mode and a drawer below 1024px, and it reveals itself only at plan review. Pane changes are instant, never animated. The Desk, Book and Ledger stay full width with no panel. Revised on owner feedback: the first three-pane build put step records, flags and the decision in the middle pane, so the reviewer could not tell whether to read the middle or the right.',
+      'A case file opens in three panes: the sidebar; the agent panel, which only commands and reports (P-27); and the memo, which holds everything shown: the header, the section cards, the Decision card after step 5, the stress test, the exhibits, the appendix and the source CIM on its right edge. The sidebar rails itself beside the panel below 1400px without overwriting the stored choice. The panel is always shown on a case file, with no toggle, collapse control or drawer (owner rule, 11fc179); below a 900px viewport the case file stacks instead, the memo full width over the panel docked as a strip (P-40). Pane changes are instant, never animated. The Desk, Book and Ledger stay full width with no panel. Revised on owner feedback: the first three-pane build put step records, flags and the decision in the middle pane, so the reviewer could not tell whether to read the middle or the right.',
     evidence: 'Dropbox Dash https://mobbin.com/screens/f7b146fb-ea9a-4596-a37a-3f72b340ea1e; Mistral Le Chat https://mobbin.com/screens/76e16697-0e20-4bfc-8162-e93d6f1fc8ff; Langdock https://mobbin.com/screens/579fb137-50fa-42d0-9222-4970f35648d5 (THREE-PANE.md §11); owner revision R2 (THREE-PANE.md)',
     proposedBy: OWNER,
     proposedDate: ON_3P,
@@ -505,6 +505,19 @@ export const PENDING: PendingPattern[] = [
     status: 'approved',
     kitAnchor: '#board-emptynote',
     ownerNote: 'Owner asked for it (improvement batch 2; kept when the in-place undo of P-35 was rejected)',
+  },
+  {
+    id: 'P-40',
+    type: 'layout',
+    name: 'Narrow screens stack the case file: the memo full width, the agent panel docked under it as a strip',
+    description:
+      'Below a 900px viewport the case file no longer puts the agent panel beside the memo: at phone width the 64px rail plus the 360px panel were wider than the screen, so the memo and the Decision card got no width at all. The case file stacks instead. The memo pane fills the top, full width beside the rail, and scrolls on its own, keeping everything it does at any width (the live drafting follow, landing on the Decision card at the gate, the doc bar folding into its More menu, the source as an overlay on its right edge). The agent panel is docked under it as a strip that is always visible: never a drawer, never a toggle, never hidden, with a 1px line on top. The strip has no head row and shows, from the same agent panel view (no new data): the latest status line only, one line with its trailing link ("Your countersignature is needed · Decision →", "Answered in the memo · Questions →"), which scrolls the memo to that card and flashes it as in the column; while a plan is shown (not started, plan review) the plan as one compact row instead of the checklist, "5 steps", the optional step\'s checkbox with "Peer benchmarks optional" (or "skipped"), Start drafting with its kbd, Cancel in plan review and "Starts in 7 s · Hold" while the countdown runs, wrapping onto a second and third line at phone width; and the composer exactly as in the column (one frame, the send button inside). The compact row is on screen whenever the plan is, so the plan countdown still arms only while the plan prompt is shown. The strip follows the memo in the DOM, so focus order matches what is seen. At 900px and up nothing changes.',
+    evidence: 'Owner decision, verbatim: "On narrow screens, stack the case file: memo full width, and the agent panel docked below it as a strip with the latest status line and the composer (no toggle)." v2-visual measured the memo pane and the Decision card at 0px at 390px before (THREE-PANE.md R4.13); the docked composer of chat apps at phone width (Claude, ChatGPT)',
+    proposedBy: OWNER,
+    proposedDate: ON_3P,
+    status: 'approved',
+    kitAnchor: '#board-agentpanel',
+    ownerNote: 'Owner asked for it',
   },
 ];
 

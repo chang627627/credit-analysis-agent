@@ -10,11 +10,11 @@
 // runs top-down; `children` (the plan prompt, the Start drafting button) follow
 // the lines in the same scroller, as a message would.
 //
-// Links: every target is a memo card (cueMemo; the Decision card at the live
-// gate comes into view like "Go to decision", and drawer mode closes the
-// drawer first), or a row in it when the link names one (the Questions entry,
-// scrolled to and flashed once). The stress test opens if it was closed
-// (openStress cues it).
+// Links (go.ts, shared with the strip): every target is a memo card (cueMemo;
+// the Decision card at the live gate comes into view like "Go to decision"),
+// or a row in it when the link names one (the Questions entry, scrolled to and
+// flashed once). The stress test opens if it was closed (openStress cues it).
+// Each line renders through ChatLine (Line.tsx), the strip's too.
 //
 // Auto-follow (component-local, resets on remount by design):
 //   - pinned = within 24px of the foot, recomputed on every scroll;
@@ -29,17 +29,15 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ArrowDown } from 'lucide-react';
-import { Button, LinkButton, StatusGlyph } from '../../kit';
+import { Button } from '../../kit';
 import { newActivityLabel } from '../../model';
-import type { FileAt, StatusKey, ThreadLine } from '../../model';
-import { useV2 } from '../../state/store';
+import type { ThreadLine } from '../../model';
 import { focusComposerIfLost, heldByKeyboard } from './focus';
+import { useGoTo } from './go';
+import { ChatLine } from './Line';
 
 /** A thread within this many px of its foot is pinned (follows new lines). */
 const PIN_SLACK = 24;
-
-/** Glyph states whose line recedes to ink-3 (the kit's quiet status states). */
-const QUIET: ReadonlySet<StatusKey> = new Set<StatusKey>(['pending', 'excluded', 'cancelled']);
 
 export interface ThreadProps {
   dealId: string;
@@ -56,16 +54,8 @@ function atFoot(el: HTMLElement): boolean {
   return el.scrollHeight - el.scrollTop - el.clientHeight <= PIN_SLACK;
 }
 
-function textClass(line: ThreadLine): string {
-  const cls = ['chat-line__text', 't-body'];
-  if (line.kind === 'answer') cls.push('chat-line__text--answer');
-  else if (line.kind === 'answered') cls.push('chat-line__text--answered');
-  else if (line.glyph !== null && QUIET.has(line.glyph)) cls.push('chat-line__text--quiet');
-  return cls.join(' ');
-}
-
 export function Thread({ dealId, lines, labelledBy, sendSeq, children }: ThreadProps) {
-  const a = useV2().actions;
+  const go = useGoTo(dealId);
   const scrollRef = useRef<HTMLDivElement>(null);
   const flowRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
@@ -126,14 +116,6 @@ export function Thread({ dealId, lines, labelledBy, sendSeq, children }: ThreadP
     return () => ro.disconnect();
   }, [jump]);
 
-  const go = (target: FileAt, anchorId: string | undefined) => {
-    if (target === 'stress') {
-      a.openStress(dealId);
-      return;
-    }
-    a.cueMemo({ section: target, anchorId: anchorId ?? null });
-  };
-
   // the pill leaves once the thread is at its foot: focus it held goes to the composer
   const onPill = () => {
     const keyboard = heldByKeyboard(document.activeElement);
@@ -147,26 +129,9 @@ export function Thread({ dealId, lines, labelledBy, sendSeq, children }: ThreadP
       <div className="chat-thread" ref={scrollRef} onScroll={onScroll}>
         <div className="chat-flow" ref={flowRef}>
           <ol className="chat-list" aria-labelledby={labelledBy}>
-            {lines.map((line) => {
-              const link = line.link;
-              return (
-                <li
-                  key={line.id}
-                  className={`chat-line chat-line--${line.kind}${link ? ' chat-line--linked' : ''}`}
-                  data-thread-item={line.id}
-                >
-                  <span className="chat-line__glyph">{line.glyph !== null ? <StatusGlyph state={line.glyph} /> : null}</span>
-                  <span className={textClass(line)}>{line.text}</span>
-                  {link ? (
-                    <span className="chat-line__link">
-                      <LinkButton role="small" onClick={() => go(link.target, link.anchorId)}>
-                        {link.label}
-                      </LinkButton>
-                    </span>
-                  ) : null}
-                </li>
-              );
-            })}
+            {lines.map((line) => (
+              <ChatLine key={line.id} line={line} onGo={go} />
+            ))}
           </ol>
           {children}
         </div>

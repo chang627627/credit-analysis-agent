@@ -837,6 +837,109 @@ EmptyNote's "Restore sample files" (how an empty Desk recovers, not an undo).
 - **v2-visual** adds the state `desk-remove` (the Desk with Atlas's confirm open), so the dialog is
   checked by axe and the layout rules at every viewport.
 
+### R4.13 Narrow screens stack the case file; the kit page at phone width (owner decision, P-40)
+
+**Supersedes** commit 11fc179's rule for narrow screens ("a case file is always three panes", which
+forced the side-by-side split at every width), and with it §1.3's drawer mode and its rows below
+1024, §1.5's drawer flag, §1.8's drawer CSS, R2.1's head chevron and the drawer clauses of §2.6
+("drawer mode closes the drawer first"). Still in force from 11fc179: the panel is always shown
+on a case file, with no toggle, no collapse control and no `]`. At a viewport of 900px and up
+nothing changes.
+
+**The problem (measured by `npm run v2-visual`).** Below about 600px the 64px rail plus the 360px
+agent column were wider than the viewport, so the memo pane (`.app-viz`) and the Decision card got
+0px: at 390 the panel spanned 64..424px, atlas-plan, atlas-gate, cobalt-gate and meridian-sealed
+failed, and Countersign could not be clicked. The kit page failed at 390 too: axe
+scrollable-region-focusable on the token matrix's scroller, 91px of horizontal page scroll, and the
+covenant and Book specimen tables cut off.
+
+**The rule (owner, verbatim).** "On narrow screens, stack the case file: memo full width, and the
+agent panel docked below it as a strip with the latest status line and the composer (no toggle)."
+
+- **Layout** (`state/panes.ts`, `state/contracts.ts`, `App.tsx`, `app.css`): `ChatLayout` is now
+  `'column' | 'stacked'`, live from `matchMedia('(min-width: 900px)')` (`STACK_MAX_PX = 899`); the
+  store's `chatLayout` is the one signal the shell and the actions read (the old `'drawer'` below
+  1024 is gone). Below 900px the split is `.app-split[data-chat="stacked"]`: one column,
+  `grid-template-rows: minmax(0, 1fr) auto`; the memo pane (`.app-viz`, `height: auto`) fills the top
+  and scrolls on its own (`.file`, `.file-canvas` and `.file-missing` are now `height: 100%` of the
+  pane instead of `calc(100vh - 48px)`, identical in the column layout); the agent panel is docked
+  under it, always visible: never a drawer, never a toggle, never hidden. The shell renders the panel
+  AFTER the memo pane in the stacked layout, so the DOM and the focus order follow the screen; in
+  the column layout it stays first. The forced 64px rail applies (it is forced below 1100 anyway).
+- **The strip** (`ChatPane layout="strip"`, `ChatPaneProps.layout: 'column' | 'strip'`;
+  `screens/chat/AgentStrip.tsx`, pure, so `/?kit` renders the real one): built from the same
+  `selectAgentPanel` view, no new data. `.chat-pane[data-layout="strip"]` is as tall as its content,
+  paper, with a 1px `--line` on top (the line that separates it from the memo) and no head row. It
+  shows, top to bottom, inside `.chat-strip` (`data-pattern="P-40"`, padding 12 16 0, gap 8):
+  1. the **latest status line** only: the thread's last line (`lines[lines.length - 1]`) with its
+     glyph and trailing link, rendered by the shared `ChatLine` (`screens/chat/Line.tsx`, which the
+     column's thread now renders too). It is one status line; where a phone is too narrow for its
+     words beside the link (the gate line "Your countersignature is needed · Decision →" needs about
+     199px of text and gets 169 to 199 at 360 to 390) it takes a second row rather than lose them
+     (`-webkit-line-clamp: 2`, the link on the first row), never a third;
+  2. while a plan is shown (not started, plan review), the plan as **one compact row** instead of
+     the checklist (`.chat-plan--compact`, a flex row that wraps, column gap 16, row gap 8): the
+     count "5 steps" ("4 of 5 steps" with the optional step off), then per optional step "·", its
+     kit `Checkbox` (the same toggle label as the checklist's) and its line "Peer benchmarks
+     optional" (ink) or "Peer benchmarks skipped" (ink-3); the primary [Start drafting ⌘↵] (preview:
+     `draftFile`; plan review: `approvePlan`); [Cancel] (ghost) in plan review only; and the
+     countdown line "Starts in 7 s · Hold" (or "Held · start when ready") while it runs. At a 768
+     tablet it is one row; on a phone it wraps to three (count and checkbox · the buttons · the
+     countdown). When it leaves with keyboard focus inside it, the composer takes focus, as the
+     checklist's prompt does;
+  3. the composer, exactly as in the column (one frame, the send button inside), its top padding 8
+     after the strip's content.
+  The links cue the memo exactly as the column's do (`screens/chat/go.ts` `useGoTo`, shared:
+  `cueMemo` scrolls and flashes, the Decision card at the live gate comes into view like "Go to
+  decision", the stress test opens). The plan countdown still arms only while the plan prompt is on
+  screen: the compact row is on screen whenever the plan is (`chatShown` stays true on a case file).
+- **Model** (`model/types.ts`, `model/select-thread.ts`, `model/vocab.ts`): `PlanPromptView.compact:
+  { count; optional: { stepId; text; included; toggleLabel }[] }`, derived from the checklist's own
+  steps (`checklistOf` → `compactOf`) for the plan review and the not-started preview alike; copy
+  `COPY.planCount(included, total)` and `COPY.optionalState(heading, included)`. Fixtures add
+  `compact` to `FX_PANEL_PLAN_REVIEW` and two strip cases, `FX_PANEL_PLAN_PREVIEW` and
+  `FX_PANEL_PLAN_SKIPPED`.
+- **The memo keeps its behaviour** (the live drafting follow and the landing on the Decision card
+  measure the memo canvas, so they work at the shorter height unchanged; the doc bar still folds
+  into its More menu; the source still overlays the memo's right edge). Two fixes it needed:
+  - **The reveal band ends at the memo pane's bottom edge** (`state/reveal.ts` `bandBottom`, the
+    bottom of `[data-viz]` clipped to the window), not the window's: in the stacked layout the memo
+    ends above the strip. `revealInBand` (Decision →, Go to decision, the first A, a refusal verb
+    with an empty note) brings the verbs and the reviewer line in above the strip, and `onScreen`
+    (A signs only while the reviewer line is on screen) counts a line under the strip as off screen.
+  - **The doc bar at a phone's memo width** (`file.css`, `@container file-docbar (max-width:
+    399px)`): at 326px the switcher, the status floor (160px) and the right zone did not fit and the
+    Source icon spilled 3px past the bar. There the grid is `fit-content(30%) minmax(0, 1fr) auto`
+    and the right zone keeps its full width (`min-width: max-content`): More and the Source icon
+    always fit, and the switcher ("Project…") and the status sentence ellipsize side by side.
+- **The shell never scrolls under a cue** (`app.css`): `.app-main` is `overflow: clip` instead of
+  `hidden`. The memo's visually hidden labels (`.v2-sr`, absolute) take `.file` as their containing
+  block, so their static positions far down the memo gave `.file` and `.app-main` scrollable
+  overflow, and a hidden box is still scrolled by `scrollIntoView`: asking a question at the gate
+  scrolled the whole split up (157px at 1440, so the doc bar and the panel head left the screen;
+  2px at 899, cutting the strip). A clipped box is not a scroll container, so nothing can scroll it.
+  This was latent in the column layout too.
+- **Drawer remnants** (`state/panes.ts`, `state/composer.ts`, `screens/chat/ChatPane.tsx`): the
+  branches that opened the drawer (`showChatIn`, `setChatOpen`) and the layout-switch effect are
+  gone, so `PaneState.drawerOpen` stays false and `closeDrawerIn` is a no-op for its callers; the
+  panel's drawer Escape handler, `layoutOf` and `ChatHead`'s `layout` prop are removed. An answered
+  question now scrolls the memo to its answer in both layouts (it used to wait while a drawer
+  overlaid the memo, which in practice skipped it between 900 and 1023 since 11fc179). The plan
+  auto-reveal no longer closes an overlaid source below 1024.
+- **The kit page at phone width** (`KitPage.tsx`, `kitpage.css`): wide specimens scroll inside
+  themselves, never the page. `WideScroll` is a focusable named region (`role="region"`,
+  `aria-label` "… (scrolls sideways)", `tabIndex 0`, class `.kp-matrix-wrap`, the only sideways
+  scroller `v2-visual` allows) around the button matrix, the token matrix and the covenant, Book and
+  two Ledger specimen tables, which keep the width they are drawn for (`.kp-wide--640`,
+  `.kp-wide--600`; squeezed to 308px, the Ledger's Event column broke words mid-word). `.kp-boards`,
+  `.kp-board` and `.kp-group` get `grid-template-columns: minmax(0, 1fr)`, so a fixed frame (360 /
+  480 / 600) caps at the board's width (its `max-width: 100%`) instead of widening the track past
+  the viewport. The agent panel board adds "Narrow screens …" with the real `AgentStrip` at 326px
+  (a live plan review whose checkbox switches fixtures, the preview, drafting, the gate, rev 2 after
+  Q&A, sealed) and at 704px (one row), each under a stand-in for the memo pane.
+- **v2-visual** adds a check on every case-file state: the agent panel is the strip below 900px and
+  the column from 900px, wholly inside the viewport, with its composer on screen. Result: 30/30.
+
 ## 0. Owner decisions that survive (each is checked in §9)
 
 | Decision | Where it holds |
@@ -895,6 +998,11 @@ y=900 └──────────┴────────────�
 **Desk decision: full width, no chat.** The Desk lists files and has a drop zone. A Desk chat would need file disambiguation ("draft Atlas") and would add a second place to start runs beside the existing one-click "Draft memo" row action. One composer per case file keeps parsing deterministic, and it matches the established input model "upload to ingest, chat to steer" (CLAUDE.md, key product decisions): the Desk ingests, the case file steers.
 
 ### 1.3 Widths and behaviour per viewport
+
+> **Superseded in part by R4.13** (and 11fc179): there is no drawer and no hidden panel. From a
+> 900px viewport the panel is the column (400, 360 at 900 to 1279); below 900 the case file stacks,
+> the memo full width over the panel docked as a strip. The rows below 1024 and the "panel hidden"
+> row no longer apply.
 
 Two layout modes, chosen by `matchMedia('(min-width: 1024px)')`:
 - **Column mode** (viewport ≥ 1024): the agent panel is a grid column, 400px at viewport ≥ 1280 and 360px at 1024 to 1279.

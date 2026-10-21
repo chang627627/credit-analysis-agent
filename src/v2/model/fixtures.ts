@@ -1425,7 +1425,38 @@ export const FX_PANEL_PLAN_REVIEW: AgentPanelView = {
     cancelLabel: COPY.cancel,
     preview: false,
     countdown: { text: 'Starts in 6 s', holdLabel: COPY.hold },
+    compact: {
+      count: '5 steps',
+      optional: [{ stepId: 'step_peers', text: 'Peer benchmarks optional', included: true, toggleLabel: 'Skip Peer benchmarks' }],
+    },
   },
+};
+
+/** R4.13: Atlas never run, at phone width: the plan as the strip's compact row (Start drafting starts and approves; no Cancel, no countdown). */
+export const FX_PANEL_PLAN_PREVIEW: AgentPanelView = {
+  ...FX_PANEL_PLAN_REVIEW,
+  lines: [],
+  plan: FX_PANEL_PLAN_REVIEW.plan
+    ? { ...FX_PANEL_PLAN_REVIEW.plan, text: 'My plan: 5 steps. Peer benchmarks is optional; untick it to skip.', optional: null, cancelLabel: '', preview: true, countdown: null }
+    : null,
+};
+
+/** R4.13: Atlas in plan review with peer benchmarks unticked: the countdown is held, the compact row says what is skipped. */
+export const FX_PANEL_PLAN_SKIPPED: AgentPanelView = {
+  ...FX_PANEL_PLAN_REVIEW,
+  plan: FX_PANEL_PLAN_REVIEW.plan
+    ? {
+        ...FX_PANEL_PLAN_REVIEW.plan,
+        text: 'My plan: 4 of 5 steps. Peer benchmarks is skipped.',
+        steps: FX_PANEL_PLAN_REVIEW.plan.steps.map((st) => (st.optional ? { ...st, included: false, toggleLabel: 'Include Peer benchmarks' } : st)),
+        optional: { stepId: 'step_peers', label: 'Include peers', included: false },
+        countdown: { text: COPY.heldStartWhenReady, holdLabel: null },
+        compact: {
+          count: '4 of 5 steps',
+          optional: [{ stepId: 'step_peers', text: 'Peer benchmarks skipped', included: false, toggleLabel: 'Include Peer benchmarks' }],
+        },
+      }
+    : null,
 };
 
 /** Atlas drafting step 4: the running step line carries the static working glyph. */

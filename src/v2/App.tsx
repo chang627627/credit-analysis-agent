@@ -6,9 +6,13 @@
 // Q&A, the composer; always shown, never collapsible, owner rule) · the memo
 // pane (data-viz, the source pane's container), which holds everything shown,
 // the whole decision included: the Decision card renders in the memo's
-// signature slot, right after step 5. Desk, Book, Ledger and an unknown file
-// id render full width with no agent panel. The screens own their scroll
-// containers; the shell owns nothing below the bar but the split.
+// signature slot, right after step 5. Below a 900px viewport (R4.13) the case
+// file stacks instead: the memo full width on top, scrolling on its own, and
+// the agent panel docked under it as an always-visible strip (the latest status
+// line, the compact plan row, the composer); the strip follows the memo in the
+// DOM too, so focus order matches what is seen. Desk, Book, Ledger and an
+// unknown file id render full width with no agent panel. The screens own their
+// scroll containers; the shell owns nothing below the bar but the split.
 //
 // The sidebar rails itself (without writing the owner's stored choice) at
 // 1099px and below, and at 1399px and below beside an open agent panel.
@@ -39,7 +43,10 @@ function Shell() {
   const forced = le1099 || (r.name === 'file' && shown && le1399);
   const navRail = navCollapsed || forced;
   const knownFile = r.name === 'file' && s.agent.dealsFull.some((d) => d.id === r.dealId);
-  const split = shown ? 'column' : 'none';
+  // R4.13: the store's live layout (matchMedia at 900px, state/panes.ts), the one the actions read too
+  const stacked = s.chatLayout === 'stacked';
+  const split = shown ? (stacked ? 'stacked' : 'column') : 'none';
+  const chat = knownFile && shown ? <ChatPane key={r.dealId} dealId={r.dealId} layout={stacked ? 'strip' : 'column'} /> : null;
 
   return (
     <div className="app-shell" data-nav={navRail ? 'collapsed' : 'expanded'} data-nav-forced={forced ? '' : undefined}>
@@ -49,7 +56,7 @@ function Shell() {
         {r.name === 'desk' && <DeskScreen />}
         {r.name === 'file' && (
           <div className="app-split" data-chat={knownFile ? split : 'none'}>
-            {knownFile && shown ? <ChatPane key={r.dealId} dealId={r.dealId} layout="column" /> : null}
+            {stacked ? null : chat}
             <div className="app-viz" data-viz="">
               <FileScreen
                 key={r.dealId}
@@ -63,6 +70,7 @@ function Shell() {
                 }}
               />
             </div>
+            {stacked ? chat : null}
           </div>
         )}
         {r.name === 'book' && <BookScreen />}

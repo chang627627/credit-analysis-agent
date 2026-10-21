@@ -45,11 +45,14 @@
   overflow-y: auto;
 }
 .kp-index__list { display: grid; gap: 4px; list-style: none; }
-.kp-boards { display: grid; gap: 24px; min-width: 0; max-width: 1080px; }
+.kp-boards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; min-width: 0; max-width: 1080px; }
 
 /* ---- board · group · grid · cell ---- */
 .kp-board {
   display: grid;
+  /* one track that may shrink: a fixed-width frame inside (360 / 480 / 600) caps at the board's
+     width (max-width: 100%) instead of widening the track past a phone's viewport */
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
   min-width: 0;
   padding: 24px;
@@ -62,7 +65,7 @@
 .kp-board__titles { display: grid; gap: 4px; min-width: 0; }
 .kp-board__spec { max-width: 760px; color: var(--ink-3); }
 .kp-board__action { flex: none; }
-.kp-group { display: grid; gap: 12px; min-width: 0; scroll-margin-top: 24px; }
+.kp-group { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; scroll-margin-top: 24px; }
 .kp-group + .kp-group { padding-top: 20px; border-top: 1px solid var(--line); }
 .kp-group__label { color: var(--ink-2); }
 .kp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr)); gap: 20px 16px; min-width: 0; }
@@ -155,8 +158,12 @@
 .kp-anim--flash { animation: v2-flash var(--dur-flash) var(--ease-out); }
 .kp-sig { display: block; width: 100%; max-width: 320px; }
 
-/* ---- board 6 · button matrix (scrolls inside itself, never the page) ---- */
+/* ---- wide specimens (the button and token matrices, the covenant, Book and Ledger tables) scroll inside
+   themselves, never the page: WideScroll is a focusable named region (tabindex 0), so the global
+   focus ring shows on it; .kp-wide holds a table at the width it is drawn for ---- */
 .kp-matrix-wrap { min-width: 0; overflow-x: auto; }
+.kp-wide--600 { min-width: 600px; }
+.kp-wide--640 { min-width: 640px; }
 .kp-matrix {
   display: grid;
   grid-template-columns: 120px repeat(5, minmax(128px, 1fr));
@@ -181,9 +188,15 @@
 .kp-twoline { display: grid; gap: 0; min-width: 0; }
 .kp-detail { padding: 8px 12px 12px; color: var(--ink-2); }
 .kp-cushion { display: inline-flex; align-items: center; gap: 8px; }
+.kp-frame326 { width: 326px; max-width: 100%; }
 .kp-frame360 { width: 360px; max-width: 100%; }
 .kp-frame480 { width: 480px; max-width: 100%; }
 .kp-frame600 { width: 600px; max-width: 100%; }
+.kp-frame704 { width: 704px; max-width: 100%; }
+/* board 16c · the strip (R4.13, P-40): a stand-in for the memo pane over the real strip */
+.kp-strips { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(326px, 100%), 1fr)); gap: 20px 16px; min-width: 0; }
+.kp-docked { display: flex; flex-direction: column; min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--paper); }
+.kp-docked__memo { display: flex; align-items: center; justify-content: center; height: 64px; background: var(--canvas); color: var(--ink-3); }
 /* board 18c · the verb row at phone width (R4.10, P-37): the memo card width each phone viewport gives
    (viewport less the 64px rail and the 16px canvas gutters); never shrunk, so the measurement is real */
 .kp-phones { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 20px 16px; min-width: 0; }

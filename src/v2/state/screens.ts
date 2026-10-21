@@ -2,7 +2,6 @@
 // owners implement against these; the shell never writes inside src/v2/screens.
 import type { ReactNode } from 'react';
 import type { FileAt } from './route';
-import type { ChatLayout } from './contracts';
 
 /**
  * The memo pane. slots.signature = <DecisionCard dealId/>: the memo Decision card (THREE-PANE R2.2),
@@ -16,10 +15,14 @@ export interface FileScreenProps {
   navSeq: number;
   slots: { exhibits: ReactNode; stress: ReactNode; signature: ReactNode };
 }
-/** The agent panel (THREE-PANE R2.1): command and control only. It holds no decision. */
+/**
+ * The agent panel (THREE-PANE R2.1): command and control only. It holds no decision. 'column' is the
+ * middle pane (900px and up); 'strip' is the panel docked under the memo on narrower screens (R4.13):
+ * the latest status line, the plan as one compact row while a plan is shown, and the composer.
+ */
 export interface ChatPaneProps {
   dealId: string;
-  layout: ChatLayout;
+  layout: 'column' | 'strip';
 }
 /** DecisionCard (the memo Decision card), StressTest, Exhibits. */
 export interface DecisionBlockProps {

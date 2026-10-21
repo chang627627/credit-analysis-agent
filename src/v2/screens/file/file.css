@@ -7,12 +7,14 @@
    push or overlay and the content padding; the doc bar folds on its own width; each card's
    tables stack by the card's width. */
 
-/* ---- frame: [canvas], or [canvas | 360] with the source pushed open (memo pane >= 1064) ---- */
+/* ---- frame: [canvas], or [canvas | 360] with the source pushed open (memo pane >= 1064). It fills
+   the memo pane (app.css), which is the full height under the bar beside the agent column, or what
+   the docked strip leaves below 900px (R4.13) ---- */
 .file {
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  height: calc(100vh - 48px);
+  height: 100%;
   min-height: 0;
   background: var(--canvas);
   color: var(--ink);
@@ -21,7 +23,7 @@
   grid-row: 1;
   grid-column: 1;
   min-width: 0;
-  height: calc(100vh - 48px);
+  height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
 }
@@ -238,6 +240,14 @@
   .file-docbar__more--mid { display: none; }
   .file-docbar__more--narrow { display: flex; }
 }
+/* <= 399: a phone's memo pane beside the rail (326px at a 390 viewport, the stacked case file,
+   R4.13). The right zone (More, the Source icon) keeps its full width, so the toggles never spill
+   past the bar; the status gives up its 160px floor, and the switcher takes at most 30% (less for
+   a short name), so both ellipsize and the sentence keeps at least as much room as the name */
+@container file-docbar (max-width: 399px) {
+  .file-docbar { grid-template-columns: fit-content(30%) minmax(0, 1fr) auto; }
+  .file-docbar__right { min-width: max-content; }
+}
 
 /* ---- the memo: header on the canvas, then cards 16px apart ---- */
 .file-content {
@@ -429,7 +439,7 @@
 }
 
 /* ---- not found ---- */
-.file-missing { height: calc(100vh - 48px); overflow-y: auto; }
+.file-missing { height: 100%; overflow-y: auto; }
 .file-missing__inner {
   display: flex;
   flex-direction: column;

@@ -396,6 +396,12 @@ export interface PlanPromptView {
   /** a not-started file's plan: Start drafting starts and approves at once; no Cancel, no countdown */
   preview: boolean;
   countdown: { text: string; holdLabel: string | null } | null;
+  /**
+   * R4.13: the same plan as ONE compact row, for the strip docked under the memo on narrow screens
+   * (the checklist `steps` is the column's): the count ("5 steps", "4 of 5 steps") and, per optional
+   * step, its checkbox beside one line ("Peer benchmarks optional" / "Peer benchmarks skipped").
+   */
+  compact: { count: string; optional: { stepId: string; text: string; included: boolean; toggleLabel: string }[] };
 }
 export interface AgentPanelView {
   title: string;

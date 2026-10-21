@@ -27,7 +27,7 @@ import { answerFor, composerContext, composerReply, parseComposer, qaAnchor, sel
 import type { ComposerOutcome, ComposerReply } from '../model';
 import type { ThreadEntry, V2Actions, V2Internals } from './store';
 import { holdAuto } from './gate';
-import { closeDrawerIn, layoutOf } from './panes';
+import { closeDrawerIn } from './panes';
 
 /** The thread keeps the last 300 entries (THREE-PANE.md §4.4). */
 const THREAD_CAP = 300;
@@ -73,9 +73,9 @@ export function engageIn(x: V2Internals, dealId: string): void {
   }
 }
 
-/** A confirm strip opened in the doc bar: in drawer mode the drawer closes so the strip is what the reviewer sees. */
+/** A confirm strip opened in the doc bar: nothing may cover it (no drawer opens since R4.13, so this is a no-op kept for safety). */
 function closeDrawerForStrip(x: V2Internals): void {
-  if (layoutOf(x) === 'drawer') closeDrawerIn(x);
+  closeDrawerIn(x);
 }
 
 export type ComposerActions = Pick<V2Actions, 'submitComposer' | 'setComposerDraft'>;
@@ -188,12 +188,11 @@ export function createComposerActions(x: V2Internals): ComposerActions {
         delete composerDraft[dealId];
         return { ...u, thread: capThread([...u.thread, ...entries]), composerDraft };
       });
-      // 8. the answer is displayed on the right: in column mode the memo brings its entry into view
-      // and flashes it once (the block mounts in this batch; the memo cues it a frame later). In
-      // drawer mode the drawer overlays the memo, so nothing moves until the reviewer follows the
-      // panel's "Questions →" (which closes the drawer first).
+      // 8. the answer is displayed in the memo: it brings its entry into view and flashes it once
+      // (the block mounts in this batch; the memo cues it a frame later). The memo is on screen in
+      // both splits (beside the panel at 900px and up, above the docked strip below, R4.13).
       const r = x.routeRef.current;
-      if (answered !== null && layoutOf(x) === 'column' && r.name === 'file' && r.dealId === dealId) {
+      if (answered !== null && r.name === 'file' && r.dealId === dealId) {
         a.cueMemo({ section: 'questions', anchorId: qaAnchor(answered) }, { keepDrawer: true });
       }
     },

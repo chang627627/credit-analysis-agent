@@ -523,6 +523,9 @@ export const COPY = {
   skipOptional: (short: string): string => `Skip ${short}`,
   includeOptional: (short: string): string => `Include ${short}`,
   startsIn: (t: string): string => `Starts in ${t}`,
+  // R4.13: the strip's compact plan row (narrow screens): "5 steps · [x] Peer benchmarks optional"
+  planCount: (included: number, total: number): string => (included === total ? `${total} steps` : `${included} of ${total} steps`),
+  optionalState: (heading: string, included: boolean): string => `${heading} ${included ? 'optional' : 'skipped'}`,
 
   // composer replies (THREE-PANE §4.3); parameterised lines are functions
   reply: {

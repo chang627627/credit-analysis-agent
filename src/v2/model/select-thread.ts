@@ -167,6 +167,29 @@ function entryLine(e: ThreadEntry): ThreadLine {
 
 // ---- the plan prompt ------------------------------------------------------------
 
+/** The plan as the column's checklist, one line per runnable step (optional steps carry a checkbox). */
+function checklistOf(runnable: PlanStep[], isIn: (p: PlanStep) => boolean): PlanPromptView['steps'] {
+  return runnable.map((st, i) => ({
+    id: st.id,
+    n: i + 1,
+    title: sectionHeading(sectionOfPlanStep(st)),
+    tool: TOOL_LABEL[st.toolName],
+    optional: !!st.optional,
+    included: isIn(st),
+    toggleLabel: isIn(st) ? COPY.skipOptional(sectionHeading(sectionOfPlanStep(st))) : COPY.includeOptional(sectionHeading(sectionOfPlanStep(st))),
+  }));
+}
+
+/** R4.13: the strip's one-row plan, from the checklist's own steps (narrow screens; no new data). */
+function compactOf(steps: PlanPromptView['steps']): PlanPromptView['compact'] {
+  return {
+    count: COPY.planCount(steps.filter((st) => st.included).length, steps.length),
+    optional: steps
+      .filter((st) => st.optional)
+      .map((st) => ({ stepId: st.id, text: COPY.optionalState(st.title, st.included), included: st.included, toggleLabel: st.toggleLabel })),
+  };
+}
+
 function planPrompt(s: V2Store, ctx: FileCtx): PlanPromptView {
   const runnable = ctx.plan.filter((p) => reworkN(p.id) === null);
   const enabled = s.plan.enabledIds;
@@ -176,6 +199,7 @@ function planPrompt(s: V2Store, ctx: FileCtx): PlanPromptView {
   const included = runnable.filter(isIn).length;
   const short = first ? OPTIONAL_SHORT[first.id] ?? sectionHeading(sectionOfPlanStep(first)).toLowerCase() : '';
   const p = s.plan;
+  const steps = checklistOf(runnable, isIn);
   return {
     text: COPY.planPrompt(
       included,
@@ -183,15 +207,8 @@ function planPrompt(s: V2Store, ctx: FileCtx): PlanPromptView {
       optional.map((x) => sectionHeading(sectionOfPlanStep(x))),
       optional.every(isIn),
     ),
-    steps: runnable.map((st, i) => ({
-      id: st.id,
-      n: i + 1,
-      title: sectionHeading(sectionOfPlanStep(st)),
-      tool: TOOL_LABEL[st.toolName],
-      optional: !!st.optional,
-      included: isIn(st),
-      toggleLabel: isIn(st) ? COPY.skipOptional(sectionHeading(sectionOfPlanStep(st))) : COPY.includeOptional(sectionHeading(sectionOfPlanStep(st))),
-    })),
+    steps,
+    compact: compactOf(steps),
     start: { label: COPY.startDrafting, kbd: `${s.modKey}↵`, disabled: false },
     optional: first
       ? {
@@ -217,6 +234,7 @@ function planPreview(s: V2Store, ctx: FileCtx): PlanPromptView {
   const off = (s.ui.planPreview ?? {})[ctx.deal.id] ?? [];
   const isIn = (p: PlanStep) => !p.optional || !off.includes(p.id);
   const optional = runnable.filter((p) => p.optional);
+  const steps = checklistOf(runnable, isIn);
   return {
     text: COPY.planPrompt(
       runnable.filter(isIn).length,
@@ -224,15 +242,8 @@ function planPreview(s: V2Store, ctx: FileCtx): PlanPromptView {
       optional.map((x) => sectionHeading(sectionOfPlanStep(x))),
       optional.every(isIn),
     ),
-    steps: runnable.map((st, i) => ({
-      id: st.id,
-      n: i + 1,
-      title: sectionHeading(sectionOfPlanStep(st)),
-      tool: TOOL_LABEL[st.toolName],
-      optional: !!st.optional,
-      included: isIn(st),
-      toggleLabel: isIn(st) ? COPY.skipOptional(sectionHeading(sectionOfPlanStep(st))) : COPY.includeOptional(sectionHeading(sectionOfPlanStep(st))),
-    })),
+    steps,
+    compact: compactOf(steps),
     start: { label: COPY.startDrafting, kbd: `${s.modKey}↵`, disabled: false },
     optional: null,
     cancelLabel: '',

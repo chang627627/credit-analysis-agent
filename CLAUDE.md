@@ -43,15 +43,15 @@ title "Awaiting your countersignature"; the expected call is asserted) · Meridi
 critical** violations, and layout fails on horizontal page scroll, a scroll container that scrolls
 sideways (except the allow-list `HSCROLL_OK`), a visible element cut by the viewport edge, the memo
 pane `.app-viz` showing < 300px or the Decision card `[data-section="signature"]` showing < 280px
-(VISIBLE width, after clipping), a driving click that cannot land at that width, or a page/console
-error. Prints a state × viewport table plus each failure; exit 0 / 1 / 2 (setup). Narrow a run with
-`--only atlas-gate,book` and `--viewport tablet,desktop`. ~25 s for all 27 cells; reruns are
-identical (the agent is deterministic). The shell is `overflow: hidden`, so the page itself never
-scrolls: the sideways-scroller and cut-edge checks are what catch overflow. **Status 2026-10-20:**
-desktop and tablet 9/9 green; phone fails on the known bug (the case file keeps the side-by-side
-split at 390px, so the memo pane gets 0px and the Countersign button cannot be clicked; a stacked
-phone layout is in progress) and on the kit page at phone width (91px page overflow, a
-non-focusable token matrix scroller). Its first run caught axe `label-content-name-mismatch`
+(VISIBLE width, after clipping), on a case file the agent panel in the wrong layout (the strip below
+900px, the column from 900px) or not wholly on screen with its composer, a driving click that cannot
+land at that width, or a page/console error. Prints a state × viewport table plus each failure;
+exit 0 / 1 / 2 (setup). Narrow a run with `--only atlas-gate,book` and `--viewport tablet,desktop`.
+~35 s for all 30 cells; reruns are identical (the agent is deterministic). The shell is `overflow:
+hidden`, so the page itself never scrolls: the sideways-scroller and cut-edge checks are what catch
+overflow. **Status 2026-10-20: 30/30 green** at phone, tablet and desktop, since narrow screens stack
+the case file (THREE-PANE R4.13; before it the side-by-side split gave the memo pane 0px at 390) and
+the kit page's wide specimens scroll inside focusable named regions. Its first run caught axe `label-content-name-mismatch`
 (WCAG 2.5.3) on desktop: kit `Button` set `aria-label={ariaLabel ?? children}`, so a visible letter
 chip (A / S / R / ⌘K) was missing from the name of the Decision verbs and Search. Fixed: Button sets
 `aria-label` only when `ariaLabel` is passed, and the name comes from the content (icon and Kbd are
@@ -206,6 +206,11 @@ Research note: VoltAgent/awesome-design-md `DESIGN.md` files (Linear, Stripe) we
 - **Backgrounded preview tab gets timer-throttled** (Chrome: down to ~1 timer/min) — the agent's
   simulated delays, monitor sweeps, and any in-page polling all crawl. If runs seem stuck during
   automated verification, it's throttling, not the app; verify with the tab focused.
+- **`overflow: hidden` is still scrollable by `scrollIntoView`:** absolutely positioned descendants
+  (e.g. visually hidden `.v2-sr` labels) whose containing block sits outside the real scroller add
+  scrollable overflow to every ancestor, and a cue into the memo then scrolls a "hidden" ancestor.
+  V2's `.app-main` is `overflow: clip` for this reason (THREE-PANE R4.13): asking a question at the
+  gate used to shift the whole case file up 157px. Use `clip` for boxes that must never scroll.
 
 ## Progress log
 
@@ -577,8 +582,9 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   infinite animation, no hand-rolled controls outside the kit, V1 + engine hashes untouched, …)
   checks the source; `npm run v2-visual` (Playwright + axe, see Run & build) checks the rendering:
   10 states × phone / tablet / desktop for serious axe violations, sideways overflow, cut-off
-  elements and a usable memo pane and Decision card width. Run both before calling V2 UI work done.
-  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-39, rendered on `/?kit`) for
+  elements, a usable memo pane and Decision card width, and the agent panel's layout (strip below
+  900px, column from 900px, wholly on screen). Run both before calling V2 UI work done.
+  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-40, rendered on `/?kit`) for
   owner approval; every `data-pattern` id needs an entry there, every kit export a kit-page specimen.
 - **Storage** (only in `src/v2/state/`): `v2.navCollapsed`, `v2.chatOpen` (only `state/panes.ts`).
   (`v2.showReasoning` was retired with R2: reasoning lives in each card's Record.) **Auto-countersign
@@ -600,18 +606,22 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   ("The countersign moves to the right too.") Reference model: Claude Code (short status lines in
   the conversation, the work product in the artifact).
 - **Layout — `#/file/<id>` = nav | command-and-control agent panel | memo with the Decision card**
-  (P-22). Column mode at 1024px and up (panel 400px, 360px at 1024 to 1279); drawer below 1024
-  (overlays the memo's left edge, no scrim, Esc closes, mutually exclusive with the source overlay).
-  Explicit hide/show (`]`, the doc-bar "Agent panel" toggle, the head chevron) persists
-  `v2.chatOpen`; the only automatic reveal is once at plan review (never at the gate: the decision is
-  in the memo), and it never writes storage. The sidebar forces its 64px rail beside an open panel
-  below 1400px without touching `v2.navCollapsed`. Pane changes are instant (no grid-width
+  (P-22). The agent panel is **always shown** on a case file: no toggle, no collapse chevron, no `]`,
+  no drawer (owner rule, commit 11fc179). At a viewport of **900px and up** it is the middle column
+  (400px, 360px at 900 to 1279). **Below 900px the case file stacks** (P-40, THREE-PANE R4.13; owner:
+  "On narrow screens, stack the case file: memo full width, and the agent panel docked below it as a
+  strip with the latest status line and the composer (no toggle)"): `.app-split[data-chat="stacked"]`
+  is one column, the memo pane on top (full width beside the rail, scrolling on its own) and the
+  panel docked under it as an always-visible strip (see Agent panel). The layout is the store's live
+  `chatLayout` (`'column' | 'stacked'`, matchMedia in `state/panes.ts`, `STACK_MAX_PX = 899`), which
+  the shell and the actions both read. The sidebar forces its 64px rail below 1400px beside the panel
+  (always below 1100) without touching `v2.navCollapsed`. Pane changes are instant (no grid-width
   transition). Desk, Book and Ledger stay full width with no panel ("upload to ingest, chat to
   steer": the Desk ingests, the case file steers). The plan auto-start countdown arms only while the
-  plan prompt is on screen (P-20).
+  plan prompt is on screen (P-20); the strip's compact plan row is always on screen while a plan is.
 - **Agent panel** (P-27, `screens/chat/`, rendered verbatim from `selectAgentPanel` →
   `AgentPanelView`): it **never displays data and holds no decision**. Head = "Credit Analyst ·
-  Project Cobalt" + the collapse chevron, nothing else (no note stepper, no reasoning toggle, no run
+  Project Cobalt", nothing else (no collapse chevron, no note stepper, no reasoning toggle, no run
   number). Then ONE-line status lines (t-body, ellipsis; an optional status glyph; an optional
   trailing link that scrolls the memo to its card): "Drafting the memo for Project Cobalt." · one
   line per step, updated in place ("Testing covenants" with the static drafting glyph → "Covenants
@@ -631,7 +641,21 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   to the foot: one frame with the round send button inside (quiet while empty, accent once there is
   a draft). No full-width rule at the panel or sidebar foot, no empty-state filler sentence. A
   skipped step's line links nowhere (it has no card). No boxes, cards, records or buttons other than
-  the plan prompt's.
+  the plan prompt's. **Below 900px the same view renders as the strip** (`ChatPane layout="strip"` →
+  `screens/chat/AgentStrip.tsx`, pure, also rendered on `/?kit`; P-40, R4.13): docked under the memo
+  with a 1px line on top, no head row, and only (1) the **latest** status line (the thread's last
+  line with its trailing link, e.g. "Your countersignature is needed · Decision →"; one status line,
+  which takes a second row only when a phone is too narrow for its words beside the link), (2) while
+  a plan is shown (not started, plan review) the plan as **one compact row** instead of the checklist
+  ("5 steps · [x] Peer benchmarks optional", [Start drafting ⌘↵], Cancel in plan review, "Starts in
+  7 s · Hold"; it wraps on a phone; copy `PlanPromptView.compact` from `COPY.planCount` /
+  `COPY.optionalState`), (3) the composer exactly as in the column. Its links cue the memo exactly as
+  the column's do (`go.ts`, `cueMemo` + flash); each line renders through the shared `ChatLine`
+  (`Line.tsx`). The strip follows the memo in the DOM, so focus order matches the screen. In the
+  stacked layout the reveal band ends at the memo pane's bottom edge, not the window's
+  (`state/reveal.ts` `bandBottom`), so "Decision →", "Go to decision" and the first A bring the verbs
+  and reviewer line in above the strip, and A signs only while the reviewer line is above it; an
+  answered question scrolls the memo to its answer in both layouts (it used to wait for a drawer).
 - **Memo pane** (right; holds everything displayed): the header on the canvas (borrower, facility,
   amount, CAM id, prepared-by, CIM paragraphs; no recommendation, and a sealed header seal is the
   who-clause only, "You countersigned.") → one paper `MemoCard` per section, 16px apart (P-26):
@@ -851,7 +875,7 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   build's step lines with confidences and durations, Record / Reasoning disclosures, flag sentences
   as MarginNote messages, the plan step checklist, the file context block, the head's note stepper
   and Show all reasoning: "do I look at the middle or the right?") · **the decision card in the agent
-  panel** (it was docked between the thread and the composer; the countersign moved to the right). · any show/hide toggle or collapse control for the agent panel (after the Desk, a case file is always three panes) · a project picker or project switch in the agent panel (step one, selecting the project, happens on the Desk; the agent panel exists only inside a case file) · the plan prompt pinned above the composer, bottom-anchored ("chat grows upward") thread lines and an empty-thread filler sentence ("Just do what normal claude code did") · a composer whose send button sits outside its field as a grey square · skeleton / "Not drafted yet" placeholder cards in the memo (cards appear as they are drafted) · count badges on the sidebar items (Desk "1", Book "7" monitor totals): a badge only marks something waiting on you · an in-place undo line for Desk removal ("Project Atlas removed from the Desk · Undo", with "· n removed · Restore" in the summary; P-35): "right now it looks like I can not delete the things", so removal asks first in a confirm Dialog and the row simply leaves
+  panel** (it was docked between the thread and the composer; the countersign moved to the right). · any show/hide toggle, collapse control or drawer for the agent panel (after the Desk, a case file always shows it: three panes from 900px, the memo over the docked strip below) · a project picker or project switch in the agent panel (step one, selecting the project, happens on the Desk; the agent panel exists only inside a case file) · the plan prompt pinned above the composer, bottom-anchored ("chat grows upward") thread lines and an empty-thread filler sentence ("Just do what normal claude code did") · a composer whose send button sits outside its field as a grey square · skeleton / "Not drafted yet" placeholder cards in the memo (cards appear as they are drafted) · count badges on the sidebar items (Desk "1", Book "7" monitor totals): a badge only marks something waiting on you · an in-place undo line for Desk removal ("Project Atlas removed from the Desk · Undo", with "· n removed · Restore" in the summary; P-35): "right now it looks like I can not delete the things", so removal asks first in a confirm Dialog and the row simply leaves
 
 ## Backlog (to-do)
 

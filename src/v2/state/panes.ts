@@ -1,29 +1,37 @@
 // ---------------------------------------------------------------------------
-// The agent panel's visibility (THREE-PANE.md §1.3, §1.5, §6.3).
+// The agent panel's layout and visibility (THREE-PANE.md §1.3, §1.5, §6.3, R4.13).
 //
-//   chatOpen    column mode: the owner's choice, persisted as 'v2.chatOpen'
+// Layout (R4.13, live matchMedia): 'column' at a viewport of 900px and up (the
+// panel is the case file's middle pane), 'stacked' below (the memo full width,
+// the panel docked under it as a strip). Since 11fc179 the panel is always
+// shown on a case file (chatShown), in either layout; there is no drawer.
+//
+//   chatOpen    the owner's old column-mode choice, persisted as 'v2.chatOpen'
 //               ('1' | '0', default '1'). Read and written ONLY here (C19);
 //               every access is guarded, like state/nav.ts.
-//   revealed    column mode: a transient reveal over a hidden panel. Never
-//               persisted; cleared on every file change and any explicit hide.
-//   drawerOpen  drawer mode (viewport below 1024px): the drawer is open.
-//               Never persisted, starts false.
+//   revealed    a transient reveal over a hidden panel. Never persisted;
+//               cleared on every file change and any explicit hide.
+//   drawerOpen  the old drawer's flag (below 1024px before R4.13). Nothing
+//               opens it any more, so it stays false and closeDrawerIn is a
+//               no-op for its callers (gate, ui, composer).
 //
-// Two kinds of caller: explicit (`]`, the doc bar toggle, the panel's own
-// collapse or close button: setChatOpen / toggleChat) and transient (the plan
-// auto-reveal, showChatIn). Only explicit callers ever write storage.
+// Two kinds of caller: explicit (setChatOpen / toggleChat; their old callers,
+// `]`, the doc bar toggle and the panel's collapse button, went with 11fc179)
+// and transient (the plan auto-reveal, showChatIn). Only explicit callers ever
+// write storage.
 //
 // R2: the panel is command and control only, so the only thing that ever
 // reveals it on its own is the plan prompt: once per 'plan:<epoch>' when the
 // live file enters plan review (the plan countdown arms only while the prompt
 // is on screen, state/plan.ts), while the live file is the route and the tab is
 // visible, never moving focus. The gate never reveals the panel: the decision
-// is the memo's Decision card, and A / S / R and every "Decision" link step the
-// drawer aside instead (state/gate.ts).
+// is the memo's Decision card, and A / S / R and every "Decision" link bring it
+// into view (state/gate.ts). In the stacked layout the strip never covers the
+// memo (it sits under it), so nothing steps aside.
 //
-// Focus return (owned by the shell): when the panel or the drawer closes with
-// focus inside it, focus goes to the first visible [data-chat-toggle] button
-// once the commit has dropped it on the body.
+// Focus return: if the panel ever hid with focus inside it, focus would go to
+// the first visible [data-chat-toggle] button once the commit dropped it on
+// the body (no such toggle exists since 11fc179; the panel never hides).
 // ---------------------------------------------------------------------------
 
 import { useEffect, useRef, useState } from 'react';
@@ -55,14 +63,16 @@ export function initialPanes(): PaneState {
   return { chatOpen: readChatOpen(), revealed: false, drawerOpen: false };
 }
 
-// ---- layout (column at 1024px and up, drawer below) -------------------------
+// ---- layout (column at 900px and up, stacked below; R4.13) ---------------------
 
-const COLUMN_QUERY = '(min-width: 1024px)';
+/** The widest viewport that stacks the case file (memo over the docked strip). */
+export const STACK_MAX_PX = 899;
+const COLUMN_QUERY = `(min-width: ${STACK_MAX_PX + 1}px)`;
 
 function readChatLayout(): ChatLayout {
   try {
     if (typeof window.matchMedia !== 'function') return 'column';
-    return window.matchMedia(COLUMN_QUERY).matches ? 'column' : 'drawer';
+    return window.matchMedia(COLUMN_QUERY).matches ? 'column' : 'stacked';
   } catch {
     return 'column';
   }
@@ -76,7 +86,7 @@ export function useChatLayout(): [ChatLayout, Box<ChatLayout>] {
     if (typeof window.matchMedia !== 'function') return;
     const mql = window.matchMedia(COLUMN_QUERY);
     const on = () => {
-      const next: ChatLayout = mql.matches ? 'column' : 'drawer';
+      const next: ChatLayout = mql.matches ? 'column' : 'stacked';
       ref.current = next;
       setLayout(next);
     };
@@ -137,15 +147,6 @@ function focusComposer(): void {
 
 // ---- shared mutations ------------------------------------------------------------
 
-/** The layout mode right now (live, through the store's synchronous ref). */
-export function layoutOf(x: V2Internals): ChatLayout {
-  return x.current().chatLayout;
-}
-
-function closeSourceForDrawer(x: V2Internals): void {
-  x.setUi((u) => (u.sourceOpen ? { ...u, sourceOpen: false } : u));
-}
-
 /**
  * Close the drawer (no-op when it is closed). With focus inside it, focus
  * returns to the visible panel toggle, unless `returnFocus` is false: the
@@ -170,19 +171,14 @@ export function resetPanesForFile(x: V2Internals): void {
 }
 
 /**
- * Transient reveal: column mode reveals a hidden panel without touching
- * storage; drawer mode opens the drawer (which closes the source overlay).
- * Off a case file there is no panel to reveal. Never moves focus.
+ * Transient reveal of a hidden panel, without touching storage. Off a case
+ * file there is no panel to reveal. Never moves focus. (The panel is always
+ * shown since 11fc179, so this only keeps the flags consistent; R4.13 removed
+ * the drawer it used to open, which also closed an overlaid source.)
  */
 export function showChatIn(x: V2Internals): void {
   if (x.routeRef.current.name !== 'file') return;
   const p = x.panesRef.current;
-  if (layoutOf(x) === 'drawer') {
-    if (p.drawerOpen) return;
-    x.setPanes({ ...p, drawerOpen: true });
-    closeSourceForDrawer(x);
-    return;
-  }
   if (p.chatOpen || p.revealed) return;
   x.setPanes({ ...p, revealed: true });
 }
@@ -192,20 +188,10 @@ export function showChatIn(x: V2Internals): void {
 export type PaneActions = Pick<V2Actions, 'setChatOpen' | 'toggleChat'>;
 
 export function createPaneActions(x: V2Internals): PaneActions {
-  // explicit: column mode writes the owner's choice and ends any reveal; drawer mode opens or closes the drawer
+  // explicit: writes the owner's choice and ends any reveal (no caller since the panel became
+  // always shown, 11fc179; kept for the contract)
   const setChatOpen = (open: boolean) => {
     const p = x.panesRef.current;
-    if (layoutOf(x) === 'drawer') {
-      if (open === p.drawerOpen) return;
-      if (!open) {
-        closeDrawerIn(x);
-        return;
-      }
-      x.setPanes({ ...p, drawerOpen: true });
-      closeSourceForDrawer(x);
-      focusComposer();
-      return;
-    }
     const wasShown = p.chatOpen || p.revealed;
     const inside = !open && wasShown && paneHasFocus();
     writeChatOpen(open);
@@ -218,8 +204,7 @@ export function createPaneActions(x: V2Internals): PaneActions {
     setChatOpen,
     toggleChat: () => {
       const p = x.panesRef.current;
-      const shown = layoutOf(x) === 'drawer' ? p.drawerOpen : p.chatOpen || p.revealed;
-      setChatOpen(!shown);
+      setChatOpen(!(p.chatOpen || p.revealed));
     },
   };
 }
@@ -239,15 +224,6 @@ function revealKeyOf(s: V2Store): string | null {
  * commit.
  */
 export function usePaneEffects(s: V2Store, x: V2Internals): void {
-  // a layout switch starts the drawer closed (the column panel follows chatOpen)
-  const layout = s.chatLayout;
-  const prevLayout = useRef(layout);
-  useEffect(() => {
-    if (prevLayout.current === layout) return;
-    prevLayout.current = layout;
-    closeDrawerIn(x);
-  }, [layout, x]);
-
   // the plan prompt auto-reveals once per plan review, while the live file is on screen and the tab visible
   const key = revealKeyOf(s);
   const tabVisible = s.tabVisible;

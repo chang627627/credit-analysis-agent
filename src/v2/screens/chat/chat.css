@@ -1,10 +1,11 @@
-/* Countersign V2 · the agent panel (THREE-PANE.md R2.1, §1.8). Command and control only: head,
-   one-line thread, plan prompt, composer. Tokens only. Kit primitives keep their own styling;
-   this file lays out the chat wrappers and nothing else. */
+/* Countersign V2 · the agent panel (THREE-PANE.md R2.1, R4.13, §1.8). Command and control only:
+   head, one-line thread, plan prompt, composer; below 900px the strip (latest line, compact plan,
+   composer). Tokens only. Kit primitives keep their own styling; this file lays out the chat
+   wrappers and nothing else. */
 
-/* ---- the panel. Column mode is a grid column of the split; drawer mode overlays the memo
-   pane's left edge (no scrim). The panel itself scrolls only when its children's minimum
-   heights exceed it (short viewports). ---- */
+/* ---- the panel. Column layout: a grid column of the split; the panel itself scrolls only when
+   its children's minimum heights exceed it (short viewports). Strip layout (below 900px): the
+   split's second row, docked under the memo, as tall as its content, a 1px line on top. ---- */
 .chat-pane {
   display: flex;
   flex-direction: column;
@@ -14,15 +15,11 @@
   background: var(--paper);
   border-right: 1px solid var(--line);
 }
-.chat-pane[data-layout="drawer"] {
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  z-index: 6;
-  width: min(400px, 100%);
+.chat-pane[data-layout="strip"] {
   height: auto;
-  box-shadow: var(--shadow-pop);
+  overflow: visible;
+  border-top: 1px solid var(--line);
+  border-right: 0;
 }
 
 /* ---- head: 44px on the shared header line (its bottom rule meets the doc bar's at y 92) ---- */
@@ -136,3 +133,25 @@
 .chat-composer__field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .chat-composer__reason { color: var(--ink-3); }
 
+
+/* ---- the strip (R4.13, P-40): below 900px, docked under the memo. The latest line, then the plan
+   as one compact row that wraps (count and optional steps · Start drafting, Cancel · countdown),
+   then the composer. The latest line is ONE status line; on a phone too narrow for it beside its
+   link (the gate line at 360 to 390) it wraps to a second row rather than lose its words, never a
+   third, with the link on its first row. ---- */
+.chat-strip { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 12px 16px 0; }
+.chat-strip:empty { display: none; }
+.chat-strip .chat-line__text {
+  display: -webkit-box;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.chat-pane[data-layout="strip"] .chat-strip:not(:empty) + .chat-foot .chat-composer { padding-top: 8px; }
+.chat-plan--compact { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 16px; row-gap: 8px; }
+.chat-plan__summary { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; row-gap: 4px; min-width: 0; color: var(--ink); }
+.chat-plan__count { font-variant-numeric: tabular-nums; }
+.chat-plan__opt { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.chat-plan__dot { color: var(--ink-3); }
+.chat-plan__opt--skipped .chat-plan__optext { color: var(--ink-3); }

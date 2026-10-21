@@ -82,12 +82,17 @@ export interface MonitorLogEntry {
 
 // ---- three-pane state (§1.5, §6.1)
 
-/** Column mode at viewport >= 1024px, drawer mode below (matchMedia, live). */
-export type ChatLayout = 'column' | 'drawer';
 /**
- * chatOpen: the owner's choice in column mode (persisted 'v2.chatOpen', state/panes.ts only).
- * revealed: a transient reveal over a hidden panel (column mode, never persisted).
- * drawerOpen: the drawer is open (drawer mode, never persisted, starts false).
+ * R4.13: the case file's split, live (matchMedia, state/panes.ts): 'column' at a viewport of 900px
+ * and up (nav · agent panel · memo side by side), 'stacked' below (the memo full width, the agent
+ * panel docked under it as a strip). The panel is shown in both; there is no drawer any more.
+ */
+export type ChatLayout = 'column' | 'stacked';
+/**
+ * chatOpen: the owner's old column-mode choice (persisted 'v2.chatOpen', state/panes.ts only).
+ * revealed: a transient reveal over a hidden panel (never persisted).
+ * drawerOpen: the old drawer's flag; nothing opens it since R4.13 (no drawer), so it stays false and
+ * closeDrawerIn is a no-op. Since 11fc179 the panel is always shown, so none of the three decides it.
  */
 export interface PaneState { chatOpen: boolean; revealed: boolean; drawerOpen: boolean }
 

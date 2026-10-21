@@ -85,6 +85,8 @@ import {
   FX_PANEL_MERIDIAN_COUNTDOWN,
   FX_PANEL_NOT_STARTED,
   FX_PANEL_PLAN_REVIEW,
+  FX_PANEL_PLAN_PREVIEW,
+  FX_PANEL_PLAN_SKIPPED,
   FX_PANEL_RUNNING,
   FX_PANEL_SEALED,
   FX_QUESTIONS_ATLAS,
@@ -144,6 +146,8 @@ import type {
 import { PENDING, REJECTED_BEFORE } from './design-pending';
 // the Decision card's real verb row (markup and decision.css), for the phone-width check (R4.10, P-37)
 import { VerbRow } from './screens/decision/VerbRow';
+// the agent panel's real strip (markup and chat.css), docked under the memo below 900px (R4.13, P-40)
+import { AgentStrip } from './screens/chat/AgentStrip';
 import type { PendingPattern } from './design-pending';
 
 const noop = () => {};
@@ -384,6 +388,20 @@ function Group({ id, label, children }: { id?: string; label?: string; children:
 
 function Grid({ size = 'base', children }: { size?: 'base' | 'wide' | 'full'; children: ReactNode }) {
   return <div className={size === 'base' ? 'kp-grid' : `kp-grid kp-grid--${size}`}>{children}</div>;
+}
+
+/**
+ * A specimen wider than a phone scrolls inside itself, never the page: a focusable region with a
+ * name, so a keyboard user can reach it and scroll it with the arrow keys (axe
+ * scrollable-region-focusable). `min` keeps a table at the width it is drawn for while its frame
+ * is narrower (the table's own container queries then see that width, not the phone's).
+ */
+function WideScroll({ label, min, children }: { label: string; min?: 600 | 640; children: ReactNode }) {
+  return (
+    <div className="kp-matrix-wrap" role="region" aria-label={label} tabIndex={0}>
+      {min ? <div className={`kp-wide kp-wide--${min}`}>{children}</div> : children}
+    </div>
+  );
 }
 
 function Cell({ caption, block = false, children }: { caption: string; block?: boolean; children: ReactNode }) {
@@ -807,7 +825,7 @@ const BTN_SIZES = ['md', 'sm'] as const;
 function ButtonBoard() {
   return (
     <Board id={B.button.id} name={B.button.name} spec="md 34 (t-control, icon 14) · sm 28 (t-label, icon 12) · primary --accent fill, hover --accent-hover · secondary paper + --line · ghost --ink-2 · danger --bad-ink, hover --bad-wash · disabled is a token swap, never opacity">
-      <div className="kp-matrix-wrap">
+      <WideScroll label="Button matrix (scrolls sideways)">
         <div className="kp-matrix" role="group" aria-label="Button variants by size and state">
           <span className="t-meta kp-ink3">variant · size</span>
           {BTN_STATES.map((s) => (
@@ -830,7 +848,7 @@ function ButtonBoard() {
             )),
           )}
         </div>
-      </div>
+      </WideScroll>
       <Group label="With kbd · with icon · block">
         <Grid size="wide">
           <Cell caption="primary md + kbd (Kbd onAccent)">
@@ -1001,7 +1019,7 @@ function IconLinkKbdBoard() {
 function TokenChipBoard() {
   return (
     <Board id={B.token.id} name={B.token.name} spec="Token 20 tall, pill, t-token: solid = tone wash + tone ink · muted = --line frame + --ink-2 · struck = muted, line-through, --ink-3 · Chip 20 tall, --r-sm, t-meta · words from the model">
-      <div className="kp-matrix-wrap">
+      <WideScroll label="Token matrix (scrolls sideways)">
       <div className="kp-tokens" role="group" aria-label="Tokens by variant">
         <span className="t-meta kp-ink3">token</span>
         {TOKEN_VARIANTS.map((v) => (
@@ -1022,7 +1040,7 @@ function TokenChipBoard() {
           </Fragment>
         ))}
       </div>
-      </div>
+      </WideScroll>
       <Group id="board-chip" label="Chip">
         <Grid>
           <Cell caption="neutral">
@@ -1968,13 +1986,19 @@ function TableBoard() {
     >
       <Grid size="full">
         <Cell caption="header · group 32 (status, meta, count) · end-aligned figures · highlighted (first row) · flash (last row, press Flash row) · rows whose Actual carries “Not in CIM” are align 'start', so that Actual sits on its neighbours' line (P-32)" block>
-          <Table columns={COV_COLUMNS} rows={covRows} caption="Covenant compliance (specimen)" />
+          <WideScroll label="Covenant compliance specimen (scrolls sideways when narrow)" min={640}>
+            <Table columns={COV_COLUMNS} rows={covRows} caption="Covenant compliance (specimen)" />
+          </WideScroll>
         </Cell>
         <Cell caption={`activatable row 56 (click or Enter · activated ${activated}×) · indented sub-rows · muted (acknowledged)`} block>
-          <Table columns={BOOK_COLUMNS} rows={bookRows} caption="Book (specimen)" />
+          <WideScroll label="Book specimen (scrolls sideways when narrow)" min={600}>
+            <Table columns={BOOK_COLUMNS} rows={bookRows} caption="Book (specimen)" />
+          </WideScroll>
         </Cell>
         <Cell caption="toggling group 40 with trailing (press the group to fold) · rows · detail row · span row" block>
-          <Table columns={LEDGER_COLUMNS} rows={ledgerRows} caption="Ledger run (specimen)" />
+          <WideScroll label="Ledger run specimen (scrolls sideways when narrow)" min={600}>
+            <Table columns={LEDGER_COLUMNS} rows={ledgerRows} caption="Ledger run (specimen)" />
+          </WideScroll>
         </Cell>
         <Cell caption="stacked · stackBelow 760 in a fixed 360px frame (header hides, cells stack with their labels) · Desk, Book, Ledger" block>
           <div className="kp-frame360">
@@ -2440,12 +2464,62 @@ const PANEL_CASES: { key: string; v: AgentPanelView; caption: string }[] = [
   { key: 'rejected', v: FX_PANEL_COBALT_REJECTED, caption: 'rejected after a send-back found no cure' },
 ];
 
+/** The strip as the app renders it (the real AgentStrip and chat.css) under a stand-in for the memo pane. */
+function StripSpecimen({ v, onToggleStep = noop }: { v: AgentPanelView; onToggleStep?: (stepId: string) => void }) {
+  return (
+    <div className="kp-docked">
+      <div className="kp-docked__memo t-small" aria-hidden="true">
+        Memo pane: full width, scrolls on its own
+      </div>
+      <div className="chat-pane" data-layout="strip">
+        <AgentStrip
+          line={v.lines.length > 0 ? v.lines[v.lines.length - 1] : null}
+          plan={v.plan}
+          onGo={noop}
+          onToggleStep={onToggleStep}
+          onStart={noop}
+          onCancel={noop}
+          onHold={noop}
+          composer={
+            <div className="chat-composer">
+              <div className="chat-composer__field">
+                <TextArea
+                  size="composer"
+                  value=""
+                  onChange={noop}
+                  placeholder={v.composer.placeholder}
+                  ariaLabel={`${COPY.composerLabel} (specimen)`}
+                  trailing={<IconButton icon={ArrowUp} label={COPY.send} variant="send" disabled onClick={noop} />}
+                />
+              </div>
+            </div>
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
+const STRIP_CASES: { key: string; v: AgentPanelView; caption: string }[] = [
+  { key: 'preview', v: FX_PANEL_PLAN_PREVIEW, caption: 'not started · no line yet; the plan as one compact row: the count, the optional step’s checkbox with its line, Start drafting (no Cancel, no countdown)' },
+  { key: 'running', v: FX_PANEL_RUNNING, caption: 'drafting · the latest line only (the running step); the memo above follows the card being written' },
+  { key: 'gate', v: FX_PANEL_ATLAS_GATE, caption: 'at the gate · “Decision →” scrolls the memo to the Decision card; too narrow beside its link, the line takes a second row rather than lose its words' },
+  { key: 'answered', v: FX_PANEL_ATLAS_REV2, caption: 'rev 2 after Q&A · the latest line (the gate); an answer in the memo leaves “Answered in the memo · Questions →” here until the next line' },
+  { key: 'sealed', v: FX_PANEL_SEALED, caption: 'countersigned · the decided line links to the record on the Decision card' },
+];
+
+/** Plan review, live: the checkbox switches between the two fixtures, as togglePlanStep does in the app. */
+function LiveStripPlan() {
+  const [skipped, setSkipped] = useState(false);
+  return <StripSpecimen v={skipped ? FX_PANEL_PLAN_SKIPPED : FX_PANEL_PLAN_REVIEW} onToggleStep={() => setSkipped((x) => !x)} />;
+}
+
 function AgentPanelBoard() {
   return (
     <Board
       id={B.panel.id}
       name={B.panel.name}
-      spec="The middle pane is command and control only (P-27): head 44 = agent · file + the collapse chevron, nothing else · one-line status lines in t-body (ellipsis on overflow; a steering reply may clip to 2 lines), an optional 16px status glyph and an optional trailing link that scrolls the memo to its card · a real answer about the deal is never shown here: it leaves one “Answered in the memo · Questions →” line (P-33) · the plan prompt and the composer at the foot · it never displays data and holds no decision: every figure, record and the whole decision live in the memo (P-23)"
+      spec="The middle pane is command and control only (P-27): head 44 = agent · file, nothing else (no collapse control: the panel is always shown) · one-line status lines in t-body (ellipsis on overflow; a steering reply may clip to 2 lines), an optional 16px status glyph and an optional trailing link that scrolls the memo to its card · a real answer about the deal is never shown here: it leaves one “Answered in the memo · Questions →” line (P-33) · the plan prompt and the composer at the foot · it never displays data and holds no decision: every figure, record and the whole decision live in the memo (P-23) · below a 900px viewport it docks under the memo as the strip (P-40)"
     >
       <div className="kp-panels">
         {PANEL_CASES.map(({ key, v, caption }) => (
@@ -2454,6 +2528,27 @@ function AgentPanelBoard() {
           </Cell>
         ))}
       </div>
+      <Group label="Narrow screens (below 900px): the case file stacks, the memo full width over the agent panel docked as a strip (P-40, R4.13) · always visible, never a drawer or a toggle · no head · a 1px line on top · the latest status line only (one status line; a second row only when too narrow for its words) · while a plan is shown, the plan as one compact row that wraps · the composer as in the column · the real AgentStrip at the 326px a 390 phone gives it">
+        <div className="kp-strips">
+          <Cell caption="plan review, live · the checkbox skips peer benchmarks (the count reads 4 of 5, the countdown holds), Cancel, the countdown line with Hold" block>
+            <div className="kp-frame326">
+              <LiveStripPlan />
+            </div>
+          </Cell>
+          {STRIP_CASES.map(({ key, v, caption }) => (
+            <Cell key={key} caption={caption} block>
+              <div className="kp-frame326">
+                <StripSpecimen v={v} />
+              </div>
+            </Cell>
+          ))}
+        </div>
+        <Cell caption="at a 768 tablet (704px beside the rail) · the compact plan fits one row: count and checkbox, Start drafting and Cancel, the countdown" block>
+          <div className="kp-frame704">
+            <StripSpecimen v={FX_PANEL_PLAN_REVIEW} />
+          </div>
+        </Cell>
+      </Group>
     </Board>
   );
 }
@@ -2639,7 +2734,9 @@ function QuestionsBoard() {
         </Cell>
       </Grid>
       <Group label="In the Ledger: a Reviewer event of its run, the question as the event and the answer as its detail (the full answer and its source are in the row's raw record)">
-        <Table columns={LEDGER_COLUMNS} rows={ledgerRows} caption="Ledger · an answered question (specimen)" />
+        <WideScroll label="Ledger answered-question specimen (scrolls sideways when narrow)" min={600}>
+          <Table columns={LEDGER_COLUMNS} rows={ledgerRows} caption="Ledger · an answered question (specimen)" />
+        </WideScroll>
       </Group>
     </Board>
   );

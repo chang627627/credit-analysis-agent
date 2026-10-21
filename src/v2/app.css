@@ -16,15 +16,18 @@
 .app-main {
   grid-row: 2;
   grid-column: 2;
-  position: relative; /* the agent drawer's anchor (chat.css) */
+  position: relative;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  /* clip, not hidden: a hidden box is still scrolled by scrollIntoView, and the memo's visually
+     hidden (absolute) labels reach below the memo pane, so a cue into the memo used to scroll the
+     whole split up (157px after a question at 1440; the strip partly off screen below 900) */
+  overflow: clip;
 }
 
-/* ---- the case file: [agent panel | memo pane] (THREE-PANE §1.8). data-chat is "column" (the
-   panel is a grid column), "none" (column mode, panel hidden; also an unknown file id) or
-   "drawer" (one column; an open panel is the absolute drawer, chat.css). ---- */
+/* ---- the case file: [agent panel | memo pane] (THREE-PANE §1.8). data-chat is "column" (900px
+   and up: the panel is a grid column), "stacked" (below 900px, R4.13: one column, the memo pane
+   on top and the panel docked under it as a strip) or "none" (an unknown file id). ---- */
 .app-split {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -34,6 +37,10 @@
 @media (max-width: 1279px) {
   .app-split[data-chat="column"] { grid-template-columns: 360px minmax(0, 1fr); }
 }
+/* stacked: the memo pane takes what the strip leaves and scrolls on its own (its children fill it:
+   file.css sizes .file to 100%); the strip is as tall as its content */
+.app-split[data-chat="stacked"] { grid-template-rows: minmax(0, 1fr) auto; }
+.app-split[data-chat="stacked"] > .app-viz { height: auto; min-height: 0; }
 /* the memo pane: its own width decides the source pane's push or overlay (@container viz) */
 .app-viz {
   min-width: 0;

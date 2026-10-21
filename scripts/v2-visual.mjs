@@ -7,7 +7,9 @@
 //   2. axe-core: fail on serious or critical violations (moderate and minor are listed in the report)
 //   3. layout: no horizontal page scroll · no scroll container that scrolls sideways · no visible
 //      element cut by the viewport edge · the memo pane (.app-viz) and the Decision card
-//      ([data-section="signature"]) keep a usable VISIBLE width · the driving clicks land (a control
+//      ([data-section="signature"]) keep a usable VISIBLE width · on a case file below 900px the
+//      agent panel is the strip docked under the memo, wholly on screen with its composer
+//      (THREE-PANE R4.13), and a column beside it from 900px · the driving clicks land (a control
 //      that cannot be clicked at that width is a failure; the click is then dispatched so the state
 //      is still reached and checked) · no page errors or console errors
 // Exit 0 = every cell passes, 1 = failures, 2 = setup error.
@@ -38,6 +40,8 @@ const VITE = join(ROOT, 'node_modules', '.bin', 'vite');
 // inside the memo's 16px gutters (294px). Below these the memo and the decision are not usable.
 const MIN_PANE_PX = 300;
 const MIN_CARD_PX = 280;
+// Below this viewport width a case file stacks: the memo over the agent strip (R4.13, state/panes.ts).
+const STACK_BELOW_PX = 900;
 const RUN_TIMEOUT_MS = 60_000;
 
 const VIEWPORTS = [
@@ -366,6 +370,20 @@ function probe({ hscrollOk }) {
 
   const viz = document.querySelector('.app-viz');
   const card = document.querySelector('[data-section="signature"]');
+  // the agent panel: its layout, and whether it (and its composer) sits wholly inside the viewport
+  const pane = document.querySelector('[data-chat-pane]');
+  let panel = null;
+  if (pane) {
+    const r = pane.getBoundingClientRect();
+    const field = pane.querySelector('textarea');
+    const fr = field ? field.getBoundingClientRect() : null;
+    panel = {
+      layout: pane.getAttribute('data-layout'),
+      onScreen: r.top >= 0 && r.bottom <= window.innerHeight + 1 && r.left >= 0 && r.right <= iw + 1 && r.height > 0,
+      composer: !!fr && fr.height > 0 && fr.bottom <= window.innerHeight + 1,
+      box: `${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)}`,
+    };
+  }
   return {
     iw,
     pageOverflowX,
@@ -373,6 +391,7 @@ function probe({ hscrollOk }) {
     cut: cutList,
     viz: viz ? visibleX(viz) : null,
     card: card ? visibleX(card) : null,
+    panel,
   };
 }
 
@@ -415,6 +434,15 @@ async function check(browser, base, state, vp) {
     if (state.memo) {
       if (!L.viz) failures.push('memo pane .app-viz is not rendered');
       else if (L.viz.visible < MIN_PANE_PX) failures.push(`memo pane .app-viz shows ${L.viz.visible}px (box ${L.viz.width}px; needs ${MIN_PANE_PX})`);
+    }
+    if (state.memo) {
+      const want = L.iw < STACK_BELOW_PX ? 'strip' : 'column';
+      if (!L.panel) failures.push('agent panel [data-chat-pane] is not rendered');
+      else {
+        if (L.panel.layout !== want) failures.push(`agent panel is "${L.panel.layout}" at ${L.iw}px (expected "${want}")`);
+        if (!L.panel.onScreen) failures.push(`agent panel is not wholly on screen (${L.panel.box})`);
+        if (!L.panel.composer) failures.push('the composer is not on screen');
+      }
     }
     if (state.card) {
       if (!L.card) failures.push('Decision card [data-section="signature"] is not rendered');

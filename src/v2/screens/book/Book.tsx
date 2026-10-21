@@ -24,7 +24,7 @@ const COLUMNS: TableColumn[] = [
   { key: 'cushion', label: CUSHION_LABEL, width: '136px', align: 'end' },
   { key: 'tests', label: 'Tests', width: '128px', align: 'end', hideBelow: 760 },
   { key: 'risk', label: 'Risk', width: '56px', align: 'end', hideBelow: 760 },
-  { key: 'checked', label: 'Checked', width: '64px', align: 'end', hideBelow: 760 },
+  { key: 'checked', label: 'Checked', width: '80px', align: 'end', hideBelow: 760 },
 ];
 
 const TABLE_CAPTION = 'Covenant state by file';

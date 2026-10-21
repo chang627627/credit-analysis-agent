@@ -4,25 +4,100 @@
 > The agent analyzes; a human countersigns. That's the whole product thesis.
 
 **▶ Live demo: [credit-analysis-agent.vercel.app](https://credit-analysis-agent.vercel.app)** &nbsp;·&nbsp; auto-deployed from `main` via Vercel
-**Design system: [/designsystem](https://credit-analysis-agent.vercel.app/designsystem)** &nbsp;·&nbsp; the token catalog, both themes side by side
+**This branch is V2.** The original V1 stays one click away at `/?v=1`.
 
 Countersign is a **front-end research prototype** exploring how an autonomous
 credit-analysis agent can expose its evidence, route uncertainty, pause for accountable
-human judgment, and preserve an auditable decision trail. Its data and backend behavior
-are **mocked and deterministic**.
-
-It shows an **agent loop you can watch and inspect** — plan → call tool → observe →
-decide → repeat → **human approval gate** — applied to a credit-analysis workflow:
-extract financials from a deal document → score risk → test covenants → assemble an
-approval package with an audit trail, pausing for a human on the consequential call.
-
-There is **no backend**. The "LLM" and its "tools" are mocked with async generators
-and timers (`src/agent/*`), so it runs with zero API keys and is fully reproducible.
-The subject of the prototype is the *agentic UX and control flow*, not the model.
+human judgment, and preserve an auditable decision trail. There is **no backend**: the
+"LLM" and its "tools" are mocked with async generators and timers, so it runs with zero
+API keys and every run is reproducible. The subject is the *agentic UX and control flow*,
+not the model.
 
 > **The thesis:** in regulated decisions, an agent that is 80% accurate is a liability
 > unless a human can see exactly what it did and refuse it. So the loop is built to be
 > legible and interruptible rather than merely fast.
+
+![The case file at the countersignature: the agent panel's status lines on the left, the memo's Decision card on the right](docs/v2/screenshots/decision.png)
+
+<sub>Atlas at the countersignature. Left: the agent panel, command and control only. Right: the memo's Decision card. The agent's call, its specific reasons, and three verbs, each with the consequence it will have.</sub>
+
+---
+
+## What V2 is
+
+V2 is a full UI rebuild around one idea: **the credit memo is the product.** A credit
+committee signs a memo, not an agent's log. So the agent's work arrives as a document you
+read top to bottom, and the decision sits at its foot, where a reviewer would sign it.
+
+- **Desk** (`#/`): the files you owe a decision on, grouped by what you owe. Select a
+  project or drop in a CIM (extraction is simulated from the file name).
+- **Case file** (`#/file/<id>`): three panes: navigation | agent panel | memo.
+  - **The agent panel is command and control only**, like Claude Code: one-line status
+    lines that point into the memo ("1 covenant breached · Covenants →"), the plan as a
+    message, and the composer. It never displays data and never holds the decision.
+  - **The memo writes itself live.** Before drafting it's just a header. Each section
+    card appears when its step starts and fills in when the step returns: Financials →
+    Risk → Peers → Covenants → Recommendation. Then comes the **Decision card**.
+- **Book** (`#/book`): a portfolio monitor re-tests every file's covenants on a sweep.
+  A breach can only be acknowledged with a written reason.
+- **Ledger** (`#/ledger`): the decision record: every run, every reviewer action and
+  every question asked, exportable as JSON.
+
+| The memo: evidence on every figure | The Book: monitoring after a sweep | Phone: stacked |
+|---|---|---|
+| ![Covenant compliance card with Not in CIM marks](docs/v2/screenshots/memo-covenants.png) | ![Book with breach and watch items](docs/v2/screenshots/book.png) | ![The case file on a phone: memo above, agent strip below](docs/v2/screenshots/phone.png) |
+
+---
+
+## Key design decisions
+
+Each of these came out of a specific problem, and each one is written down in
+[`docs/v2/THREE-PANE.md`](docs/v2/THREE-PANE.md) and `CLAUDE.md`.
+
+1. **One place to look for content, one place to steer.** Everything you read or decide is
+   on the right, and the panel only reports and takes instructions. Splitting content
+   across two panes made reviewers ask "do I look at the middle or the right?"
+2. **The decision is stated where it's made.** The Decision card says "The agent recommends
+   ESCALATE", asks the question, gives the decision rule's own reasons with sizes, and puts
+   three verbs in one row (*Countersign*, *Return for revision*, *Reject*), each with its
+   consequence underneath. After you act, the same card becomes the sealed record.
+3. **No single keystroke can refuse a memo.** Return and Reject *arm* on the first press:
+   the note field asks the verb's own question ("Why reject it?"), and only a second,
+   deliberate press commits. Countersigning stays one click, as signing should be.
+4. **Evidence on every figure.** Each number carries its provenance: *Quoted · CIM para 2*,
+   *Derived 96.3 ÷ 22.6*, or *Not in CIM* when the figure came from the extraction model.
+   The Decision card lists what you are signing over, including inputs the CIM never states.
+5. **Live drafting, without a reasoning dump.** Cards appear as the agent works and the pane
+   follows the card being written, until you scroll. When the analysis finishes, the memo
+   lands on the Decision card. The agent's reasoning stays one click away in each card's
+   *Record*, not streamed across the page.
+6. **Automation you can see.** Auto-countersign handles only clean approvals (APPROVE, no
+   flags, first pass, every key figure at 90% or above), always through a visible 5-second
+   countdown you can hold. It resets on every page load, and its rule is stated next to
+   the switch.
+7. **Status is the loudest colour on the page.** Approve / escalate / decline use green /
+   amber / red, and the accent (aubergine) is deliberately *less* colourful than all three,
+   so the action colour never competes with a risk signal. Inter only, weights 400/500/600,
+   a 4px grid, hairline borders, no drop shadows.
+8. **It works at any width.** Below 900px the case file stacks: the memo goes full width,
+   with the agent panel docked underneath as a strip (latest status line + composer).
+
+## The decision rule (shared by V1 and V2)
+
+The recommendation is computed, never hard-coded. It triages by **severity, not by counting
+breaches**. The first rule that matches wins (constants in `src/agent/policy.ts`, rule in
+`src/agent/whatif.ts`):
+
+| | Condition | Call |
+|---|---|---|
+| 1 | Any key tool read below **75%** confidence | **ESCALATE**: verify the extracted figures |
+| 2 | Risk score ≥ **75**, fixed-charge coverage < **1.00x**, leverage > **6.0x**, or a breach with no cure within policy | **DECLINE**, with up to four specific reasons |
+| 3 | A breach that sponsor equity could cure, any covenant under **15%** headroom, or risk score ≥ **60** | **ESCALATE**: "approve subject to $X sponsor equity or a covenant reset" |
+| 4 | Otherwise | **APPROVE** |
+
+The three sample deals land on all three outcomes. Meridian approves. Atlas escalates with
+a **$19.5M** cure; a send-back produces a revision that approves at 3.40x leverage. Cobalt
+declines: risk score 82, fixed-charge coverage 0.95x, and four breaches with no cure.
 
 ---
 
@@ -30,172 +105,97 @@ The subject of the prototype is the *agentic UX and control flow*, not the model
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
+npm run dev        # http://localhost:5173  → V2   ·  /?v=1 → V1  ·  /?kit → V2 component kit
+npm run build      # type-check (tsc --noEmit) + production build
+npm run preview    # serve the build
 ```
 
-Press **Run analysis**. Use the **speed** slider (top bar) to speed up / slow down the
-demo — it also affects in-flight delays, which is a nice thing to show live. **Reset**
-aborts a run mid-flight.
+On the Desk, press **Select** on a project, then **Start drafting**. A run takes about
+10 to 13 seconds.
+
+## Quality checks
+
+Two automated checks guard V2, and both run locally:
 
 ```bash
-npm run build    # type-check (tsc --noEmit) + production build
-npm run preview  # serve the build
+npm run v2-check   # 28 source guardrails: tokens only, type roles, 4px grid, kit-only
+                   # controls, one infinite animation, engine files untouched, …
+npm run v2-visual  # Playwright + axe: 10 states × phone / tablet / desktop
+                   # (serious accessibility violations, sideways overflow, cut-off
+                   # elements, a usable memo pane and Decision card width)
 ```
+
+The component kit is a closed set of primitives, and every one is shown on the kit page
+(`/?kit`). Any new visual pattern is logged in `src/v2/design-pending.ts` for owner
+approval. The design was researched against real products (Mobbin) and published design
+systems ([awesome-design-md](https://github.com/VoltAgent/awesome-design-md)), then each
+batch of changes went through adversarial review before it shipped.
 
 ---
 
-## Architecture at a glance
+## Architecture
 
-The whole app is a **reducer over a typed event stream**. That one idea is the spine:
+The whole app is a **reducer over a typed event stream**. That one idea is the spine, and
+both V1 and V2 are pure reductions of it:
 
 ```
 runCreditAgent()  ──AsyncGenerator<AgentEvent>──►  useCreditAgent (reduce)  ──►  UI
    (the loop)                                          (React state)           (dumb views)
 ```
 
-1. **`src/agent/runAgent.ts` — the loop.** A single `async function*` that yields
-   `AgentEvent`s. It announces a plan, then loops: stream reasoning → choose a tool →
-   `await tool.run()` → **inspect the result and derive flags** (the "decide" step) →
-   next. It never imports React. A real LLM backend would emit the *same events* from a
-   streamed response, so the UI wouldn't change.
+- **`src/agent/runAgent.ts`: the loop.** One `async function*`: plan → stream reasoning →
+  call a tool → observe → derive flags (the *decide* step) → assemble the package →
+  **human gate**. It never imports React. A real LLM backend would emit the same events.
+- **Human-in-the-loop is a suspended generator, not a modal.**
 
-2. **`src/agent/types.ts` — the contract.** `AgentEvent` is a discriminated union. Every
-   moment of the loop (`thinking_delta`, `tool_call`, `tool_result`, `flag`,
-   `awaiting_approval`, …) is one variant. Strong typing here is what keeps the reducer
-   honest.
+  ```ts
+  const decisionPromise = ctx.requestApproval(); // registers a resolver
+  yield { type: 'awaiting_approval', package };   // UI renders the gate
+  const decision = await decisionPromise;         // ← the loop is parked here
+  ```
 
-3. **`src/hooks/useCreditAgent.ts` — orchestration.** Consumes the generator with
-   `for await`, reduces each event into view state, and owns the controls. Components
-   stay declarative.
-
-4. **Human-in-the-loop (the bit worth pointing at).** The loop *suspends itself* at the
-   gate:
-
-   ```ts
-   const decisionPromise = ctx.requestApproval(); // registers a resolver
-   yield { type: 'awaiting_approval', package };   // UI renders the gate
-   const decision = await decisionPromise;         // ← loop is parked here
-   ```
-
-   `requestApproval` returns a Promise whose `resolve` is stashed in a ref; the
-   Approve/Reject buttons call it. The `await` literally pauses the generator until a
-   human acts — no polling, no flags. That's the cleanest demonstration of async control
-   flow in the codebase.
-
-5. **Traceability.** Every event also appends to the **audit trail** (right column) with
-   a timestamp, and tool calls are **expandable** to show exact args in / data out. This
-   is the "show your work" surface a regulated-finance product needs.
-
-6. **Uncertainty as a first-class signal.** Tool results carry a `confidence`; the
-   covenant breach raises a `critical` flag with `needsHuman: true`, which flips the
-   recommendation to **escalate** and is what forces the gate. Edge cases are where the
-   risk lives, so uncertainty is routed rather than averaged away.
-
----
-
-## File map
+  The `await` literally pauses the agent until a person acts. No polling, no flags.
+- **V2 layering** (`src/v2/`):
+  - `kit/` is the closed primitive set, and the only place component CSS lives.
+  - `model/` is the single source of every derived number, label and sentence.
+  - `state/` holds the store, gate and orchestration, and is the only place browser
+    storage is touched.
+  - `screens/` is `desk`, `file`, `chat`, `decision`, `book`, `ledger` and `settings`.
+  - Screens render model views verbatim and call store actions; they never compute.
 
 ```
 src/
-  agent/
-    types.ts        AgentEvent union + domain types  (the contract)
-    runAgent.ts     the async-generator agent loop    (★ the centerpiece)
-    tools.ts        mocked tools: latency + data + confidence
-    mockData.ts     the "backend" — canned deal numbers
-    util.ts         abortable sleep, id/confidence helpers
-  hooks/
-    useCreditAgent.ts   consume generator → reduce events → state + controls
-  components/
-    Header, DocumentPanel, PlanBar, AgentStream, StepCard,
-    ToolCallView, ConfidenceBadge, FlagPill, ApprovalGate,
-    OutcomeBanner, AuditLog
-  App.tsx, main.tsx, index.css
+  agent/        the shared engine: types.ts (the AgentEvent contract), runAgent.ts (the loop),
+                tools.ts, policy.ts + whatif.ts (the decision rule), monitor.ts, responder.ts
+  hooks/        useCreditAgent.ts, useMonitor.ts: generator → reduce → state + controls
+  v2/           kit/ · model/ · state/ · screens/ · chrome/ · KitPage.tsx
+  components/   V1's views (served at /?v=1)
+scripts/        v2-check.sh, v2-visual.mjs
+docs/v2/        SPEC.md (the build spec), THREE-PANE.md (the case file and its revisions)
 ```
 
-Design choices worth defending if asked:
-- **Generator over an event emitter / reducer-only.** Generators model "a process that
-  pauses" naturally — streaming *and* the approval await fall out of the same construct.
-- **Events, not direct setState from the loop.** Keeps the loop pure/testable and the UI
-  a pure function of state; also the exact shape you'd get from a real streaming API.
-- **`AbortController` threaded into every `sleep`.** Reset cancels cleanly mid-run.
-- **`speed` read via a live getter** so the slider affects already-scheduled delays.
+### Extension points
+
+Each of these is small *because* of the event-stream design:
+
+- **Add a tool or step**: a `ToolName`, a `TOOLS` entry and one plan row. V1 renders it as
+  is; V2's agent panel gets its status line at once, and its memo needs one section view.
+- **Stream real tokens**: swap the mocked stream for `fetch()` + SSE. The reducer doesn't
+  change, because the events don't.
+- **Change house policy**: edit the constants in `src/agent/policy.ts`. The memo, the
+  Decision card's reasons, the stress test's flip zones and the cure search all follow,
+  because they share one `decide` function.
 
 ---
 
-## Architecture extension points
+## V1 (kept at `/?v=1`)
 
-Each of the following is a small change *because* of the event-stream design — they are
-the seams the architecture was shaped around:
-
-1. **Add a tool / step** (e.g. `check_collateral`): add a `ToolName`, a `TOOLS` entry,
-   one `PLAN` row. Nothing else changes. ~3 min.
-2. **Cancel an in-flight run** — already wired via `AbortController`; explain it, or add a
-   "Stop" button that calls `reset()`.
-3. **Let the human *edit* the package before approving** (change the recommendation, add
-   a note). Extend `requestApproval` to resolve with `{ decision, edits }`.
-4. **Stream real tokens** — swap `streamThinking` for `fetch()` + `ReadableStream` /
-   SSE; the reducer doesn't change because the events don't.
-5. **Retry on low confidence** — if `result.confidence < 0.8`, loop the step again or
-   route to a different tool: the "80% isn't enough" guardrail, enforced in the loop.
-6. **Persist / export the audit trail** as JSON (download button over the `audit` array).
-
----
-
-## Agent-UX patterns borrowed from leading agent products
-
-These follow conventions established by current agentic products, adapted to a
-regulated-finance context:
-
-- **Result artifacts** (`Artifact.tsx`) — tool output renders as work-product (metric
-  cards, a risk gauge, a pass/fail covenant table), not raw JSON. *Perplexity answer
-  cards / v0 / Claude artifacts.* The raw call stays available in the inspector below.
-- **Provenance citation** (`⛓ CIM · p.12–28` on the financials) — ties extracted data
-  back to its source. *Perplexity / Devin.* On-thesis for regulated finance.
-- **Live elapsed timer** on the in-flight tool (`Elapsed` in `ToolCallView.tsx`).
-  *Cursor / Devin / Manus activity feeds.*
-- **Exportable run** — the audit trail downloads as JSON (`exportAudit` in the hook).
-  *Devin run exports.* A real feature, and the compliance artifact a fund would archive.
-- **Suggested next steps** — follow-up chips after the outcome. *ChatGPT / Perplexity.*
-- **Theming** — every color is a CSS variable with a `data-theme` override, so
-  light/dark is one attribute and zero component changes.
-- **Original design system — "Graphite & Teal".** A token-driven system with its own identity:
-  a deep **teal** accent (`#0f7d8c` light / `#2bb8cc` dark), graphite near-black dark surfaces,
-  cool-neutral light surfaces, hairline borders, soft elevation, and Inter with optical
-  letter-spacing. It borrows only **universal craft principles** from best-in-class product UIs
-  (surface ladder, restrained single accent, depth-from-surfaces) — it is **not a clone** of any
-  product (deliberately, since this is shared publicly). Because everything is variables,
-  re-skinning is a token swap, *zero component rewrites* — the system has its own identity and
-  could be re-skinned to any brand without touching a component.
-
-### Input model: upload to ingest, chat to steer
-The left panel is the **ingestion** surface — drop a CIM (PDF) or pick a recent deal.
-The bottom **composer** (📎 + text, ChatGPT-style) is the **steering / follow-up** surface.
-This is the deliberate split: you don't *type* a 100-page CIM, you hand over the document;
-the chat box is for "why did you flag the leverage?" not for data entry.
-
-- **Simulated extraction** (`synthesize.ts`) — uploading derives a plausible, internally
-  consistent deal from the *file name* (seeded pseudo-random figures → covenants → risk →
-  recommendation), so different files genuinely produce different outcomes. It's clearly
-  labeled "extraction is simulated"; in production this is the document-extraction model.
-- **Rule-based follow-ups** (`responder.ts`) — the composer answers questions from the
-  current deal's data. Not an LLM — a scripted Q&A, honest for a mocked backend.
-- **Ingestion is a document; steering is a chat.** These are kept separate deliberately —
-  retyping a deal document into a prompt box would be the wrong affordance and would throw
-  away provenance.
-
-## Design and engineering decisions
-
-- **The agent is a stream of typed events**, so the UI is a pure reduction — the same
-  components work against the mock or against a real LLM backend.
-- **The loop is plan → act → observe → decide.** The *decide* step is where flags are
-  derived and uncertainty is handled, rather than the model's output being trusted blindly.
-- **Human-in-the-loop is not a modal bolted on.** The agent literally *suspends* at the
-  gate — a generator awaiting a Promise — and cannot proceed without a person. That is the
-  right default for a consequential, regulated action.
-- **Everything is inspectable and logged** — args in, data out, confidence, timestamps —
-  because traceability is the product, not a feature.
-- **The design system is entirely token-driven**, so re-skinning is a token swap rather
-  than a component rewrite.
+V1 is the original prototype. Its main canvas is the agent's process: streaming reasoning,
+inspectable tool calls, an approval gate with *amend terms*, and a live **what-if panel**
+whose flip zones show which change would move the recommendation. It has light and dark
+themes in the "Graphite & Teal" design system, catalogued at
+[/designsystem](https://credit-analysis-agent.vercel.app/designsystem). It shares V2's
+engine and decision rule.
 
 ---
 

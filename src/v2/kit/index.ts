@@ -75,3 +75,5 @@ export { FilterChips } from './FilterChips';
 export type { FilterChipsProps, FilterChipsItem } from './FilterChips';
 export { ConfirmStrip } from './ConfirmStrip';
 export type { ConfirmStripProps, ConfirmReason } from './ConfirmStrip';
+export { Dialog } from './Dialog';
+export type { DialogProps } from './Dialog';

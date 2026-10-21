@@ -5,14 +5,14 @@
 // Step one of the flow: each row has one Select button (and the row itself is
 // clickable) that opens the case file. Starting, steering and deciding live in
 // the case file (agent panel + the memo's Decision card). The one other row
-// action, remove, is one click with an in-place undo (R4.7, P-35): the row
-// collapses to one line in its group until the reviewer leaves the Desk.
+// action, remove, asks first in the kit Dialog (R4.12, P-38; it supersedes
+// R4.7's in-place undo): Cancel keeps the file, Remove takes the row away.
 // ---------------------------------------------------------------------------
 import { Trash2 } from 'lucide-react';
-import { Button, Chip, DropZone, EmptyNote, IconButton, LinkButton, StatusLabel, Table, Token } from '../../kit';
+import { Button, Chip, Dialog, DropZone, EmptyNote, IconButton, LinkButton, StatusLabel, Table, Token } from '../../kit';
 import type { TableColumn, TableRow } from '../../kit';
 import { COPY, selectDesk } from '../../model';
-import type { DeskRemovedLine, DeskRow, DeskView } from '../../model';
+import type { DeskRow, DeskView } from '../../model';
 import { useV2 } from '../../state/store';
 import type { V2Actions } from '../../state/store';
 
@@ -79,39 +79,21 @@ function fileRow(row: DeskRow, actions: V2Actions): TableRow {
       ),
       stage: <StageCell row={row} />,
       // step one of the flow: selecting the project opens its case file (it never starts anything)
+      // state/files.ts finds [data-select] and [data-remove] to land focus after a removal or a cancel
       select: (
-        <span className="desk-select">
+        <span className="desk-select" data-select={row.dealId}>
           <Button variant="secondary" size="sm" onClick={open} ariaLabel={`${COPY.selectRow} ${row.name}`}>
             {COPY.selectRow}
           </Button>
           {row.remove ? (
-            // one click, no confirm: the row becomes its undo line (state/files.ts finds [data-remove] to return focus)
+            // the trash asks first (the Dialog below); the live run's file keeps it disabled with the reason
             <span className="desk-remove" data-remove={row.dealId}>
-              <IconButton icon={Trash2} label={row.remove.label} disabled={row.remove.disabled} onClick={() => actions.removeFile(row.dealId)} />
+              <IconButton icon={Trash2} label={row.remove.label} disabled={row.remove.disabled} onClick={() => actions.requestRemove(row.dealId)} />
             </span>
           ) : null}
         </span>
       ),
     },
-  };
-}
-
-/** R4.7: a file removed during this visit, one line where its row was ("… removed from the Desk · Undo"). */
-function removedRow(line: DeskRemovedLine, actions: V2Actions): TableRow {
-  return {
-    key: `removed:${line.dealId}`,
-    height: 36,
-    span: (
-      <span className="desk-removed t-small" data-removed={line.dealId} data-pattern="P-35">
-        <span className="desk-removed__text">{line.text}</span>
-        <span className="desk-removed__sep" aria-hidden="true">
-          ·
-        </span>
-        <LinkButton role="small" ariaLabel={line.undo.ariaLabel} onClick={() => actions.undoRemove(line.dealId)}>
-          {line.undo.label}
-        </LinkButton>
-      </span>
-    ),
   };
 }
 
@@ -146,15 +128,10 @@ function rowsOf(view: DeskView, actions: V2Actions): TableRow[] {
       rows.push({ key: 'group:not-started', group: { label: COPY.groupLabel['not-started'], status: 'pending', height: 32 } });
       placeParsing();
     }
-    if (g.rows.length === 0 && g.removed.length === 0 && !leadsParsing) continue;
+    if (g.rows.length === 0 && !leadsParsing) continue;
     rows.push({ key: `group:${g.stage}`, group: { label: g.label, status: g.status, count: g.count, height: 32 } });
     if (leadsParsing) placeParsing();
-    // each undo line sits where its row was: above the live row that followed it, or after the last
-    for (const r of g.rows) {
-      for (const l of g.removed) if (l.before === r.dealId) rows.push(removedRow(l, actions));
-      rows.push(fileRow(r, actions));
-    }
-    for (const l of g.removed) if (l.before === null || !g.rows.some((r) => r.dealId === l.before)) rows.push(removedRow(l, actions));
+    for (const r of g.rows) rows.push(fileRow(r, actions));
   }
   if (!parsingPlaced) {
     rows.push({ key: 'group:not-started', group: { label: COPY.groupLabel['not-started'], status: 'pending', height: 32 } });
@@ -172,33 +149,17 @@ export function DeskScreen() {
     <div className="desk">
       <div className="desk__col">
         <header className="desk__head">
-          <h1 className="t-display">{view.title}</h1>
-          <p className="desk__summary t-small">
-            {view.summary}
-            {view.removed ? (
-              // R4.7: while any file is removed, "· 1 removed · Restore" (brings every removed file back)
-              <span className="desk__restore" data-desk-restore="" data-pattern="P-35">
-                {' · '}
-                {view.removed.text}
-                {' · '}
-                <LinkButton role="small" ariaLabel={view.removed.restore.ariaLabel} onClick={() => actions.restoreRemoved()}>
-                  {view.removed.restore.label}
-                </LinkButton>
-              </span>
-            ) : null}
-          </p>
+          {/* tabIndex -1: where focus lands when the last row is removed (state/files.ts, [data-desk-heading]) */}
+          <h1 className="desk__title t-display" tabIndex={-1} data-desk-heading="">
+            {view.title}
+          </h1>
+          <p className="desk__summary t-small">{view.summary}</p>
         </header>
         {rows.length > 0 ? <Table columns={COLUMNS} rows={rows} caption={view.title} stackBelow={760} /> : null}
         {view.empty ? (
           // R4.7: nothing on the Desk: the way back sits right beside the drop zone (no refresh advice)
           <div className="desk__empty" data-desk-restore={view.empty.restore ? '' : undefined}>
-            <EmptyNote
-              action={
-                view.empty.restore
-                  ? { label: view.empty.restore.label, ariaLabel: view.empty.restore.ariaLabel, onClick: () => actions.restoreRemoved() }
-                  : undefined
-              }
-            >
+            <EmptyNote action={view.empty.restore ? { label: view.empty.restore.label, onClick: () => actions.restoreRemoved() } : undefined}>
               {view.empty.text}
             </EmptyNote>
           </div>
@@ -211,6 +172,16 @@ export function DeskScreen() {
           onFile={(f) => actions.upload(f)}
         />
       </div>
+      {/* R4.12 (P-38): removing asks first; Cancel, Esc or the scrim keep the file, Remove takes the row away */}
+      <Dialog
+        open={view.removeDialog !== null}
+        heading={view.removeDialog?.title ?? ''}
+        body={view.removeDialog?.body ?? ''}
+        cancelLabel={view.removeDialog?.cancelLabel ?? ''}
+        confirmLabel={view.removeDialog?.confirmLabel ?? ''}
+        onCancel={() => actions.cancelRemove()}
+        onConfirm={() => actions.confirmRemove()}
+      />
     </div>
   );
 }

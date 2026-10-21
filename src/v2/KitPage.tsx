@@ -25,6 +25,7 @@ import {
   Cite,
   ConfirmStrip,
   CopyButton,
+  Dialog,
   Disclosure,
   DropZone,
   EmptyNote,
@@ -67,9 +68,10 @@ import {
   FX_BOOK_ACKED_ITEM,
   FX_BOOK_BREACH,
   FX_DESK_ATLAS_GATE,
-  FX_DESK_COBALT_REMOVED,
   FX_DESK_EMPTY,
   FX_DESK_INITIAL,
+  FX_DESK_REMOVE_ATLAS,
+  FX_DESK_REMOVE_MERIDIAN_DECIDED,
   FX_FILE_ATLAS_GATE,
   FX_FILE_ATLAS_REV2,
   FX_FILE_RUNNING,
@@ -122,7 +124,6 @@ import {
 import type {
   AgentPanelView,
   BookAckView,
-  DeskRemovedLine,
   DeskView,
   BookItem,
   CovenantRow,
@@ -209,7 +210,7 @@ const B = {
   status: { id: 'board-statusglyph', name: 'StatusGlyph · StatusLabel' },
   tip: { id: 'board-tip', name: 'Tip · Cite · EvidenceTag' },
   fields: { id: 'board-textarea', name: 'TextArea · AmendField · TextInput · Checkbox · Switch' },
-  nav: { id: 'board-tabs', name: 'Tabs · Menu · Palette · FilterChips · ConfirmStrip' },
+  nav: { id: 'board-tabs', name: 'Tabs · Menu · Palette · FilterChips · ConfirmStrip · Dialog' },
   meter: { id: 'board-meter', name: 'Meter' },
   table: { id: 'board-table', name: 'Table' },
   notes: { id: 'board-redline', name: 'Redline · MarginNote' },
@@ -1617,7 +1618,7 @@ function NavBoard() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [policyOn, setPolicyOn] = useState(FX_TOPBAR.policyOn);
   return (
-    <Board id={B.nav.id} name={B.nav.name} spec="Tabs 48, active = 2px --ink underline · Menu and Palette: paper, --shadow-pop, --r-md; keyboard-active row = --accent-wash + --accent-ink + 2px inset --accent outline; a Menu item's description (P-36) is a t-meta --ink-3 line under its label (the row grows, padding 8 12, the label stays one line); a Palette command's description shows in the footer (the hint row) for the hovered or active command, t-meta --ink-2 beside the count, rows stay 36 · FilterChips 28, --ink-3 edge · ConfirmStrip 44, --sunken (P-19); with a reason (P-34) a kit TextInput leads with the actions beside it, padding 12, then a calm t-small ink hint (after a refused confirm) and the t-small ink-2 consequence line, both describing the field">
+    <Board id={B.nav.id} name={B.nav.name} spec="Tabs 48, active = 2px --ink underline · Menu and Palette: paper, --shadow-pop, --r-md; keyboard-active row = --accent-wash + --accent-ink + 2px inset --accent outline; a Menu item's description (P-36) is a t-meta --ink-3 line under its label (the row grows, padding 8 12, the label stays one line); a Palette command's description shows in the footer (the hint row) for the hovered or active command, t-meta --ink-2 beside the count, rows stay 36 · FilterChips 28, --ink-3 edge · ConfirmStrip 44, --sunken (P-19); with a reason (P-34) a kit TextInput leads with the actions beside it, padding 12, then a calm t-small ink hint (after a refused confirm) and the t-small ink-2 consequence line, both describing the field · Dialog (P-38): role alertdialog over a flat --scrim; paper panel min(400px, 100% - 32px), padding 24, --r-md, --shadow-pop, enters with v2-enter; t-heading title, t-body ink-2 body, actions right-aligned 24 below (Cancel secondary, then the confirm danger)">
       <Group label="Tabs (top-bar fixture; click to switch)">
         <div className="kp-tabsframe">
           <Tabs items={FX_TOPBAR.tabs.map((t) => ({ id: t.id, label: t.label, count: null, countTone: 'ink-3' as const }))} active={tab} onSelect={setTab} ariaLabel="Sections (specimen)" />
@@ -1698,7 +1699,46 @@ function NavBoard() {
       <Group id="board-acknowledge" label="ConfirmStrip with a reason · Acknowledge on the Book (P-34)">
         <AckSpecimens />
       </Group>
+      <Group id="board-dialog" label="Dialog (P-38, R4.12)">
+        <DialogSpecimens />
+      </Group>
     </Board>
+  );
+}
+
+/**
+ * R4.12 (P-38): the kit Dialog, the one modal confirmation. Previews render the panel in flow (no
+ * scrim, no focus move); the live one portals over the page with the scrim and the focus rules.
+ */
+function DialogSpecimens() {
+  const [open, setOpen] = useState(false);
+  const atlas = FX_DESK_REMOVE_ATLAS.removeDialog;
+  const meridian = FX_DESK_REMOVE_MERIDIAN_DECIDED;
+  return (
+    <Grid size="wide">
+      {atlas ? (
+        <Cell caption="preview · the Desk's remove confirm on a file with no runs (FX_DESK_REMOVE_ATLAS): title t-heading, body t-body ink-2, Cancel (secondary) then Remove (danger), right-aligned" block>
+          <Dialog open heading={atlas.title} body={atlas.body} cancelLabel={atlas.cancelLabel} confirmLabel={atlas.confirmLabel} onCancel={noop} onConfirm={noop} preview />
+        </Cell>
+      ) : null}
+      <Cell caption="preview · a file with runs (FX_DESK_REMOVE_MERIDIAN_DECIDED): the body says its runs stay in the Ledger" block>
+        <Dialog open heading={meridian.title} body={meridian.body} cancelLabel={meridian.cancelLabel} confirmLabel={meridian.confirmLabel} onCancel={noop} onConfirm={noop} preview />
+      </Cell>
+      <Cell caption="live · the scrim covers the page, focus moves to Cancel, Tab and Shift+Tab stay inside, Esc, Cancel or a press on the scrim close it, and focus returns to this button">
+        <Button variant="secondary" size="sm" icon={Trash2} onClick={() => setOpen(true)}>
+          Open the live dialog
+        </Button>
+        <Dialog
+          open={open}
+          heading={meridian.title}
+          body={meridian.body}
+          cancelLabel={meridian.cancelLabel}
+          confirmLabel={meridian.confirmLabel}
+          onCancel={() => setOpen(false)}
+          onConfirm={() => setOpen(false)}
+        />
+      </Cell>
+    </Grid>
   );
 }
 
@@ -3047,7 +3087,7 @@ function CaretBoard() {
 }
 
 // =============================================================================
-// Board 21 · EmptyNote · DropZone · LiveRegion (+ the Desk's removal undo, P-35)
+// Board 21 · EmptyNote · DropZone · LiveRegion (+ the Desk's remove confirm, P-38)
 // =============================================================================
 
 const DESK_SPEC_COLUMNS: TableColumn[] = [
@@ -3058,35 +3098,17 @@ const DESK_SPEC_COLUMNS: TableColumn[] = [
 
 /**
  * The Desk as DeskScreen renders it (File, Stage and the row actions; the Facility, Leverage and
- * call columns left out for width), verbatim from a DeskView: the summary with "· n removed ·
- * Restore", each removed file's undo line where its row was, the EmptyNote with its way out, then
- * the drop zone (R4.7, P-35).
+ * call columns left out for width), verbatim from a DeskView: the summary, the rows, the EmptyNote
+ * with its way out (P-39), then the drop zone. The remove confirm is drawn by the caller (R4.12).
  */
-function DeskSpecimen(props: { v: DeskView; onRemove?: (dealId: string) => void; onUndo?: (dealId: string) => void; onRestore?: () => void }) {
+function DeskSpecimen(props: { v: DeskView; onRemove?: (dealId: string) => void; onRestore?: () => void }) {
   const { v } = props;
   const remove = props.onRemove ?? noop;
-  const undo = props.onUndo ?? noop;
   const restore = props.onRestore ?? noop;
-  const lineRow = (l: DeskRemovedLine): TableRow => ({
-    key: `removed:${l.dealId}`,
-    height: 36,
-    span: (
-      <span className="kp-desk-removed t-small" data-pattern="P-35">
-        <span>{l.text}</span>
-        <span className="kp-ink3" aria-hidden="true">
-          ·
-        </span>
-        <LinkButton role="small" ariaLabel={l.undo.ariaLabel} onClick={() => undo(l.dealId)}>
-          {l.undo.label}
-        </LinkButton>
-      </span>
-    ),
-  });
   const rows: TableRow[] = [];
   for (const g of v.groups) {
     rows.push({ key: `group:${g.stage}`, group: { label: g.label, status: g.status, count: g.count, height: 32 } });
     for (const r of g.rows) {
-      for (const l of g.removed) if (l.before === r.dealId) rows.push(lineRow(l));
       rows.push({
         key: r.dealId,
         height: 56,
@@ -3113,28 +3135,13 @@ function DeskSpecimen(props: { v: DeskView; onRemove?: (dealId: string) => void;
         },
       });
     }
-    for (const l of g.removed) if (l.before === null) rows.push(lineRow(l));
   }
   return (
     <div className="kp-desk">
-      <p className="t-small kp-ink2">
-        {v.summary}
-        {v.removed ? (
-          <span data-pattern="P-35">
-            {' · '}
-            {v.removed.text}
-            {' · '}
-            <LinkButton role="small" ariaLabel={v.removed.restore.ariaLabel} onClick={restore}>
-              {v.removed.restore.label}
-            </LinkButton>
-          </span>
-        ) : null}
-      </p>
+      <p className="t-small kp-ink2">{v.summary}</p>
       {rows.length > 0 ? <Table columns={DESK_SPEC_COLUMNS} rows={rows} caption={`${v.title} (specimen)`} stackBelow={760} /> : null}
       {v.empty ? (
-        <EmptyNote action={v.empty.restore ? { label: v.empty.restore.label, ariaLabel: v.empty.restore.ariaLabel, onClick: restore } : undefined}>
-          {v.empty.text}
-        </EmptyNote>
+        <EmptyNote action={v.empty.restore ? { label: v.empty.restore.label, onClick: restore } : undefined}>{v.empty.text}</EmptyNote>
       ) : null}
       <DropZone label={v.drop.label} sub={v.drop.sub} chooseLabel={v.drop.chooseLabel} disabledReason={v.drop.disabledReason} onFile={noop} />
     </div>
@@ -3142,60 +3149,69 @@ function DeskSpecimen(props: { v: DeskView; onRemove?: (dealId: string) => void;
 }
 
 /**
- * The live specimen's view: FX_DESK_INITIAL after removing `removed` during this visit, by the
- * rules selectDesk applies (R4.7): each removed row is one undo line above the row that followed
- * it, the summary counts what is left and adds "· n removed · Restore", and an empty Desk says so
- * beside the drop zone with "Restore sample files".
+ * The live specimen's view: FX_DESK_INITIAL after removing `removed` (each after its confirm), by
+ * the rules selectDesk applies (R4.12): a removed row simply leaves, the summary counts what is left,
+ * and an empty Desk says so beside the drop zone with "Restore sample files" (R4.7). `asking` is the
+ * file whose confirm is open; the samples have no runs, so the body names no Ledger record.
  */
-function deskAfterRemoving(removed: string[]): DeskView {
-  if (removed.length === 0) return FX_DESK_INITIAL;
+function deskAfterRemoving(removed: string[], asking: string | null): DeskView {
   const base = FX_DESK_INITIAL.groups[0];
-  const all = base.rows;
-  const rows = all.filter((r) => !removed.includes(r.dealId));
-  const lines: DeskRemovedLine[] = all
-    .filter((r) => removed.includes(r.dealId))
-    .map((r) => {
-      const at = all.indexOf(r);
-      const next = all.slice(at + 1).find((x) => !removed.includes(x.dealId));
-      return { dealId: r.dealId, text: COPY.removedLine(r.name), undo: { label: COPY.undo, ariaLabel: COPY.undoRemove(r.name) }, before: next ? next.dealId : null };
-    });
-  const n = removed.length;
-  const restoreAll = { label: COPY.restore, ariaLabel: COPY.restoreAll(n) };
+  const rows = base.rows.filter((r) => !removed.includes(r.dealId));
+  const ask = rows.find((r) => r.dealId === asking) ?? null;
+  const removeDialog = ask
+    ? { dealId: ask.dealId, title: COPY.removeDialogTitle(ask.name), body: COPY.removeDialogBody(false), cancelLabel: COPY.cancel, confirmLabel: COPY.removeDialogConfirm }
+    : null;
+  if (removed.length === 0) return { ...FX_DESK_INITIAL, removeDialog };
+  if (rows.length === 0) return FX_DESK_EMPTY;
   return {
     ...FX_DESK_INITIAL,
-    summary: rows.length === 0 ? `${COPY.deskEmptySummary} · ${COPY.removedCount(n)}` : `${plural(rows.length, 'file')} · ${COPY.extractionSimulated}`,
-    groups: [{ ...base, count: String(rows.length), rows, removed: lines }],
-    removed: rows.length > 0 ? { text: COPY.removedCount(n), restore: restoreAll } : null,
-    empty: rows.length === 0 ? { text: COPY.deskEmptyNote(true), restore: { label: COPY.restoreSamples, ariaLabel: restoreAll.ariaLabel } } : null,
+    summary: `${plural(rows.length, 'file')} · ${COPY.extractionSimulated}`,
+    groups: [{ ...base, count: String(rows.length), rows }],
+    removeDialog,
   };
 }
 
-function DeskUndoSpecimens() {
+function DeskRemoveSpecimens() {
   const [removed, setRemoved] = useState<string[]>([]);
+  const [asking, setAsking] = useState<string | null>(null);
+  const v = deskAfterRemoving(removed, asking);
+  const ask = v.removeDialog;
+  const atlasAsk = FX_DESK_REMOVE_ATLAS.removeDialog;
   return (
     <>
       <Cell
-        caption="live · press a trash button: the row collapses at once to one line where it was, “… removed from the Desk · Undo” (no confirm, no toast); Undo brings back that file only; the summary adds “· n removed · Restore” (restores all) while any file is removed; remove all three for the empty Desk"
+        caption="live · press a trash button: the confirm Dialog opens over the page (focus on Cancel; Tab stays inside; Esc, Cancel or the scrim keep the file); Remove takes the row away at once, with no undo line and nothing added to the summary; remove all three for the empty Desk and its “Restore sample files”"
         block
       >
-        <DeskSpecimen
-          v={deskAfterRemoving(removed)}
-          onRemove={(id) => setRemoved((r) => (r.includes(id) ? r : [...r, id]))}
-          onUndo={(id) => setRemoved((r) => r.filter((x) => x !== id))}
-          onRestore={() => setRemoved([])}
+        <DeskSpecimen v={v} onRemove={(id) => setAsking(id)} onRestore={() => setRemoved([])} />
+        <Dialog
+          open={ask !== null}
+          heading={ask?.title ?? ''}
+          body={ask?.body ?? ''}
+          cancelLabel={ask?.cancelLabel ?? ''}
+          confirmLabel={ask?.confirmLabel ?? ''}
+          onCancel={() => setAsking(null)}
+          onConfirm={() => {
+            const id = ask?.dealId ?? null;
+            setAsking(null);
+            if (id) setRemoved((r) => (r.includes(id) ? r : [...r, id]));
+          }}
         />
       </Cell>
       <Grid size="wide">
-        <Cell caption="FX_DESK_COBALT_REMOVED · Cobalt removed in one click; its line stays until the reviewer leaves the Desk (then the summary alone still offers Restore)" block>
-          <DeskSpecimen v={FX_DESK_COBALT_REMOVED} />
-        </Cell>
-        <Cell caption="FX_DESK_EMPTY · every sample removed: the undo lines, then the EmptyNote with “Restore sample files” beside the drop zone (no refresh advice: a refresh would end every run)" block>
+        {atlasAsk ? (
+          <Cell caption="FX_DESK_REMOVE_ATLAS · the trash pressed on Atlas in a fresh session: the Dialog (shown here in preview, in flow) over the Desk" block>
+            <div className="kp-stack">
+              <DeskSpecimen v={FX_DESK_REMOVE_ATLAS} />
+              <Dialog open heading={atlasAsk.title} body={atlasAsk.body} cancelLabel={atlasAsk.cancelLabel} confirmLabel={atlasAsk.confirmLabel} onCancel={noop} onConfirm={noop} preview />
+            </div>
+          </Cell>
+        ) : null}
+        <Cell caption="FX_DESK_EMPTY · every sample removed (each after its confirm): the EmptyNote with “Restore sample files” beside the drop zone (P-39; no refresh advice: a refresh would end every run)" block>
           <DeskSpecimen v={FX_DESK_EMPTY} />
         </Cell>
-        <Cell caption="Narrow frame (360px): the table stacks, the undo line wraps after the name" block>
-          <div className="kp-frame360">
-            <DeskSpecimen v={FX_DESK_COBALT_REMOVED} />
-          </div>
+        <Cell caption="FX_DESK_ATLAS_GATE · the live run's file: its trash stays disabled with the reason, so no Dialog opens" block>
+          <DeskSpecimen v={FX_DESK_ATLAS_GATE} />
         </Cell>
       </Grid>
     </>
@@ -3209,7 +3225,7 @@ function EmptyDropLiveBoard() {
   const deskEmpty = FX_DESK_EMPTY.empty;
   const ledgerAction = FX_LEDGER_EMPTY.emptyAction;
   return (
-    <Board id={B.empty.id} name={B.empty.name} spec="EmptyNote t-small --ink-3, padding 16, optional glyph; with a way out (P-35) one secondary sm Button beside the text (column gap 12, wraps under it, row gap 8; the text keeps role=status) · DropZone 64, --line-provisional, --r-md; drag-over = --line-provisional-active + --accent-wash; disabled = --sunken + the reason · LiveRegion: visually hidden, aria-live polite · Desk removal (P-35, R4.7): one click, the row becomes a 36px span row in its group, t-small ink-2, “·” ink-3, Undo a LinkButton small">
+    <Board id={B.empty.id} name={B.empty.name} spec="EmptyNote t-small --ink-3, padding 16, optional glyph; with a way out (P-39) one secondary sm Button beside the text (column gap 12, wraps under it, row gap 8; the text keeps role=status) · DropZone 64, --line-provisional, --r-md; drag-over = --line-provisional-active + --accent-wash; disabled = --sunken + the reason · LiveRegion: visually hidden, aria-live polite · Desk removal (P-38, R4.12): the trash opens the kit Dialog; Remove takes the row away, no undo line">
       <Group label="EmptyNote">
         <Grid size="wide">
           <Cell caption="plain">
@@ -3219,19 +3235,19 @@ function EmptyDropLiveBoard() {
             <EmptyNote state="pending">{COPY.firstSweepPending}</EmptyNote>
           </Cell>
           {deskEmpty && deskEmpty.restore ? (
-            <Cell caption="with a way out (P-35) · the empty Desk, beside its drop zone">
-              <EmptyNote action={{ label: deskEmpty.restore.label, ariaLabel: deskEmpty.restore.ariaLabel, onClick: noop }}>{deskEmpty.text}</EmptyNote>
+            <Cell caption="with a way out (P-39) · the empty Desk, beside its drop zone">
+              <EmptyNote action={{ label: deskEmpty.restore.label, onClick: noop }}>{deskEmpty.text}</EmptyNote>
             </Cell>
           ) : null}
           {FX_LEDGER_EMPTY.empty && ledgerAction ? (
-            <Cell caption="with a way out (P-35) · the empty Ledger offers the Desk">
+            <Cell caption="with a way out (P-39) · the empty Ledger offers the Desk">
               <EmptyNote action={{ label: ledgerAction.label, onClick: noop }}>{FX_LEDGER_EMPTY.empty}</EmptyNote>
             </Cell>
           ) : null}
         </Grid>
       </Group>
-      <Group id="board-deskundo" label="Desk · remove in one click, undo in place (P-35, R4.7)">
-        <DeskUndoSpecimens />
+      <Group id="board-deskremove" label="Desk · remove after a confirm Dialog (P-38, R4.12)">
+        <DeskRemoveSpecimens />
       </Group>
       <Group id="board-dropzone" label="DropZone">
         <Grid size="wide">

@@ -446,13 +446,13 @@ export const PENDING: PendingPattern[] = [
     type: 'interaction',
     name: 'Remove a file from the Desk in one click, with an in-place undo',
     description:
-      'Removing a file is one click on its trash button, with no confirm and no toast. The row collapses at once to ONE line in the group it sat in, where it was: "Project Cobalt removed from the Desk · Undo" (t-small ink-2, the Undo a small LinkButton), and focus that fell to the body lands on that Undo. The line stays until the reviewer leaves the Desk; Undo brings back that file only (focus returns to its row\'s remove button). While any file is removed, the Desk summary adds "· 1 removed · Restore", which brings every removed file back. An empty Desk says so in a kit EmptyNote beside the drop zone with one secondary button, "Restore sample files" ("Restore removed files" when an upload was removed too); while an upload is being extracted on an empty Desk the summary carries "· 3 removed · Restore" instead, so there is always one way back; the old advice that a refresh brings the samples back is gone, since a refresh ends every run. The EmptyNote\'s new optional action is the same way out on an empty Ledger: "Open the Desk". The file a run is live on still cannot be removed, and Settings keeps "Restore removed files" as a fallback. Before, removing opened a confirm strip, the row then vanished with nothing said, and the only way back was Settings, which restored everything.',
-    evidence: 'Mobbin audit, fix 6 (verified: the Desk trash IconButton opened a ConfirmStrip; after confirmRemove in state/files.ts the row disappeared and the summary said nothing; the only way back was Settings › Restore removed files; vocab deskEmptySummary told the reviewer a refresh brings the samples back, yet runs live only in memory); THREE-PANE.md R4.7; undo-in-place patterns in list apps (Gmail, Linear) in the Mobbin reference set',
+      'Built in improvement batch 2 and then rejected by the owner; superseded by P-38. Removing a file was one click on its trash button, with no confirm and no toast: the row collapsed at once to ONE line in the group it sat in, "Project Cobalt removed from the Desk · Undo", until the reviewer left the Desk, and while any file was removed the Desk summary added "· 1 removed · Restore". The owner read the line as a failed removal ("right now it looks like I can not delete the things") and asked for a double confirmation in a pop-up instead. The undo line, the summary\'s Restore and ui.deskUndo are gone. What survives from this entry: the empty Desk\'s and the empty Ledger\'s way out (now P-39), the disabled trash on the live file, and Settings\' "Restore removed files".',
+    evidence: 'Mobbin audit, fix 6; THREE-PANE.md R4.7 (as built) and R4.12 (the reversal); owner feedback on the built row',
     proposedBy: OWNER,
     proposedDate: ON_3P,
-    status: 'approved',
-    kitAnchor: '#board-deskundo',
-    ownerNote: 'Owner asked for it (improvement batch 2)',
+    status: 'rejected',
+    kitAnchor: null,
+    ownerNote: 'Owner: "I do not think it needs undo. i just think it needs the double confirmation. like a pop up window something. right now it looks like I can not delete the things"',
   },
   {
     id: 'P-36',
@@ -479,6 +479,32 @@ export const PENDING: PendingPattern[] = [
     status: 'approved',
     kitAnchor: '#board-phoneverbs',
     ownerNote: 'Owner asked for it (improvement batch 2)',
+  },
+  {
+    id: 'P-38',
+    type: 'component',
+    name: 'A confirm Dialog before removing a file from the Desk (the kit Dialog)',
+    description:
+      'The Desk\'s trash button opens a modal confirmation, the new kit Dialog: role alertdialog, aria-modal, named by its title and described by its body, over a flat scrim. The paper panel (400px wide at most, 16px clear of the viewport edges, the medium radius and the one float shadow) holds the title in t-heading, "Remove Project Atlas from the Desk?", one body sentence in t-body ink-2 that says only what removal does ("It leaves the Desk and the Book. Its runs stay in the Ledger, and you can bring it back from Settings."; a file with no runs leaves out the Ledger clause), and the actions right-aligned 24px below: Cancel (secondary) then Remove (danger). Focus moves to Cancel, the safe default; Tab and Shift+Tab stay inside; Esc, Cancel or a press on the scrim keep the file and focus returns to the trash. Remove takes the row away at once, with no undo line, no tombstone and nothing added to the summary; the live region says "Project Atlas removed from the Desk" and focus lands on the next row\'s remove button (its Select button when that file\'s trash is disabled), else the previous row\'s, else the Desk heading. The panel enters with v2-enter (instant under reduced motion), the app\'s shortcuts stand down while it is open, and any place change closes it without removing. The file a run is live on keeps its disabled trash, so no Dialog opens for it. Before (P-35), the trash removed at once and left an undo line, which read as a removal that had not happened.',
+    evidence: 'Owner feedback on P-35 (THREE-PANE.md R4.12); WAI-ARIA Authoring Practices alertdialog pattern (initial focus on the least destructive action, focus trap, Esc); destructive-confirm dialogs in list apps in the Mobbin reference set',
+    proposedBy: OWNER,
+    proposedDate: ON_3P,
+    status: 'approved',
+    kitAnchor: '#board-dialog',
+    ownerNote: 'Owner asked for it',
+  },
+  {
+    id: 'P-39',
+    type: 'component',
+    name: 'An empty state with a way out: the EmptyNote action',
+    description:
+      'Split out of P-35 when its in-place undo was rejected; unchanged since improvement batch 2. The kit EmptyNote gains one optional secondary small button after its text (it wraps under the text when the line is narrow; the text keeps the status role). An empty Desk uses it beside the drop zone: "Drop a CIM below to open a new file, or bring the samples back." with "Restore sample files" ("… or bring back the files you removed." and "Restore removed files" when an upload was removed too), which brings every removed file back and lands focus on the first one. An empty Ledger uses it for "Open the Desk". The old advice that a refresh brings the samples back stays gone, since a refresh ends every run. This is how an empty screen recovers, not an undo: with files on the Desk the only way back is Settings\' "Restore removed files".',
+    evidence: 'Mobbin audit, fix 6 (vocab deskEmptySummary told the reviewer a refresh brings the samples back, yet runs live only in memory); THREE-PANE.md R4.7 and R4.12',
+    proposedBy: OWNER,
+    proposedDate: ON_3P,
+    status: 'approved',
+    kitAnchor: '#board-emptynote',
+    ownerNote: 'Owner asked for it (improvement batch 2; kept when the in-place undo of P-35 was rejected)',
   },
 ];
 
@@ -509,5 +535,9 @@ export const REJECTED_BEFORE: { name: string; note: string }[] = [
   {
     name: 'decision card in the agent panel',
     note: 'Rejected by the owner (2026-10-20): the countersign moves to the right too. The whole decision is the memo\'s Decision card after step 5 (P-23); the panel holds one line that links to it.',
+  },
+  {
+    name: 'an in-place undo line for Desk removal',
+    note: 'Rejected by the owner (2026-10-20) after it was built (P-35): "I do not think it needs undo. i just think it needs the double confirmation. like a pop up window something. right now it looks like I can not delete the things". Removing now asks first in the kit Dialog (P-38) and the row simply leaves.',
   },
 ];

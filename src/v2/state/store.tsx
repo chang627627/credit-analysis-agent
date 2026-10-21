@@ -61,7 +61,7 @@ export function V2Provider(props: { children: ReactNode }) {
         : { ...engine, dealsFull: engine.dealsFull.filter((d) => !removed.includes(d.id)), deals: engine.deals.filter((d) => !removed.includes(d.id)) },
     [engine, removed],
   );
-  // the engine's full list, removed files included, for the Desk's undo lines and restore label (R4.7)
+  // the engine's full list, removed files included, for the empty Desk's restore label and restore focus (R4.7)
   const allFiles = useMemo(
     () => engine.dealsFull.map((d) => ({ dealId: d.id, name: d.name, uploaded: !!d.uploaded })),
     [engine.dealsFull],

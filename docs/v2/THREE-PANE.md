@@ -539,6 +539,14 @@ snooze; Mark handed off (countersign items) is unchanged.
 
 ### R4.7 Undo on file removal (Mobbin audit fix 6, P-35)
 
+> **Superseded in part by R4.12** (owner, after using it). The one-click removal, the undo line, its
+> state (`ui.deskUndo`, `DeskRemoval`, `undoRemove`, `DeskRemovedLine`), the summary's "· n removed ·
+> Restore" (and R4.11's Restore-while-extracting) and the undo announcements are gone; removing now
+> asks first in the kit Dialog. Still in force from this subsection: the live file cannot be removed,
+> removed files are hidden everywhere but the Ledger, the empty Desk's EmptyNote with "Restore
+> sample files" (its pattern is now P-39), the empty Ledger's "Open the Desk", the kit EmptyNote
+> `action`, Settings' "Restore removed files", `restoreRemoved` and `V2Store.allFiles`.
+
 **The problem (verified in the build).** The Desk's trash `IconButton` opened a `ConfirmStrip`;
 after `confirmRemove` (`state/files.ts`) the row disappeared and the summary said nothing; the only
 way back was Settings › Restore removed files, which restores everything; and an empty Desk told
@@ -740,10 +748,94 @@ listed here so the change is traceable.
 - **R4.7 · extracting on an empty Desk removed every Restore control.** The EmptyNote unmounts
   while an upload is extracted, and the summary link needed files on the Desk, so the summary said
   "3 removed" with no way back but Settings. The summary carries Restore while extracting.
+  (Superseded by R4.12: the summary no longer carries Restore or a removed count at all.)
 - **R4.9 · the palette read the rule twice.** The hidden description sat inside the option with no
   `aria-labelledby`, so it was part of the option's name and its description. The option is now
   named by its label and hint only.
 - **Item 5 of the batch (the phone-width check of armed verbs) had not been built.** It is R4.10.
+
+### R4.12 A confirm dialog before removing a file, no undo (owner revision of R4.7, P-38)
+
+**Supersedes** R4.7's one-click removal, its undo line and the summary's "· n removed · Restore", and
+R4.11's R4.7 fix (Restore in the summary while extracting). P-35 is rejected; the empty states'
+way out it introduced is kept as P-39.
+
+**The problem (owner, verbatim, about the row "Project Atlas removed from the Desk · Undo").** "I do
+not think it needs undo. i just think it needs the double confirmation. like a pop up window
+something. right now it looks like I can not delete the things". The undo line stood where the row
+had been, so the removal read as one that had not happened.
+
+**The rule.** The trash asks once, in a modal dialog; confirming removes the file at once and the row
+simply leaves. No undo line, no tombstone, no removed count or Restore in the summary. The way back
+stays out of the way: Settings' "Restore removed files", and on a completely empty Desk the
+EmptyNote's "Restore sample files" (how an empty Desk recovers, not an undo).
+
+- **Kit `Dialog`** (`kit/Dialog.tsx`, styles only in `kit.css`, `data-pattern="P-38"`): `open`,
+  `heading` (the title; a prop named `title` would read as the native attribute, guard C02), `body`,
+  `cancelLabel`, `confirmLabel`, `onCancel`, `onConfirm`, `preview`. `role="alertdialog"`,
+  `aria-modal="true"`, `aria-labelledby` its title, `aria-describedby` its body. A full-viewport
+  `--scrim` (`.k-dialog`, fixed, z-index 1200, flex-centred) holds the paper panel
+  (`.k-dialog__panel`: width `min(400px, 100% - 32px)`, padding 24, gap 8, `--r-md`, `--shadow-pop`,
+  scrolls within `100% - 32px` of height): the title `h2.t-heading` ink, the body `p.t-body` ink-2,
+  then the actions right-aligned 24 below (8 gap + 16 margin): Cancel (kit Button secondary, md)
+  then the confirm (kit Button danger, md). It portals to `document.body` (`.v2` is on `<html>`, so
+  the tokens hold and no container query or transform above it can trap the fixed scrim). It enters
+  with `v2-enter` over `--dur-2` (0 under reduced motion, so instant). Focus moves to Cancel on open
+  (the safe default); Tab and Shift+Tab wrap inside the panel and a `focusin` guard pulls focus back
+  if anything moves it out; Esc and a press on the scrim itself cancel (the scrim's mousedown
+  prevents its default, so the press never moves focus); a press inside the panel keeps it open
+  (the panel is `tabIndex -1`, outline none). On close, focus returns to the element that had it
+  when the dialog opened, but only when focus fell with the dialog and that element is still on the
+  page. `preview` renders the panel in flow: no portal, no scrim, no fixed position, no animation,
+  no focus move or trap, no listeners.
+- **Shortcuts** (`state/shortcuts.ts`): while focus is inside an `[role="alertdialog"][aria-modal]`,
+  the capture-phase listener returns before anything, ⌘K included, so nothing acts behind the
+  dialog; `inPopover` also counts `alertdialog` for the single-key guards.
+- **State** (`state/contracts.ts`, `state/files.ts`, `state/ui.ts`): `UiState.removeConfirm: string
+  | null` replaces `deskUndo`; `V2Actions.requestRemove(dealId)` (refused for the live run's file and
+  for a file not on the Desk), `confirmRemove()` and `cancelRemove()` replace `removeFile` /
+  `undoRemove`; `restoreRemoved()` stays (it also closes an open dialog). `confirmRemove` adds the id
+  to `ui.removedFiles` and closes the dialog in one update, announces `COPY.removedAnnounce` ("Project
+  Atlas removed from the Desk"), leaves a case file of it first if one is open, and lands focus that
+  fell to the body (`landFocus`) on the row after it in the Desk's order (read from `selectDesk`
+  before the removal): its remove button, or its Select button when that file's trash is disabled;
+  else the row before it; else the Desk heading (`h1[data-desk-heading]`, `tabIndex -1`, no ring).
+  `cancelRemove` closes it and, as a fallback for a browser that does not focus a button on click,
+  lands focus that fell to the body on the trash. `routeHygiene` closes the dialog on any place
+  change, without removing. `DeskRemoval`, `deskStageOf` and the undo hooks (`[data-removed]`, the
+  summary's `[data-desk-restore]`) are gone; Desk.tsx adds `[data-select]` on the actions cell.
+- **Model** (`model/select-desk.ts`, `model/types.ts`, `model/vocab.ts`): `DeskView.removed` and
+  `groups[].removed` (`DeskRemovedLine`) are gone; `DeskView.removeDialog: DeskRemoveDialog | null`
+  (`{ dealId, title, body, cancelLabel, confirmLabel }`) is set while `ui.removeConfirm` names a file
+  that is on the Desk and not the live run's. Title `COPY.removeDialogTitle(name)`, "Remove Project
+  Atlas from the Desk?". Body `COPY.removeDialogBody(hasRuns)`, where `hasRuns` is whether the engine
+  holds any run for that file: "It leaves the Desk and the Book. Its runs stay in the Ledger, and you
+  can bring it back from Settings." or, with no runs, "It leaves the Desk and the Book. You can bring
+  it back from Settings." Each clause is what the code does: a removed file is filtered from
+  `agent.dealsFull`, so it leaves the Desk, the palette and the monitor (and so the Book); the
+  Ledger reads the engine's unfiltered `runs` and `auditHistory`, so every run of the file stays;
+  Settings shows "Restore removed files" whenever a file is removed. Labels `COPY.cancel` and
+  `COPY.removeDialogConfirm` ("Remove"). Removed copy: `removedLine`, `undo`, `undoRemove`,
+  `removedCount`, `restore`, `restoreAll`, `restoredAnnounce`.
+- **The summary** never mentions removed files: an empty Desk reads "No files on the Desk"
+  (extracting or not), otherwise R4.7's rules (the initial "3 sample files, …" only while nothing is
+  removed).
+- **The empty Desk** (`DeskView.empty`, R4.7) keeps the EmptyNote with "Restore sample files" ("Restore
+  removed files" when an upload was removed too); its `restore` is now `{ label }` only, so the
+  button's name is its visible label (the old `aria-label` "Restore the 3 removed files" did not
+  contain the visible text, WCAG 2.5.3). While an upload is extracting on an empty Desk the note
+  gives way to the extraction row and Settings is the way back.
+- **The live file** keeps its disabled trash with the reason ("Stop the run on Project Atlas before
+  removing it"), so no dialog opens for it; `confirmRemove` re-checks and only closes the dialog if
+  the file went live meanwhile.
+- **Kit page:** the nav board (now "Tabs · Menu · Palette · FilterChips · ConfirmStrip · Dialog")
+  gains `#board-dialog`: two previews (a file with no runs, `FX_DESK_REMOVE_ATLAS`; a file with runs,
+  `FX_DESK_REMOVE_MERIDIAN_DECIDED`) and a live dialog. Board 21's `#board-deskundo` becomes
+  `#board-deskremove`: a live Desk specimen whose trash opens the real Dialog, `FX_DESK_REMOVE_ATLAS`
+  with the dialog in preview, `FX_DESK_EMPTY` and `FX_DESK_ATLAS_GATE` (disabled trash).
+  `FX_DESK_COBALT_REMOVED` is gone.
+- **v2-visual** adds the state `desk-remove` (the Desk with Atlas's confirm open), so the dialog is
+  checked by axe and the layout rules at every viewport.
 
 ## 0. Owner decisions that survive (each is checked in §9)
 

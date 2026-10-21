@@ -2,9 +2,9 @@
 // Countersign V2 · Desk selector (spec §7.1). One calm list of every file,
 // grouped by stage derived from real run state (the same file context the
 // case file reads). The human's next obligation is the only possible primary.
-// R4.7 (audit fix 6): removing a file is one click; during this visit its row
-// is one undo line in its group, the summary offers Restore while any file is
-// removed, and an empty Desk offers to bring the samples back.
+// R4.12 (supersedes R4.7's in-place undo): removing a file asks first, in a
+// confirm dialog, then the row simply leaves; an empty Desk offers to bring
+// the samples back (R4.7), and Settings restores removed files.
 // ---------------------------------------------------------------------------
 
 import type { V2Store } from '../state/contracts';
@@ -14,7 +14,7 @@ import { startConfirmCopy } from './select-commands';
 import { fileContext, parsingReason, stageOf } from './select-file';
 import { dealOf, isRunLive, selectLiveDealId } from './select-top';
 import { parseThreshold } from './evidence';
-import type { DeskRemovedLine, DeskRow, DeskStage, DeskView, StatusKey } from './types';
+import type { DeskRemoveDialog, DeskRow, DeskStage, DeskView, StatusKey } from './types';
 import { COPY, tokenOf } from './vocab';
 
 const GROUP_ORDER: DeskStage[] = ['awaiting', 'plan-review', 'drafting', 'error', 'not-started', 'decided'];
@@ -27,12 +27,6 @@ const GROUP_STATUS: Record<DeskStage, StatusKey> = {
   'not-started': 'pending',
   decided: 'signed',
 };
-
-/** The Desk group a file sits in now (read by state/files.ts when it is removed), or null when it is not on the Desk. */
-export function deskStageOf(s: V2Store, dealId: string): DeskStage | null {
-  const ctx = fileContext(s, dealId);
-  return ctx ? stageOf(ctx).stage : null;
-}
 
 export function selectDesk(s: V2Store): DeskView {
   const a = s.agent;
@@ -75,34 +69,12 @@ export function selectDesk(s: V2Store): DeskView {
     else byStage.set(st.stage, [row]);
   }
 
-  // R4.7: this visit's removals, each one undo line in the group its row sat in, placed where the row
-  // was (above the first live row that followed it in the engine's order), in that order
-  const removedIds = s.ui.removedFiles ?? [];
-  const rankOf = new Map(s.allFiles.map((f, i) => [f.dealId, i] as const));
-  const rank = (id: string) => rankOf.get(id) ?? Number.MAX_SAFE_INTEGER;
-  const linesByStage = new Map<DeskStage, DeskRemovedLine[]>();
-  const undo = (s.ui.deskUndo ?? []).filter((r) => removedIds.includes(r.dealId)).sort((x, y) => rank(x.dealId) - rank(y.dealId));
-  for (const r of undo) {
-    const next = (byStage.get(r.stage) ?? []).find((row) => rank(row.dealId) > rank(r.dealId));
-    const line: DeskRemovedLine = {
-      dealId: r.dealId,
-      text: COPY.removedLine(r.name),
-      undo: { label: COPY.undo, ariaLabel: COPY.undoRemove(r.name) },
-      before: next ? next.dealId : null,
-    };
-    const list = linesByStage.get(r.stage);
-    if (list) list.push(line);
-    else linesByStage.set(r.stage, [line]);
-  }
-
   // the extraction row is a synthetic first row of Not started, so that group shows (and counts it) while parsing
   const parsingRow = a.parsing !== null;
-  const groups: DeskView['groups'] = GROUP_ORDER.filter(
-    (g) => (byStage.get(g) ?? []).length > 0 || (linesByStage.get(g) ?? []).length > 0 || (g === 'not-started' && parsingRow),
-  ).map((g) => {
+  const groups: DeskView['groups'] = GROUP_ORDER.filter((g) => (byStage.get(g) ?? []).length > 0 || (g === 'not-started' && parsingRow)).map((g) => {
     const rows = byStage.get(g) ?? [];
     const count = rows.length + (g === 'not-started' && parsingRow ? 1 : 0);
-    return { stage: g, label: COPY.groupLabel[g], status: GROUP_STATUS[g], count: String(count), rows, removed: linesByStage.get(g) ?? [] };
+    return { stage: g, label: COPY.groupLabel[g], status: GROUP_STATUS[g], count: String(count), rows };
   });
 
   // the extraction row: the numeral ticks with s.now, nothing animates
@@ -116,11 +88,11 @@ export function selectDesk(s: V2Store): DeskView {
   const fileCount = a.dealsFull.length;
   const awaiting = (byStage.get('awaiting') ?? []).length;
   const decided = (byStage.get('decided') ?? []).length;
+  const removedIds = s.ui.removedFiles ?? [];
   const removedN = removedIds.length;
   let summary: string;
   if (fileCount === 0) {
-    // while an upload is extracting the count moves into the Restore span below (R4.11)
-    summary = removedN > 0 && !parsingRow ? `${COPY.deskEmptySummary} · ${COPY.removedCount(removedN)}` : COPY.deskEmptySummary;
+    summary = COPY.deskEmptySummary;
   } else if (awaiting === 0 && decided === 0 && !anyUploaded && removedN === 0) {
     summary = COPY.deskInitialSummary;
   } else {
@@ -136,18 +108,30 @@ export function selectDesk(s: V2Store): DeskView {
   const liveName = dealOf(s, live)?.name ?? s.agent.runs.find((r) => r.dealId === live)?.dealName ?? 'the live file';
   const disabledReason = parsingWhy ?? (isRunLive(s) ? `Finish or stop the live run on ${liveName} to add a file.` : null);
 
-  // R4.7: Restore brings back every removed file. With files on the Desk it closes the summary; an
-  // empty Desk (nothing being extracted either) says so beside the drop zone and offers it there
-  // instead, named for what it brings back (only the samples, or uploads too). While an upload is
-  // extracting on an empty Desk the note gives way to the extraction row, so the summary carries
-  // Restore (R4.11): the screen always has one way back.
-  const restoreAll = removedN > 0 ? { label: COPY.restore, ariaLabel: COPY.restoreAll(removedN) } : null;
+  // R4.7: an empty Desk (nothing being extracted either) says so beside the drop zone and, when
+  // files were removed, offers to bring them all back there, named for what it brings back (only
+  // the samples, or uploads too). Otherwise Settings' "Restore removed files" is the way back (R4.12:
+  // no undo line, no Restore in the summary).
   const samplesOnly = removedIds.every((id) => !s.allFiles.some((f) => f.dealId === id && f.uploaded));
   const empty: DeskView['empty'] =
     fileCount === 0 && !parsingRow
       ? {
           text: COPY.deskEmptyNote(removedN > 0 ? samplesOnly : null),
-          restore: restoreAll ? { label: samplesOnly ? COPY.restoreSamples : COPY.restoreRemoved, ariaLabel: restoreAll.ariaLabel } : null,
+          restore: removedN > 0 ? { label: samplesOnly ? COPY.restoreSamples : COPY.restoreRemoved } : null,
+        }
+      : null;
+
+  // R4.12: the remove confirm, while it is open on a file that is still on the Desk and removable
+  const askId = s.ui.removeConfirm;
+  const askDeal = askId ? a.dealsFull.find((d) => d.id === askId) : undefined;
+  const removeDialog: DeskRemoveDialog | null =
+    askDeal && !(isRunLive(s) && selectLiveDealId(s) === askDeal.id)
+      ? {
+          dealId: askDeal.id,
+          title: COPY.removeDialogTitle(askDeal.name),
+          body: COPY.removeDialogBody(a.runs.some((r) => r.dealId === askDeal.id)),
+          cancelLabel: COPY.cancel,
+          confirmLabel: COPY.removeDialogConfirm,
         }
       : null;
 
@@ -157,7 +141,7 @@ export function selectDesk(s: V2Store): DeskView {
     groups,
     parsing,
     drop: { label: COPY.dropLabel, sub: COPY.dropSub, chooseLabel: COPY.dropChoose, disabledReason },
-    removed: (fileCount > 0 || parsingRow) && restoreAll ? { text: COPY.removedCount(removedN), restore: restoreAll } : null,
     empty,
+    removeDialog,
   };
 }

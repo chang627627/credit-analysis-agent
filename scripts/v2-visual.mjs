@@ -56,6 +56,15 @@ const HSCROLL_OK = [
 const STATES = [
   { id: 'desk', label: 'Desk', drive: async () => {} },
   {
+    // R4.12: the trash opens the kit Dialog (role alertdialog) over the Desk; checked open
+    id: 'desk-remove',
+    label: 'Desk · remove confirm (Dialog)',
+    drive: async (d) => {
+      await d.act(d.page.getByRole('button', { name: 'Remove Project Atlas', exact: true }), 'Remove Project Atlas (trash)');
+      await d.page.getByRole('alertdialog').waitFor({ state: 'visible', timeout: 10_000 });
+    },
+  },
+  {
     id: 'atlas-plan',
     label: 'Atlas · plan (before drafting)',
     memo: true,

@@ -121,30 +121,31 @@ export interface DeskRow {
   stage: StatusText; subMeta: string | null;
   action: { kind: 'review' | 'open-plan' | 'open' | 'draft' | 'open-record' | 're-run'; label: string; variant: 'primary' | 'secondary' | 'ghost'; disabled: boolean } | null;
   confirm: ConfirmView | null;
-  /** remove from the Desk, one click (session only; the Ledger keeps the record; R4.7) */
+  /** remove from the Desk after a confirm dialog (session only; the Ledger keeps the record; R4.12) */
   remove?: { label: string; disabled: boolean };
 }
 /**
- * R4.7 (audit fix 6): a file removed during this visit to the Desk, as ONE line in its group where
- * its row was: "Project Cobalt removed from the Desk · Undo". `before` is the live row of the same
- * group the line sits above (null: after the group's last row).
+ * R4.12 (supersedes R4.7's in-place undo): the Desk's confirm before removing a file, rendered by the
+ * kit Dialog: "Remove Project Atlas from the Desk?", a body that says only what removal does, then
+ * Cancel and Remove.
  */
-export interface DeskRemovedLine {
+export interface DeskRemoveDialog {
   dealId: string;
-  text: string;
-  undo: { label: string; ariaLabel: string };
-  before: string | null;
+  title: string;
+  body: string;
+  cancelLabel: string;
+  confirmLabel: string;
 }
 export interface DeskView {
   title: string; summary: string;
-  /** count is the files on the Desk in that group; `removed` its undo lines (a group of only undo lines still shows) */
-  groups: { stage: DeskStage; label: string; status: StatusKey; count: string; rows: DeskRow[]; removed: DeskRemovedLine[] }[];
+  /** count is the files on the Desk in that group */
+  groups: { stage: DeskStage; label: string; status: StatusKey; count: string; rows: DeskRow[] }[];
   parsing: StatusText | null;
   drop: { label: string; sub: string; chooseLabel: string; disabledReason: string | null };
-  /** R4.7: while any file is removed (and the Desk has files), the summary adds "· 1 removed · Restore" (restores all) */
-  removed: { text: string; restore: { label: string; ariaLabel: string } } | null;
   /** R4.7: no file on the Desk: a kit EmptyNote beside the drop zone, with "Restore sample files" when files were removed */
-  empty: { text: string; restore: { label: string; ariaLabel: string } | null } | null;
+  empty: { text: string; restore: { label: string } | null } | null;
+  /** R4.12: the open remove confirm (ui.removeConfirm), or null */
+  removeDialog: DeskRemoveDialog | null;
 }
 
 export type FileMode = 'not-started' | 'plan-review' | 'running' | 'gate' | 'sealed' | 'error';

@@ -321,8 +321,7 @@
 .kp-acksub__record { flex: 1 1 100%; min-width: 0; color: var(--ink-2); overflow-wrap: anywhere; }
 .kp-ackindent { padding-left: 24px; }
 
-/* ---- Desk removal undo (P-35, R4.7): mirrors desk.css ---- */
+/* ---- Desk specimens (remove confirm P-38, R4.12; empty Desk P-39): mirrors desk.css ---- */
 .kp-desk { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .kp-desk-file { display: flex; flex-direction: column; min-width: 0; }
 .kp-desk-select { display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; }
-.kp-desk-removed { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; min-width: 0; color: var(--ink-2); }

@@ -130,28 +130,14 @@
   gap: 4px;
 }
 
-/* ---- R4.7 (P-35): removal undo ---- */
+/* ---- R4.12 (P-38): the trash asks first in the kit Dialog; nothing is drawn in the table ---- */
 .desk-remove {
   display: inline-flex;
 }
 
-/* a file removed during this visit: one line in its group where its row was */
-.desk-removed {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px;
-  min-width: 0;
-  color: var(--ink-2);
-}
-
-.desk-removed__sep {
-  color: var(--ink-3);
-}
-
-/* the summary's "· n removed · Restore" keeps the summary's ink and line */
-.desk__restore {
-  color: var(--ink-2);
+/* the heading takes focus (tabIndex -1) only when the last row is removed: no ring on a non-control */
+.desk__title:focus {
+  outline: none;
 }
 
 /* the empty Desk's note sits on the drop zone's inset */

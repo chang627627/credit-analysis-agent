@@ -25,7 +25,7 @@ import type {
   BookView,
   CovenantEvidence,
   CovenantRow,
-  DeskRemovedLine,
+  DeskRemoveDialog,
   DeskRow,
   DeskView,
   DocBarView,
@@ -142,64 +142,50 @@ export const FX_DESK_INITIAL: DeskView = {
   title: COPY.deskTitle,
   summary: COPY.deskInitialSummary,
   groups: [
-    { stage: 'not-started', label: COPY.groupLabel['not-started'], status: 'pending', count: '3', rows: [DESK_ATLAS, DESK_MERIDIAN, DESK_COBALT], removed: [] },
+    { stage: 'not-started', label: COPY.groupLabel['not-started'], status: 'pending', count: '3', rows: [DESK_ATLAS, DESK_MERIDIAN, DESK_COBALT] },
   ],
   parsing: null,
   drop: DROP_OPEN,
-  removed: null,
   empty: null,
+  removeDialog: null,
 };
 
-/** R4.7: one undo line of a file removed during this visit to the Desk. */
-const deskRemovedLine = (dealId: string, name: string, before: string | null): DeskRemovedLine => ({
-  dealId,
-  text: COPY.removedLine(name),
-  undo: { label: COPY.undo, ariaLabel: COPY.undoRemove(name) },
-  before,
-});
-
-/** R4.7: Project Cobalt removed in one click from a fresh Desk; its row is one undo line where it was. */
-export const FX_DESK_COBALT_REMOVED: DeskView = {
-  title: COPY.deskTitle,
-  summary: `2 files · ${COPY.extractionSimulated}`,
-  groups: [
-    {
-      stage: 'not-started',
-      label: COPY.groupLabel['not-started'],
-      status: 'pending',
-      count: '2',
-      rows: [DESK_ATLAS, DESK_MERIDIAN],
-      removed: [deskRemovedLine('cobalt', 'Project Cobalt', null)],
-    },
-  ],
-  parsing: null,
-  drop: DROP_OPEN,
-  removed: { text: COPY.removedCount(1), restore: { label: COPY.restore, ariaLabel: COPY.restoreAll(1) } },
-  empty: null,
+/**
+ * R4.12: the Desk's trash pressed on Project Atlas in a fresh session: the confirm Dialog is open
+ * over the Desk (Atlas has no runs, so the body names no Ledger record).
+ */
+export const FX_DESK_REMOVE_ATLAS: DeskView = {
+  ...FX_DESK_INITIAL,
+  removeDialog: {
+    dealId: 'atlas',
+    title: COPY.removeDialogTitle('Project Atlas'),
+    body: COPY.removeDialogBody(false),
+    cancelLabel: COPY.cancel,
+    confirmLabel: COPY.removeDialogConfirm,
+  },
 };
 
-/** R4.7: every sample removed during this visit: three undo lines, the EmptyNote with "Restore sample files" beside the drop zone. */
+/**
+ * R4.12: the same confirm on a file with runs (Meridian, countersigned this session): the body says
+ * its runs stay in the Ledger.
+ */
+export const FX_DESK_REMOVE_MERIDIAN_DECIDED: DeskRemoveDialog = {
+  dealId: 'meridian',
+  title: COPY.removeDialogTitle('Project Meridian'),
+  body: COPY.removeDialogBody(true),
+  cancelLabel: COPY.cancel,
+  confirmLabel: COPY.removeDialogConfirm,
+};
+
+/** R4.7: every sample removed (each after its confirm): the EmptyNote with "Restore sample files" beside the drop zone. */
 export const FX_DESK_EMPTY: DeskView = {
   title: COPY.deskTitle,
-  summary: `${COPY.deskEmptySummary} · ${COPY.removedCount(3)}`,
-  groups: [
-    {
-      stage: 'not-started',
-      label: COPY.groupLabel['not-started'],
-      status: 'pending',
-      count: '0',
-      rows: [],
-      removed: [
-        deskRemovedLine('atlas', 'Project Atlas', null),
-        deskRemovedLine('meridian', 'Project Meridian', null),
-        deskRemovedLine('cobalt', 'Project Cobalt', null),
-      ],
-    },
-  ],
+  summary: COPY.deskEmptySummary,
+  groups: [],
   parsing: null,
   drop: DROP_OPEN,
-  removed: null,
-  empty: { text: COPY.deskEmptyNote(true), restore: { label: COPY.restoreSamples, ariaLabel: COPY.restoreAll(3) } },
+  empty: { text: COPY.deskEmptyNote(true), restore: { label: COPY.restoreSamples } },
+  removeDialog: null,
 };
 
 /** Atlas suspended at the rev 1 gate for 1:12: the Desk's only primary. */
@@ -217,19 +203,18 @@ export const FX_DESK_ATLAS_GATE: DeskView = {
           ...DESK_ATLAS,
           call: ESCALATE,
           stage: { state: 'awaiting', text: 'Awaiting you · rev 1' },
-          // the live run's file cannot be removed (R4.7 keeps the rule)
+          // the live run's file cannot be removed (R4.12 keeps the rule: no dialog opens)
           remove: { label: COPY.removeBlocked('Project Atlas'), disabled: true },
           action: { kind: 'review', label: COPY.reviewAndCountersign, variant: 'primary', disabled: false },
         },
       ],
-      removed: [],
     },
-    { stage: 'not-started', label: COPY.groupLabel['not-started'], status: 'pending', count: '2', rows: [DESK_MERIDIAN, DESK_COBALT], removed: [] },
+    { stage: 'not-started', label: COPY.groupLabel['not-started'], status: 'pending', count: '2', rows: [DESK_MERIDIAN, DESK_COBALT] },
   ],
   parsing: null,
   drop: { ...DROP_OPEN, disabledReason: 'Finish or stop the live run on Project Atlas to add a file.' },
-  removed: null,
   empty: null,
+  removeDialog: null,
 };
 
 // =============================================================================
@@ -2504,7 +2489,7 @@ export const FIXTURES = {
   FX_TOPBAR,
   FX_DESK_INITIAL,
   FX_DESK_ATLAS_GATE,
-  FX_DESK_COBALT_REMOVED,
+  FX_DESK_REMOVE_ATLAS,
   FX_DESK_EMPTY,
   FX_FILE_NOT_STARTED,
   FX_FILE_PLAN_REVIEW,

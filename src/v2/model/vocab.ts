@@ -333,16 +333,16 @@ export const COPY = {
   selectRow: 'Select',
   removeFile: (name: string): string => `Remove ${name}`,
   removeBlocked: (name: string): string => `Stop the run on ${name} before removing it`,
-  // R4.7 (audit fix 6): removing is one click; the row collapses to an undo line until the reviewer
-  // leaves the Desk, and the summary offers Restore while any file is removed
-  removedLine: (name: string): string => `${name} removed from the Desk`,
-  undo: 'Undo',
-  undoRemove: (name: string): string => `Undo removing ${name}`,
-  removedCount: (n: number): string => `${n} removed`,
-  restore: 'Restore',
-  restoreAll: (n: number): string => (n === 1 ? 'Restore the removed file' : `Restore the ${n} removed files`),
-  removedAnnounce: (name: string): string => `${name} removed from the Desk. Undo is where its row was.`,
-  restoredAnnounce: (name: string): string => `${name} is back on the Desk.`,
+  // R4.12 (supersedes R4.7's in-place undo): the trash asks first, in a confirm dialog. Every clause
+  // of the body is what removal does: the file leaves the Desk and the Book (the monitor stops
+  // watching it), the Ledger keeps every run, and Settings' "Restore removed files" brings it back.
+  removeDialogTitle: (name: string): string => `Remove ${name} from the Desk?`,
+  removeDialogBody: (hasRuns: boolean): string =>
+    hasRuns
+      ? 'It leaves the Desk and the Book. Its runs stay in the Ledger, and you can bring it back from Settings.'
+      : 'It leaves the Desk and the Book. You can bring it back from Settings.',
+  removeDialogConfirm: 'Remove',
+  removedAnnounce: (name: string): string => `${name} removed from the Desk`,
   restoredAllAnnounce: (n: number): string => (n === 1 ? '1 file is back on the Desk.' : `${n} files are back on the Desk.`),
   /** the empty Desk's note beside the drop zone; `samplesOnly` null when nothing was removed */
   deskEmptyNote: (samplesOnly: boolean | null): string =>

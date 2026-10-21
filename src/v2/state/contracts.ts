@@ -20,7 +20,7 @@ import type { Amendment, ApprovalPackage, NoteProvenance, PlanStep } from '../..
 import type { Deal } from '../../agent/mockData';
 import type { DriverKey, Scenario } from '../../agent/whatif';
 import type { Route } from './route';
-import type { DeskStage, MemoSection, MemoTarget, ThreadAction } from '../model/types';   // type-only; model/types imports from here too
+import type { MemoSection, MemoTarget, ThreadAction } from '../model/types';   // type-only; model/types imports from here too
 
 export type Policy = 'gate' | 'auto';
 export type HoldReason = 'engaged' | 'manual' | 'left' | 'hidden' | 'policy-off';
@@ -114,13 +114,6 @@ export interface ThreadEntry {
  */
 export interface AckNote { note: string; at: number }
 
-/**
- * R4.7 (audit fix 6): a file removed during this visit to the Desk, collapsed to one undo line in the
- * group its row sat in ("Project Cobalt removed from the Desk · Undo"). `stage` is that group, read
- * when it was removed (a removed file leaves agent.dealsFull, so its stage cannot be derived later).
- */
-export interface DeskRemoval { dealId: string; name: string; stage: DeskStage }
-
 /** A cue carries time: consumers react to a tick change, and on mount honour a cue whose `at` is under 1000 ms old (§2.6). */
 export interface Cue { tick: number; at: number }
 
@@ -141,12 +134,11 @@ export interface UiState {
   /** files removed from the Desk this session (hidden everywhere but the Ledger, which keeps every record) */
   removedFiles: string[];
   /**
-   * R4.7 (audit fix 6): the files removed during this visit to the Desk, oldest first, each shown as
-   * one undo line where its row was. Removing is one click (no confirm); the lines stay until the
-   * reviewer leaves the Desk (routeHygiene clears them on any place change) and a line goes with
-   * its file when that file is restored.
+   * R4.12 (supersedes R4.7's undo): the file whose removal the Desk is asking to confirm, in the kit
+   * Dialog ("Remove Project Atlas from the Desk?"), or null. Never the file a run is live on; any
+   * place change closes it without removing (routeHygiene).
    */
-  deskUndo: DeskRemoval[];
+  removeConfirm: string | null;
   /**
    * R4.6 (audit fix 5): the Book item whose Acknowledge strip is open (one at a time), the reason
    * being typed, and whether the calm "write why first" hint shows (a confirm with no reason on a
@@ -181,14 +173,19 @@ export interface V2Actions {
   togglePreviewStep(dealId: string, stepId: string): void; // a not-started file's plan, before it starts
   draftFile(dealId: string): void;
   /**
-   * R4.7 (audit fix 6): one click, no confirm. Hides the file from every screen but the Ledger
-   * (ui.removedFiles) and leaves its undo line in its Desk group (ui.deskUndo); focus that fell to
-   * the body lands on that line's Undo. Never the file a run is live on.
+   * R4.12 (supersedes R4.7's one-click removal): the Desk trash opens the confirm Dialog for that file
+   * (ui.removeConfirm). Refused for the file a run is live on, whose trash stays disabled.
    */
-  removeFile(dealId: string): void;
-  /** the undo line's Undo: brings back that file only; focus that fell to the body lands on its row's remove button */
-  undoRemove(dealId: string): void;
-  /** brings back every removed file (the Desk summary's Restore, the empty Desk's button, Settings' fallback) */
+  requestRemove(dealId: string): void;
+  /**
+   * The Dialog's Remove: hides the file from every screen but the Ledger (ui.removedFiles) at once,
+   * with no undo line; announces "<name> removed from the Desk"; focus that fell to the body lands on
+   * the next row's remove (else Select) button, else the previous row's, else the Desk heading.
+   */
+  confirmRemove(): void;
+  /** the Dialog's Cancel, Esc or a press on the scrim: closes it without removing; focus returns to the trash */
+  cancelRemove(): void;
+  /** brings back every removed file (the empty Desk's "Restore sample files", Settings' "Restore removed files") */
   restoreRemoved(): void;
   holdPlan(): void;
   approvePlan(): void;                         // agent.approvePlan(plan.enabledIds)
@@ -293,8 +290,8 @@ export interface V2Store {
   gate: GateState;
   /**
    * R4.7: every file the engine holds, removed ones included, in the engine's order (agent.dealsFull
-   * hides removed files). The Desk places an undo line where its row was and names what a restore
-   * brings back (the sample files, or uploads too); nothing else may read it.
+   * hides removed files). The empty Desk names what a restore brings back (the sample files, or
+   * uploads too) and a restore lands focus on the first file back; nothing else may read it.
    */
   allFiles: { dealId: string; name: string; uploaded: boolean }[];
   snapshots: Record<string, CaseFileSnapshot>;   // latest sealed run per dealId

@@ -19,7 +19,7 @@ import { getPlan } from '../../agent/runAgent';
 import type { Amendment, ApprovalPackage } from '../../agent/types';
 import type { RunDecision, RunStatus } from '../../hooks/useCreditAgent';
 import type { MonitorApi } from '../../hooks/useMonitor';
-import { buildFileExport, buildSessionExport, COPY, deskStageOf, routesOnSign, selectLiveDealId } from '../model';
+import { buildFileExport, buildSessionExport, COPY, routesOnSign, selectDesk, selectLiveDealId } from '../model';
 import type { CaseFileSnapshot, V2Actions, V2Internals, V2Store } from './store';
 import { holdAuto } from './gate';
 import { withToggle } from './plan';
@@ -145,7 +145,7 @@ export function useSnapshots(): {
   return { snapshots: state.byDeal, snapshotList: state.list, capture };
 }
 
-// ---- Desk removal focus (R4.7) ---------------------------------------------------
+// ---- Desk removal focus (R4.12) -------------------------------------------------
 
 const q = (selector: string): HTMLElement | null => {
   try {
@@ -157,10 +157,11 @@ const q = (selector: string): HTMLElement | null => {
 };
 /** A Desk row's remove button (Desk.tsx wraps it in [data-remove="<dealId>"]). */
 const removeButtonOf = (dealId: string) => q(`[data-remove="${cssEscape(dealId)}"] button`);
-/** A removed file's undo line ([data-removed="<dealId>"]) and its Undo link. */
-const undoLineOf = (dealId: string) => q(`[data-removed="${cssEscape(dealId)}"]`);
-const undoLinkOf = (dealId: string) => q(`[data-removed="${cssEscape(dealId)}"] button`);
-/** The Desk summary's Restore link and the empty Desk's restore button ([data-desk-restore]). */
+/** A Desk row's Select button: the first button of its [data-select="<dealId>"] actions cell. */
+const selectButtonOf = (dealId: string) => q(`[data-select="${cssEscape(dealId)}"] button`);
+/** The Desk heading ([data-desk-heading], tabIndex -1): where focus goes when no row is left. */
+const deskHeading = () => q('[data-desk-heading]');
+/** The empty Desk's restore button ([data-desk-restore]). */
 const restoreControls = () => q('[data-desk-restore]');
 
 /**
@@ -179,11 +180,25 @@ function landFocus(gone: () => boolean, target: () => HTMLElement | null): void 
   }, 6);
 }
 
+/**
+ * Where focus goes once `dealId` leaves the Desk: the row after it in the Desk's order (its remove
+ * button, or its Select button when that file's trash is disabled), else the row before it, else
+ * the Desk heading. Read from the Desk as it stands before the removal.
+ */
+function afterRemoval(s: V2Store, dealId: string): () => HTMLElement | null {
+  const rows = selectDesk(s).groups.flatMap((g) => g.rows);
+  const at = rows.findIndex((r) => r.dealId === dealId);
+  const next = at >= 0 ? (rows[at + 1] ?? rows[at - 1] ?? null) : null;
+  if (!next) return deskHeading;
+  const canRemove = !!next.remove && !next.remove.disabled;
+  return () => (canRemove ? removeButtonOf(next.dealId) : null) ?? selectButtonOf(next.dealId) ?? deskHeading();
+}
+
 // ---- actions ------------------------------------------------------------------
 
 export type FileActions = Pick<
   V2Actions,
-  'startFile' | 'draftFile' | 'togglePreviewStep' | 'removeFile' | 'undoRemove' | 'restoreRemoved' | 'confirmStart' | 'requestStop' | 'confirmStop' | 'upload' | 'exportFile' | 'exportSession'
+  'startFile' | 'draftFile' | 'togglePreviewStep' | 'requestRemove' | 'confirmRemove' | 'cancelRemove' | 'restoreRemoved' | 'confirmStart' | 'requestStop' | 'confirmStop' | 'upload' | 'exportFile' | 'exportSession'
 >;
 
 export function createFileActions(x: V2Internals): FileActions {
@@ -289,43 +304,49 @@ export function createFileActions(x: V2Internals): FileActions {
       x.setPlan({ enabledIds: ids, held: false, holdReason: null, deadline: null });
       x.current().agent.approvePlan(ids);
     },
-    // R4.7 (audit fix 6): removing a file is one click with an in-place undo, never the file a run
-    // is live on. The row collapses to its undo line in the same group (read before it leaves
-    // agent.dealsFull); the line lasts until the reviewer leaves the Desk.
-    removeFile: (dealId) => {
+    // R4.12 (supersedes R4.7's one-click removal with an undo): the trash asks first, in the kit
+    // Dialog; never for the file a run is live on (its trash is disabled with the reason)
+    requestRemove: (dealId) => {
       const s = x.current();
       if (isLiveStatus(s.agent.status) && selectLiveDealId(s) === dealId) return;
+      if (!s.agent.dealsFull.some((d) => d.id === dealId)) return;
+      x.setUi((u) => (u.removeConfirm === dealId ? u : { ...u, removeConfirm: dealId }));
+    },
+    // the Dialog's Remove: the file leaves at once, with no undo line (Settings and the empty Desk
+    // bring removed files back); the Ledger keeps every record
+    confirmRemove: () => {
+      const dealId = x.uiRef.current.removeConfirm;
+      if (!dealId) return;
+      const s = x.current();
       const deal = s.agent.dealsFull.find((d) => d.id === dealId);
-      if (!deal) return;
-      const stage = deskStageOf(s, dealId) ?? 'not-started';
-      // leave a case file of it first (route hygiene ends undo lines on a place change)
-      if (s.route.name === 'file' && s.route.dealId === dealId) x.navigate({ name: 'desk' });
+      if (!deal || (isLiveStatus(s.agent.status) && selectLiveDealId(s) === dealId)) {
+        x.setUi((u) => (u.removeConfirm === null ? u : { ...u, removeConfirm: null }));
+        return;
+      }
+      const target = afterRemoval(s, dealId);
       x.setUi((u) => ({
         ...u,
+        removeConfirm: null,
         removedFiles: u.removedFiles.includes(dealId) ? u.removedFiles : [...u.removedFiles, dealId],
-        deskUndo: [...u.deskUndo.filter((r) => r.dealId !== dealId), { dealId, name: deal.name, stage }],
         announce: COPY.removedAnnounce(deal.name),
       }));
-      landFocus(() => removeButtonOf(dealId) === null, () => undoLinkOf(dealId));
+      if (s.route.name === 'file' && s.route.dealId === dealId) x.navigate({ name: 'desk' });
+      landFocus(() => removeButtonOf(dealId) === null, target);
     },
-    undoRemove: (dealId) => {
-      const u0 = x.uiRef.current;
-      if (!u0.removedFiles.includes(dealId)) return;
-      const name = u0.deskUndo.find((r) => r.dealId === dealId)?.name ?? x.current().allFiles.find((f) => f.dealId === dealId)?.name ?? null;
-      x.setUi((u) => ({
-        ...u,
-        removedFiles: u.removedFiles.filter((id) => id !== dealId),
-        deskUndo: u.deskUndo.filter((r) => r.dealId !== dealId),
-        announce: name ? COPY.restoredAnnounce(name) : u.announce,
-      }));
-      landFocus(() => undoLineOf(dealId) === null, () => removeButtonOf(dealId));
+    // Cancel, Esc or the scrim: nothing is removed. The Dialog hands focus back to its opener; this
+    // covers a browser that does not focus a button on click (the trash is then still the target)
+    cancelRemove: () => {
+      const dealId = x.uiRef.current.removeConfirm;
+      if (dealId === null) return;
+      x.setUi((u) => ({ ...u, removeConfirm: null }));
+      landFocus(() => true, () => removeButtonOf(dealId));
     },
     restoreRemoved: () => {
       const ids = x.uiRef.current.removedFiles;
       if (ids.length === 0) return;
       // focus lands on the first restored row, in Desk order
       const first = x.current().allFiles.find((f) => ids.includes(f.dealId))?.dealId ?? ids[0];
-      x.setUi((u) => ({ ...u, removedFiles: [], deskUndo: [], announce: COPY.restoredAllAnnounce(ids.length) }));
+      x.setUi((u) => ({ ...u, removedFiles: [], removeConfirm: null, announce: COPY.restoredAllAnnounce(ids.length) }));
       landFocus(() => restoreControls() === null, () => removeButtonOf(first));
     },
     confirmStart: () => {

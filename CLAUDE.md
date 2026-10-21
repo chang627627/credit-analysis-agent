@@ -26,7 +26,7 @@ npm run dev      # http://localhost:5173
 npm run build    # tsc --noEmit + vite build  (keep this green)
 npm run preview  # serve the production build
 npm run v2-check   # V2 source guardrails (28 greps; see the V2 section)
-npm run v2-visual  # V2 rendering check: Playwright + axe, 9 states × phone/tablet/desktop
+npm run v2-visual  # V2 rendering check: Playwright + axe, 10 states × phone/tablet/desktop
 ```
 
 Verify changes in the running app (browser preview) **and** with `tsc --noEmit`. Target **zero
@@ -576,9 +576,9 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
 - **Guardrails:** `npm run v2-check` (28 greps: tokens only, 400/500/600, 4px grid, one
   infinite animation, no hand-rolled controls outside the kit, V1 + engine hashes untouched, …)
   checks the source; `npm run v2-visual` (Playwright + axe, see Run & build) checks the rendering:
-  9 states × phone / tablet / desktop for serious axe violations, sideways overflow, cut-off
+  10 states × phone / tablet / desktop for serious axe violations, sideways overflow, cut-off
   elements and a usable memo pane and Decision card width. Run both before calling V2 UI work done.
-  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-37, rendered on `/?kit`) for
+  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-39, rendered on `/?kit`) for
   owner approval; every `data-pattern` id needs an entry there, every kit export a kit-page specimen.
 - **Storage** (only in `src/v2/state/`): `v2.navCollapsed`, `v2.chatOpen` (only `state/panes.ts`).
   (`v2.showReasoning` was retired with R2: reasoning lives in each card's Record.) **Auto-countersign
@@ -804,18 +804,33 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   the session export's `monitorLog` entries gain `detail`. No time-based snooze; Mark handed off
   unchanged. Kit: `ConfirmStrip` `reason` / `hint` / `label`, `TextInput` `describedBy` /
   `required`; kit page group `#board-acknowledge`.
-- **Removing a file from the Desk is one click with an in-place undo** (P-35, THREE-PANE R4.7, Mobbin
-  audit fix 6): no confirm, no toast. The row collapses to ONE line in its group where it was,
-  "Project Cobalt removed from the Desk · Undo" (focus lands on Undo), until the reviewer leaves the
-  Desk (`ui.deskUndo`, cleared by `routeHygiene`); Undo brings back that file only. While any file
-  is removed the summary adds "· 1 removed · Restore" (restores all; also on an empty Desk while an
-  upload is extracting, R4.11). An empty Desk shows a kit
-  `EmptyNote` beside the drop zone with "Restore sample files" (the kit EmptyNote gained an optional
-  `action` button; the "a refresh brings the samples back" copy is gone, since a refresh ends every
-  run); an empty Ledger's EmptyNote offers "Open the Desk". The live file still cannot be removed;
-  Settings keeps "Restore removed files" as a fallback. `V2Actions` `removeFile` / `undoRemove` /
-  `restoreRemoved` replace the confirm trio; `V2Store.allFiles` (the engine's list, removed files
-  included) lets the Desk place each line and name what a restore brings back.
+- **Removing a file from the Desk asks first, in a confirm dialog; there is no undo** (P-38, THREE-PANE
+  R4.12, which supersedes R4.7's in-place undo; owner: "I do not think it needs undo. i just think it
+  needs the double confirmation. like a pop up window something. right now it looks like I can not
+  delete the things"). The Desk trash opens the new kit **`Dialog`** (`kit/Dialog.tsx`, a modal
+  confirmation; run-discarding confirms stay inline ConfirmStrips): `role="alertdialog"`,
+  `aria-modal`, named by its title and described by its body, a flat `--scrim`, a paper panel
+  (`min(400px, 100% - 32px)`, padding 24, `--r-md`, `--shadow-pop`, enters with `v2-enter`, instant
+  under reduced motion) with the title in t-heading ("Remove Project Atlas
+  from the Desk?"), one t-body ink-2 sentence that says only what removal does ("It leaves the Desk
+  and the Book. Its runs stay in the Ledger, and you can bring it back from Settings."; no Ledger
+  clause for a file with no runs) and [Cancel] (secondary) [Remove] (danger), right-aligned. Focus
+  moves to Cancel; Tab is trapped; Esc, Cancel or a press on the scrim keep the file and focus returns
+  to the trash; the app's shortcuts (⌘K included) stand down while focus is inside; any place change
+  closes it without removing. It portals to `document.body` (`.v2` is on `<html>`); its prop is
+  `heading`, not `title` (guard C02); `preview` renders it in flow for the kit page. Remove takes
+  the row away at once (no undo line, no tombstone, nothing in the summary), announces "Project
+  Atlas removed from the Desk" and lands focus on the next row's remove button (its Select button if
+  that trash is disabled), else the previous row's, else the Desk heading (`h1[data-desk-heading]`,
+  tabIndex -1). State: `ui.removeConfirm` and `requestRemove` / `confirmRemove` / `cancelRemove`
+  replace `ui.deskUndo`, `removeFile` and `undoRemove`; the model's `DeskView.removeDialog` carries
+  the copy. The live file keeps its disabled trash (no dialog). The way back stays out of the way:
+  Settings' "Restore removed files", and on a completely empty Desk a kit `EmptyNote` beside the drop
+  zone with "Restore sample files" (P-39, split out of P-35: the EmptyNote's optional `action`; an
+  empty Ledger's EmptyNote offers "Open the Desk"; the "a refresh brings the samples back" copy stays
+  gone, since a refresh ends every run). `V2Store.allFiles` (the engine's list, removed files
+  included) names what that restore brings back. Kit page: `#board-dialog` and `#board-deskremove`;
+  `npm run v2-visual` checks the open dialog as state `desk-remove`.
 - **The verb row at phone width is checked on the kit page** (P-37, THREE-PANE R4.10, improvement
   batch 2 item 5): the Decision card's verb row is one pure component, `screens/decision/VerbRow.tsx`
   (markup unchanged, imports `decision.css`), rendered by the memo and by `/?kit`
@@ -836,7 +851,7 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   build's step lines with confidences and durations, Record / Reasoning disclosures, flag sentences
   as MarginNote messages, the plan step checklist, the file context block, the head's note stepper
   and Show all reasoning: "do I look at the middle or the right?") · **the decision card in the agent
-  panel** (it was docked between the thread and the composer; the countersign moved to the right). · any show/hide toggle or collapse control for the agent panel (after the Desk, a case file is always three panes) · a project picker or project switch in the agent panel (step one, selecting the project, happens on the Desk; the agent panel exists only inside a case file) · the plan prompt pinned above the composer, bottom-anchored ("chat grows upward") thread lines and an empty-thread filler sentence ("Just do what normal claude code did") · a composer whose send button sits outside its field as a grey square · skeleton / "Not drafted yet" placeholder cards in the memo (cards appear as they are drafted) · count badges on the sidebar items (Desk "1", Book "7" monitor totals): a badge only marks something waiting on you
+  panel** (it was docked between the thread and the composer; the countersign moved to the right). · any show/hide toggle or collapse control for the agent panel (after the Desk, a case file is always three panes) · a project picker or project switch in the agent panel (step one, selecting the project, happens on the Desk; the agent panel exists only inside a case file) · the plan prompt pinned above the composer, bottom-anchored ("chat grows upward") thread lines and an empty-thread filler sentence ("Just do what normal claude code did") · a composer whose send button sits outside its field as a grey square · skeleton / "Not drafted yet" placeholder cards in the memo (cards appear as they are drafted) · count badges on the sidebar items (Desk "1", Book "7" monitor totals): a badge only marks something waiting on you · an in-place undo line for Desk removal ("Project Atlas removed from the Desk · Undo", with "· n removed · Restore" in the summary; P-35): "right now it looks like I can not delete the things", so removal asks first in a confirm Dialog and the row simply leaves
 
 ## Backlog (to-do)
 

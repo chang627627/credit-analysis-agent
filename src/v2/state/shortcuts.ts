@@ -42,7 +42,9 @@
 // note and the composer are typing), the palette closed, no key repeat on the
 // verbs, and the gate not receding. The listener sits in the capture phase so
 // each press resolves to exactly one action before any component handler runs;
-// kit popovers (menus, dialogs) keep their own keys.
+// kit popovers (menus, dialogs) keep their own keys. While focus is inside the
+// kit's modal Dialog (the Desk's remove confirm, R4.12) every shortcut stands
+// down, ⌘K included: the Dialog owns Tab, Esc and its buttons until it closes.
 // ---------------------------------------------------------------------------
 
 import { useEffect } from 'react';
@@ -66,13 +68,19 @@ function inDecision(x: V2Internals, target: EventTarget | null): boolean {
 
 /** Inside a kit popover that owns its keyboard (menu, dialog). */
 function inPopover(target: EventTarget | null): boolean {
-  return target instanceof Element && target.closest('[role="menu"],[role="dialog"],[role="listbox"]') !== null;
+  return target instanceof Element && target.closest('[role="menu"],[role="dialog"],[role="alertdialog"],[role="listbox"]') !== null;
+}
+
+/** Inside the kit's modal Dialog (R4.12): no shortcut may act behind it. */
+function inModal(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest('[role="alertdialog"][aria-modal="true"]') !== null;
 }
 
 export function useShortcuts(x: V2Internals): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.isComposing) return;
+      if (inModal(e.target)) return;
       const s = x.current();
       const a = s.actions;
       const mod = e.metaKey || e.ctrlKey;

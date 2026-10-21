@@ -594,7 +594,7 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   stale `v2.autonomy` value once on load so an earlier On cannot linger.
 - **Light mode only** (owner decision): no dark theme, no toggle.
 - **Accent = aubergine** `#552d5e` (owner decision, 2026-10-20; hover `#471f50`, accent text `#552d5e`,
-  wash `#f8ebfb`). Owner principle: **the accent stays quieter than the status colours** (approve /
+  wash `#f2edfc`, a cooler violet the owner picked over the pink-leaning `#f8ebfb`). Owner principle: **the accent stays quieter than the status colours** (approve /
   escalate / decline must be the loudest colour on the page), measured as OKLCH chroma: aubergine is
   0.094, below every status ink and mark (0.106 to 0.186). Path there: teal `#0f7d8c` sat 11.5 dE from
   the approve green (the primary verb read as "approve"); the blues `#1f4fbf` and cobalt `#2d5ed4`

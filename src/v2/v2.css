@@ -29,7 +29,7 @@
   --accent: #552d5e;       /* fills + 2px state strokes; white on it 10.92:1; dE 29.5 from --good-mark, 24.5 from --bad-mark */
   --accent-hover: #471f50; /* primary hover/pressed; white on it 13.29:1 */
   --accent-ink: #552d5e;   /* accent TEXT: links, cites (10.92 paper · 10.00 canvas · 9.50 accent-wash) */
-  --accent-wash: #f8ebfb;  /* cited span, active menu/palette row, focus halo, flash */
+  --accent-wash: #f2edfc;  /* cited span, active menu/palette row, focus halo, flash (cooler violet, owner's pick: no pink cast) */
   --on-accent: #ffffff;
 
   /* meaning: ink (text/glyph) · wash (tokens, open notes) · mark (data marks only) */
@@ -45,7 +45,7 @@
 
   /* elevation: exactly one float shadow, plus two field halos */
   --shadow-pop: 0 8px 24px rgba(15, 36, 54, 0.12), 0 0 0 1px #d0d6df;
-  --halo-focus: 0 0 0 3px #f8ebfb;
+  --halo-focus: 0 0 0 3px #f2edfc;
   --halo-error: 0 0 0 3px #fbe9eb;
 
   /* motion: the ONLY source of visual durations (JS reads them, see cssMs) */

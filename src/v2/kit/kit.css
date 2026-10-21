@@ -792,6 +792,9 @@
 /* ---- EmptyNote ---- */
 .v2 .k-empty { display: flex; align-items: flex-start; gap: var(--s-2); padding: 16px; color: var(--ink-3); }
 .v2 .k-empty .k-glyph { height: var(--t-small-lh); }
+/* with a way out (P-35): the text, then one secondary small button beside it (wraps under it when narrow) */
+.v2 .k-empty--action { flex-wrap: wrap; align-items: center; column-gap: var(--s-3); row-gap: var(--s-2); }
+.v2 .k-empty__text { display: inline-flex; align-items: flex-start; gap: var(--s-2); min-width: 0; }
 
 /* ---- DropZone ---- */
 .v2 .k-drop {

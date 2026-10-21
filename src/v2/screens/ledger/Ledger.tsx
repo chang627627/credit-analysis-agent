@@ -183,7 +183,12 @@ export function LedgerScreen({ fileFilter }: LedgerScreenProps) {
 
         <FilterChips items={v.chips} active={v.activeChip} onSelect={selectChip} ariaLabel="Filter by actor and kind" />
 
-        {v.empty ? <EmptyNote>{v.empty}</EmptyNote> : null}
+        {v.empty ? (
+          // R4.7: an empty Ledger points at the Desk, where a memo is started
+          <EmptyNote action={v.emptyAction ? { label: v.emptyAction.label, onClick: () => a.navigate({ name: 'desk' }) } : undefined}>
+            {v.empty}
+          </EmptyNote>
+        ) : null}
 
         {v.files.length > 0 ? (
           <div className="ledger-files">

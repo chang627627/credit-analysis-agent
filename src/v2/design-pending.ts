@@ -441,6 +441,19 @@ export const PENDING: PendingPattern[] = [
     kitAnchor: '#board-acknowledge',
     ownerNote: 'Owner asked for it (improvement batch 2)',
   },
+  {
+    id: 'P-35',
+    type: 'interaction',
+    name: 'Remove a file from the Desk in one click, with an in-place undo',
+    description:
+      'Removing a file is one click on its trash button, with no confirm and no toast. The row collapses at once to ONE line in the group it sat in, where it was: "Project Cobalt removed from the Desk · Undo" (t-small ink-2, the Undo a small LinkButton), and focus that fell to the body lands on that Undo. The line stays until the reviewer leaves the Desk; Undo brings back that file only (focus returns to its row\'s remove button). While any file is removed, the Desk summary adds "· 1 removed · Restore", which brings every removed file back. An empty Desk says so in a kit EmptyNote beside the drop zone with one secondary button, "Restore sample files" ("Restore removed files" when an upload was removed too); the old advice that a refresh brings the samples back is gone, since a refresh ends every run. The EmptyNote\'s new optional action is the same way out on an empty Ledger: "Open the Desk". The file a run is live on still cannot be removed, and Settings keeps "Restore removed files" as a fallback. Before, removing opened a confirm strip, the row then vanished with nothing said, and the only way back was Settings, which restored everything.',
+    evidence: 'Mobbin audit, fix 6 (verified: the Desk trash IconButton opened a ConfirmStrip; after confirmRemove in state/files.ts the row disappeared and the summary said nothing; the only way back was Settings › Restore removed files; vocab deskEmptySummary told the reviewer a refresh brings the samples back, yet runs live only in memory); THREE-PANE.md R4.7; undo-in-place patterns in list apps (Gmail, Linear) in the Mobbin reference set',
+    proposedBy: OWNER,
+    proposedDate: ON_3P,
+    status: 'approved',
+    kitAnchor: '#board-deskundo',
+    ownerNote: 'Owner asked for it (improvement batch 2)',
+  },
 ];
 
 export const REJECTED_BEFORE: { name: string; note: string }[] = [

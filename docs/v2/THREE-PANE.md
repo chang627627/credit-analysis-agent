@@ -517,6 +517,61 @@ snooze; Mark handed off (countersign items) is unchanged.
   Ledger row with its reason. Fixtures: `FX_BOOK_ACK_BREACH` / `_HINT` / `_WATCH`, the Book's
   acknowledged items carry `ackRecord`, the Ledger's acknowledgement rows carry their reasons.
 
+### R4.7 Undo on file removal (Mobbin audit fix 6, P-35)
+
+**The problem (verified in the build).** The Desk's trash `IconButton` opened a `ConfirmStrip`;
+after `confirmRemove` (`state/files.ts`) the row disappeared and the summary said nothing; the only
+way back was Settings › Restore removed files, which restores everything; and an empty Desk told
+the reviewer "a refresh brings the samples back" (`COPY.deskEmptySummary`), although runs live only
+in memory, so a refresh ends every run.
+
+**The rule.** Removing a file is one click with an in-place undo: no confirm, no toast. The file a
+run is live on still cannot be removed, and Settings keeps "Restore removed files" as a fallback.
+
+- **State** (`state/contracts.ts`, `state/files.ts`, `state/ui.ts`): `UiState.removeConfirm` and
+  `V2Actions.requestRemove` / `confirmRemove` / `cancelRemove` are gone. `removeFile(dealId)`
+  (refused for the live run's file, whose trash stays disabled with "Stop the run on Project Atlas
+  before removing it") adds the id to `ui.removedFiles` as before (hidden from every screen, the
+  palette and the monitor; the Ledger keeps the record) and a `DeskRemoval { dealId; name; stage }`
+  to the new `ui.deskUndo` (`stage` is its Desk group at that moment, from the model's
+  `deskStageOf`, since a removed file leaves `agent.dealsFull`). `undoRemove(dealId)` brings back
+  that file only; `restoreRemoved()` brings back every removed file and clears `deskUndo`.
+  `routeHygiene` clears `deskUndo` on any place change, so the lines stay until the reviewer leaves
+  the Desk (the files stay removed). `V2Store.allFiles` (new) is the engine's full list in its
+  order, removed files included (`dealId`, `name`, `uploaded`); only the Desk selector reads it.
+- **The undo line** (`DeskView.groups[].removed: DeskRemovedLine[]`, `selectDesk`): one 36px span
+  row in the group the row sat in, where it was: above the first live row that followed it in the
+  engine's order (`before`), else after the group's last row, several in engine order. It reads
+  "Project Cobalt removed from the Desk · Undo" (t-small ink-2, the "·" ink-3, Undo a kit
+  `LinkButton` small named "Undo removing Project Cobalt"; `data-removed`, `data-pattern="P-35"`).
+  A group that holds only undo lines still shows; its count is the files left in it (it may read 0).
+- **The summary** (`DeskView.removed`): while any file is removed and the Desk still has files, it
+  closes with "· 1 removed · Restore" (a `LinkButton` small named "Restore the removed file" /
+  "Restore the 3 removed files"), which brings every removed file back. Otherwise the summary keeps
+  its rules (the initial "3 sample files, …" only while nothing is removed).
+- **The empty Desk** (`DeskView.empty`: no file on the Desk and nothing being extracted): the
+  summary reads "No files on the Desk · 3 removed" (`deskEmptySummary` is now "No files on the
+  Desk"; the refresh advice is deleted), the table is drawn only while undo lines remain, and a kit
+  `EmptyNote` right above the drop zone reads "Drop a CIM below to open a new file, or bring the
+  samples back." with one secondary button, "Restore sample files" (when an upload was removed too:
+  "… or bring back the files you removed." and "Restore removed files"). The summary carries no
+  Restore link in this state, so the screen has one way back.
+- **Kit:** `EmptyNote` gains `action?: { label; onClick; ariaLabel? }`: one secondary sm `Button`
+  after the text (`.k-empty--action`: wraps, column gap 12, row gap 8; the text span keeps
+  `role="status"`; `data-pattern="P-35"`).
+- **The empty Ledger** (`LedgerView.emptyAction`): with no event yet the EmptyNote offers "Open the
+  Desk" (navigates to the Desk); a filter that matches nothing has no action.
+- **Focus and the live region:** removing moves focus that fell to the body to the line's Undo and
+  announces "Project Cobalt removed from the Desk. Undo is where its row was."; Undo moves it to the
+  restored row's remove button ("Project Cobalt is back on the Desk."); Restore moves it to the
+  first restored row's remove button ("3 files are back on the Desk."). A reviewer who moved focus
+  elsewhere keeps it (`[data-remove]`, `[data-removed]`, `[data-desk-restore]` hooks).
+- **Kit page:** the EmptyNote · DropZone · LiveRegion board adds the EmptyNote "with a way out"
+  specimens (the empty Desk, the empty Ledger) and the group "Desk · remove in one click, undo in
+  place (P-35, R4.7)" (`#board-deskundo`): a live Desk specimen (remove, Undo, Restore, down to the
+  empty Desk), `FX_DESK_COBALT_REMOVED`, `FX_DESK_EMPTY` and a 360px frame. `FX_DESK_*` rows carry
+  `remove` (disabled on the live file).
+
 ### R4.8 The short evidence form in tight cells (improvement batch 2, item 4)
 
 **The problem (verified in the build).** R4.3 printed the full class "Not in the CIM · extraction

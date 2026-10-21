@@ -19,10 +19,11 @@ import { getPlan } from '../../agent/runAgent';
 import type { Amendment, ApprovalPackage } from '../../agent/types';
 import type { RunDecision, RunStatus } from '../../hooks/useCreditAgent';
 import type { MonitorApi } from '../../hooks/useMonitor';
-import { buildFileExport, buildSessionExport, routesOnSign, selectLiveDealId } from '../model';
+import { buildFileExport, buildSessionExport, COPY, deskStageOf, routesOnSign, selectLiveDealId } from '../model';
 import type { CaseFileSnapshot, V2Actions, V2Internals, V2Store } from './store';
 import { holdAuto } from './gate';
 import { withToggle } from './plan';
+import { cssEscape, focusLost, onFrames, rendered } from './reveal';
 
 /** A run is live (and starting another would discard it). */
 export function isLiveStatus(status: RunStatus): boolean {
@@ -144,11 +145,45 @@ export function useSnapshots(): {
   return { snapshots: state.byDeal, snapshotList: state.list, capture };
 }
 
+// ---- Desk removal focus (R4.7) ---------------------------------------------------
+
+const q = (selector: string): HTMLElement | null => {
+  try {
+    const el = document.querySelector(selector);
+    return el instanceof HTMLElement ? el : null;
+  } catch {
+    return null;
+  }
+};
+/** A Desk row's remove button (Desk.tsx wraps it in [data-remove="<dealId>"]). */
+const removeButtonOf = (dealId: string) => q(`[data-remove="${cssEscape(dealId)}"] button`);
+/** A removed file's undo line ([data-removed="<dealId>"]) and its Undo link. */
+const undoLineOf = (dealId: string) => q(`[data-removed="${cssEscape(dealId)}"]`);
+const undoLinkOf = (dealId: string) => q(`[data-removed="${cssEscape(dealId)}"] button`);
+/** The Desk summary's Restore link and the empty Desk's restore button ([data-desk-restore]). */
+const restoreControls = () => q('[data-desk-restore]');
+
+/**
+ * Once `gone` reports the control that was pressed has unmounted, put focus that fell to the body
+ * on `target` (a reviewer who moved focus elsewhere keeps it). Retries a few frames while the old
+ * control unmounts and the target mounts; off the Desk (Settings) nothing moves.
+ */
+function landFocus(gone: () => boolean, target: () => HTMLElement | null): void {
+  onFrames(() => {
+    if (!gone()) return false;
+    if (!focusLost()) return true;
+    const el = target();
+    if (!rendered(el)) return false;
+    el.focus();
+    return true;
+  }, 6);
+}
+
 // ---- actions ------------------------------------------------------------------
 
 export type FileActions = Pick<
   V2Actions,
-  'startFile' | 'draftFile' | 'togglePreviewStep' | 'requestRemove' | 'confirmRemove' | 'cancelRemove' | 'restoreRemoved' | 'confirmStart' | 'requestStop' | 'confirmStop' | 'upload' | 'exportFile' | 'exportSession'
+  'startFile' | 'draftFile' | 'togglePreviewStep' | 'removeFile' | 'undoRemove' | 'restoreRemoved' | 'confirmStart' | 'requestStop' | 'confirmStop' | 'upload' | 'exportFile' | 'exportSession'
 >;
 
 export function createFileActions(x: V2Internals): FileActions {
@@ -254,30 +289,45 @@ export function createFileActions(x: V2Internals): FileActions {
       x.setPlan({ enabledIds: ids, held: false, holdReason: null, deadline: null });
       x.current().agent.approvePlan(ids);
     },
-    // removing a file from the Desk: confirm first; never the file a run is live on
-    requestRemove: (dealId) => {
+    // R4.7 (audit fix 6): removing a file is one click with an in-place undo, never the file a run
+    // is live on. The row collapses to its undo line in the same group (read before it leaves
+    // agent.dealsFull); the line lasts until the reviewer leaves the Desk.
+    removeFile: (dealId) => {
       const s = x.current();
       if (isLiveStatus(s.agent.status) && selectLiveDealId(s) === dealId) return;
-      if (!s.agent.dealsFull.some((d) => d.id === dealId)) return;
-      x.setUi((u) => ({ ...u, removeConfirm: dealId }));
-    },
-    confirmRemove: () => {
-      const dealId = x.uiRef.current.removeConfirm;
-      if (!dealId) return;
-      const s = x.current();
-      if (isLiveStatus(s.agent.status) && selectLiveDealId(s) === dealId) {
-        x.setUi((u) => ({ ...u, removeConfirm: null }));
-        return;
-      }
+      const deal = s.agent.dealsFull.find((d) => d.id === dealId);
+      if (!deal) return;
+      const stage = deskStageOf(s, dealId) ?? 'not-started';
+      // leave a case file of it first (route hygiene ends undo lines on a place change)
+      if (s.route.name === 'file' && s.route.dealId === dealId) x.navigate({ name: 'desk' });
       x.setUi((u) => ({
         ...u,
-        removeConfirm: null,
         removedFiles: u.removedFiles.includes(dealId) ? u.removedFiles : [...u.removedFiles, dealId],
+        deskUndo: [...u.deskUndo.filter((r) => r.dealId !== dealId), { dealId, name: deal.name, stage }],
+        announce: COPY.removedAnnounce(deal.name),
       }));
-      if (s.route.name === 'file' && s.route.dealId === dealId) x.navigate({ name: 'desk' });
+      landFocus(() => removeButtonOf(dealId) === null, () => undoLinkOf(dealId));
     },
-    cancelRemove: () => x.setUi((u) => (u.removeConfirm === null ? u : { ...u, removeConfirm: null })),
-    restoreRemoved: () => x.setUi((u) => (u.removedFiles.length === 0 ? u : { ...u, removedFiles: [], removeConfirm: null })),
+    undoRemove: (dealId) => {
+      const u0 = x.uiRef.current;
+      if (!u0.removedFiles.includes(dealId)) return;
+      const name = u0.deskUndo.find((r) => r.dealId === dealId)?.name ?? x.current().allFiles.find((f) => f.dealId === dealId)?.name ?? null;
+      x.setUi((u) => ({
+        ...u,
+        removedFiles: u.removedFiles.filter((id) => id !== dealId),
+        deskUndo: u.deskUndo.filter((r) => r.dealId !== dealId),
+        announce: name ? COPY.restoredAnnounce(name) : u.announce,
+      }));
+      landFocus(() => undoLineOf(dealId) === null, () => removeButtonOf(dealId));
+    },
+    restoreRemoved: () => {
+      const ids = x.uiRef.current.removedFiles;
+      if (ids.length === 0) return;
+      // focus lands on the first restored row, in Desk order
+      const first = x.current().allFiles.find((f) => ids.includes(f.dealId))?.dealId ?? ids[0];
+      x.setUi((u) => ({ ...u, removedFiles: [], deskUndo: [], announce: COPY.restoredAllAnnounce(ids.length) }));
+      landFocus(() => restoreControls() === null, () => removeButtonOf(first));
+    },
     confirmStart: () => {
       const conf = x.uiRef.current.confirm;
       if (!conf || conf.kind !== 'start') return;

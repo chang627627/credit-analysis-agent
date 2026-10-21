@@ -61,6 +61,11 @@ export function V2Provider(props: { children: ReactNode }) {
         : { ...engine, dealsFull: engine.dealsFull.filter((d) => !removed.includes(d.id)), deals: engine.deals.filter((d) => !removed.includes(d.id)) },
     [engine, removed],
   );
+  // the engine's full list, removed files included, for the Desk's undo lines and restore label (R4.7)
+  const allFiles = useMemo(
+    () => engine.dealsFull.map((d) => ({ dealId: d.id, name: d.name, uploaded: !!d.uploaded })),
+    [engine.dealsFull],
+  );
   const monitor = useMonitor(agent.dealsFull, agent.speed);
   const [panes, panesRef, setPanes] = useRefState(initialPanes);
   const [chatLayout, chatLayoutRef] = useChatLayout();
@@ -173,6 +178,7 @@ export function V2Provider(props: { children: ReactNode }) {
     policy,
     plan,
     gate,
+    allFiles,
     snapshots: snaps.snapshots,
     snapshotList: snaps.snapshotList,
     monitorLog,

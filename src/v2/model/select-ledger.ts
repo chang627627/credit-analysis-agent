@@ -391,6 +391,7 @@ export function selectLedger(s: V2Store, fileFilter: string | null): LedgerView 
     activeChip: chip,
     fileFilter: filterDeal ? { label: `${filterDeal} only`, clearLabel: COPY.showAllFiles } : null,
     empty,
+    emptyAction: events === 0 ? { label: COPY.ledgerOpenDesk } : null,
     files,
     monitor,
   };

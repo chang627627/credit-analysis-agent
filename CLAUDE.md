@@ -547,7 +547,7 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   supersede all of them.
 - **Guardrails:** `npm run v2-check` (28 greps: tokens only, 400/500/600, 4px grid, one
   infinite animation, no hand-rolled controls outside the kit, V1 + engine hashes untouched, …).
-  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-34, rendered on `/?kit`) for
+  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-35, rendered on `/?kit`) for
   owner approval; every `data-pattern` id needs an entry there, every kit export a kit-page specimen.
 - **Storage** (only in `src/v2/state/`): `v2.navCollapsed`, `v2.chatOpen` (only `state/panes.ts`).
   (`v2.showReasoning` was retired with R2: reasoning lives in each card's Record.) **Auto-countersign
@@ -761,6 +761,17 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   the session export's `monitorLog` entries gain `detail`. No time-based snooze; Mark handed off
   unchanged. Kit: `ConfirmStrip` `reason` / `hint` / `label`, `TextInput` `describedBy` /
   `required`; kit page group `#board-acknowledge`.
+- **Removing a file from the Desk is one click with an in-place undo** (P-35, THREE-PANE R4.7, Mobbin
+  audit fix 6): no confirm, no toast. The row collapses to ONE line in its group where it was,
+  "Project Cobalt removed from the Desk · Undo" (focus lands on Undo), until the reviewer leaves the
+  Desk (`ui.deskUndo`, cleared by `routeHygiene`); Undo brings back that file only. While any file
+  is removed the summary adds "· 1 removed · Restore" (restores all). An empty Desk shows a kit
+  `EmptyNote` beside the drop zone with "Restore sample files" (the kit EmptyNote gained an optional
+  `action` button; the "a refresh brings the samples back" copy is gone, since a refresh ends every
+  run); an empty Ledger's EmptyNote offers "Open the Desk". The live file still cannot be removed;
+  Settings keeps "Restore removed files" as a fallback. `V2Actions` `removeFile` / `undoRemove` /
+  `restoreRemoved` replace the confirm trio; `V2Store.allFiles` (the engine's list, removed files
+  included) lets the Desk place each line and name what a restore brings back.
 - **Rejected by the owner during the V2 build (do not resurrect):** vertical "Source ¶" spine
   (source opens from a doc-bar button instead) · the ¶ citation mark (reads "CIM para 2") ·
   recommendation at the top of the memo · side margin column of notes (left empty gaps) ·

@@ -20,7 +20,7 @@ import type { Amendment, ApprovalPackage, NoteProvenance, PlanStep } from '../..
 import type { Deal } from '../../agent/mockData';
 import type { DriverKey, Scenario } from '../../agent/whatif';
 import type { Route } from './route';
-import type { MemoSection, MemoTarget, ThreadAction } from '../model/types';   // type-only; model/types imports from here too
+import type { DeskStage, MemoSection, MemoTarget, ThreadAction } from '../model/types';   // type-only; model/types imports from here too
 
 export type Policy = 'gate' | 'auto';
 export type HoldReason = 'engaged' | 'manual' | 'left' | 'hidden' | 'policy-off';
@@ -113,6 +113,13 @@ export interface ThreadEntry {
  */
 export interface AckNote { note: string; at: number }
 
+/**
+ * R4.7 (audit fix 6): a file removed during this visit to the Desk, collapsed to one undo line in the
+ * group its row sat in ("Project Cobalt removed from the Desk · Undo"). `stage` is that group, read
+ * when it was removed (a removed file leaves agent.dealsFull, so its stage cannot be derived later).
+ */
+export interface DeskRemoval { dealId: string; name: string; stage: DeskStage }
+
 /** A cue carries time: consumers react to a tick change, and on mount honour a cue whose `at` is under 1000 ms old (§2.6). */
 export interface Cue { tick: number; at: number }
 
@@ -132,8 +139,13 @@ export interface UiState {
   planPreview: Record<string, string[]>;
   /** files removed from the Desk this session (hidden everywhere but the Ledger, which keeps every record) */
   removedFiles: string[];
-  /** the Desk row whose remove confirm is open */
-  removeConfirm: string | null;
+  /**
+   * R4.7 (audit fix 6): the files removed during this visit to the Desk, oldest first, each shown as
+   * one undo line where its row was. Removing is one click (no confirm); the lines stay until the
+   * reviewer leaves the Desk (routeHygiene clears them on any place change) and a line goes with
+   * its file when that file is restored.
+   */
+  deskUndo: DeskRemoval[];
   /**
    * R4.6 (audit fix 5): the Book item whose Acknowledge strip is open (one at a time), the reason
    * being typed, and whether the calm "write why first" hint shows (a confirm with no reason on a
@@ -166,10 +178,16 @@ export interface V2Actions {
   togglePlanStep(stepId: string): void;        // also holds the plan countdown ('manual')
   togglePreviewStep(dealId: string, stepId: string): void; // a not-started file's plan, before it starts
   draftFile(dealId: string): void;
-  requestRemove(dealId: string): void;         // opens the row's confirm (never for the live run's file)
-  confirmRemove(): void;
-  cancelRemove(): void;
-  restoreRemoved(): void;                      // Settings: bring removed files back to the Desk             // start AND approve the plan as shown (one click; the confirm guard still applies)
+  /**
+   * R4.7 (audit fix 6): one click, no confirm. Hides the file from every screen but the Ledger
+   * (ui.removedFiles) and leaves its undo line in its Desk group (ui.deskUndo); focus that fell to
+   * the body lands on that line's Undo. Never the file a run is live on.
+   */
+  removeFile(dealId: string): void;
+  /** the undo line's Undo: brings back that file only; focus that fell to the body lands on its row's remove button */
+  undoRemove(dealId: string): void;
+  /** brings back every removed file (the Desk summary's Restore, the empty Desk's button, Settings' fallback) */
+  restoreRemoved(): void;
   holdPlan(): void;
   approvePlan(): void;                         // agent.approvePlan(plan.enabledIds)
   cancelPlan(): void;                          // agent.cancelPlan()
@@ -271,6 +289,12 @@ export interface V2Store {
   policy: Policy;                  // session only (R4.2): 'gate' on every load, never stored; the stale 'v2.autonomy' key is removed on load
   plan: PlanState;
   gate: GateState;
+  /**
+   * R4.7: every file the engine holds, removed ones included, in the engine's order (agent.dealsFull
+   * hides removed files). The Desk places an undo line where its row was and names what a restore
+   * brings back (the sample files, or uploads too); nothing else may read it.
+   */
+  allFiles: { dealId: string; name: string; uploaded: boolean }[];
   snapshots: Record<string, CaseFileSnapshot>;   // latest sealed run per dealId
   snapshotList: CaseFileSnapshot[];              // every sealed run, for export
   monitorLog: MonitorLogEntry[];                 // append-only

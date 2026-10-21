@@ -330,15 +330,32 @@ export const COPY = {
   selectRow: 'Select',
   removeFile: (name: string): string => `Remove ${name}`,
   removeBlocked: (name: string): string => `Stop the run on ${name} before removing it`,
-  removeConfirmText: (name: string): string => `Remove ${name} from the Desk? Its Ledger record stays.`,
-  removeConfirmLabel: 'Remove',
+  // R4.7 (audit fix 6): removing is one click; the row collapses to an undo line until the reviewer
+  // leaves the Desk, and the summary offers Restore while any file is removed
+  removedLine: (name: string): string => `${name} removed from the Desk`,
+  undo: 'Undo',
+  undoRemove: (name: string): string => `Undo removing ${name}`,
+  removedCount: (n: number): string => `${n} removed`,
+  restore: 'Restore',
+  restoreAll: (n: number): string => (n === 1 ? 'Restore the removed file' : `Restore the ${n} removed files`),
+  removedAnnounce: (name: string): string => `${name} removed from the Desk. Undo is where its row was.`,
+  restoredAnnounce: (name: string): string => `${name} is back on the Desk.`,
+  restoredAllAnnounce: (n: number): string => (n === 1 ? '1 file is back on the Desk.' : `${n} files are back on the Desk.`),
+  /** the empty Desk's note beside the drop zone; `samplesOnly` null when nothing was removed */
+  deskEmptyNote: (samplesOnly: boolean | null): string =>
+    samplesOnly === null
+      ? 'Drop a CIM below to open a file.'
+      : samplesOnly
+        ? 'Drop a CIM below to open a new file, or bring the samples back.'
+        : 'Drop a CIM below to open a new file, or bring back the files you removed.',
+  restoreSamples: 'Restore sample files',
   settings: 'Settings',
   settingsIntro: 'Session settings. They last until you refresh, like everything in this demo.',
   paceTitle: 'Demo pace',
   paceHelp: 'How fast the simulated agent and the Portfolio Monitor run. 1× is a 10 to 13 second memo.',
   removedText: (n: number): string => (n === 1 ? '1 file removed from the Desk this session.' : `${n} files removed from the Desk this session.`),
   restoreRemoved: 'Restore removed files',
-  deskEmptySummary: 'No files on the Desk. Drop a CIM below to add one; a refresh brings the samples back.',
+  deskEmptySummary: 'No files on the Desk',
   deskInitialSummary: '3 sample files, chosen to end differently · none decided this session · extraction is simulated',
   extractionSimulated: 'extraction is simulated',
   dropLabel: 'Drop a CIM (PDF) to open a new file, or',
@@ -601,6 +618,8 @@ export const COPY = {
   ledgerNote: 'Earlier runs keep their event trail; the drafted memo is kept for the latest decided run of each file.',
   exportSession: 'Export session (JSON)',
   ledgerEmpty: 'Nothing on the record yet. Draft a memo to start the trail.',
+  /** the empty Ledger's way out (R4.7): the Desk is where a memo is started */
+  ledgerOpenDesk: 'Open the Desk',
   ledgerFilterEmpty: 'No events match this filter.',
   showAllFiles: 'Show all files',
   openFile: 'Open file',

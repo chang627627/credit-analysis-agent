@@ -25,6 +25,7 @@ import type {
   BookView,
   CovenantEvidence,
   CovenantRow,
+  DeskRemovedLine,
   DeskRow,
   DeskView,
   DocBarView,
@@ -112,6 +113,7 @@ const DESK_ATLAS: DeskRow = {
   ...DESK_ROW_BASE,
   dealId: 'atlas',
   name: 'Project Atlas',
+  remove: { label: COPY.removeFile('Project Atlas'), disabled: false },
   borrower: 'Atlas Industrial Holdings, LLC',
   facility: 'Senior Secured Term Loan B · $45.0M',
   leverage: { text: '4.26x', tone: 'bad' },
@@ -120,6 +122,7 @@ const DESK_MERIDIAN: DeskRow = {
   ...DESK_ROW_BASE,
   dealId: 'meridian',
   name: 'Project Meridian',
+  remove: { label: COPY.removeFile('Project Meridian'), disabled: false },
   borrower: 'Meridian Cloud Systems, Inc.',
   facility: 'Senior Secured Term Loan A · $30.0M',
   leverage: { text: '2.80x', tone: 'ink' },
@@ -128,6 +131,7 @@ const DESK_COBALT: DeskRow = {
   ...DESK_ROW_BASE,
   dealId: 'cobalt',
   name: 'Project Cobalt',
+  remove: { label: COPY.removeFile('Project Cobalt'), disabled: false },
   borrower: 'Cobalt Resources Holdings, LLC',
   facility: 'Senior Secured Term Loan B · $60.0M',
   leverage: { text: '5.66x', tone: 'bad' },
@@ -138,10 +142,64 @@ export const FX_DESK_INITIAL: DeskView = {
   title: COPY.deskTitle,
   summary: COPY.deskInitialSummary,
   groups: [
-    { stage: 'not-started', label: COPY.groupLabel['not-started'], status: 'pending', count: '3', rows: [DESK_ATLAS, DESK_MERIDIAN, DESK_COBALT] },
+    { stage: 'not-started', label: COPY.groupLabel['not-started'], status: 'pending', count: '3', rows: [DESK_ATLAS, DESK_MERIDIAN, DESK_COBALT], removed: [] },
   ],
   parsing: null,
   drop: DROP_OPEN,
+  removed: null,
+  empty: null,
+};
+
+/** R4.7: one undo line of a file removed during this visit to the Desk. */
+const deskRemovedLine = (dealId: string, name: string, before: string | null): DeskRemovedLine => ({
+  dealId,
+  text: COPY.removedLine(name),
+  undo: { label: COPY.undo, ariaLabel: COPY.undoRemove(name) },
+  before,
+});
+
+/** R4.7: Project Cobalt removed in one click from a fresh Desk; its row is one undo line where it was. */
+export const FX_DESK_COBALT_REMOVED: DeskView = {
+  title: COPY.deskTitle,
+  summary: `2 files · ${COPY.extractionSimulated}`,
+  groups: [
+    {
+      stage: 'not-started',
+      label: COPY.groupLabel['not-started'],
+      status: 'pending',
+      count: '2',
+      rows: [DESK_ATLAS, DESK_MERIDIAN],
+      removed: [deskRemovedLine('cobalt', 'Project Cobalt', null)],
+    },
+  ],
+  parsing: null,
+  drop: DROP_OPEN,
+  removed: { text: COPY.removedCount(1), restore: { label: COPY.restore, ariaLabel: COPY.restoreAll(1) } },
+  empty: null,
+};
+
+/** R4.7: every sample removed during this visit: three undo lines, the EmptyNote with "Restore sample files" beside the drop zone. */
+export const FX_DESK_EMPTY: DeskView = {
+  title: COPY.deskTitle,
+  summary: `${COPY.deskEmptySummary} · ${COPY.removedCount(3)}`,
+  groups: [
+    {
+      stage: 'not-started',
+      label: COPY.groupLabel['not-started'],
+      status: 'pending',
+      count: '0',
+      rows: [],
+      removed: [
+        deskRemovedLine('atlas', 'Project Atlas', null),
+        deskRemovedLine('meridian', 'Project Meridian', null),
+        deskRemovedLine('cobalt', 'Project Cobalt', null),
+      ],
+    },
+  ],
+  parsing: null,
+  drop: DROP_OPEN,
+  removed: null,
+  empty: { text: COPY.deskEmptyNote(true), restore: { label: COPY.restoreSamples, ariaLabel: COPY.restoreAll(3) } },
 };
 
 /** Atlas suspended at the rev 1 gate for 1:12: the Desk's only primary. */
@@ -159,14 +217,19 @@ export const FX_DESK_ATLAS_GATE: DeskView = {
           ...DESK_ATLAS,
           call: ESCALATE,
           stage: { state: 'awaiting', text: 'Awaiting you · rev 1' },
+          // the live run's file cannot be removed (R4.7 keeps the rule)
+          remove: { label: COPY.removeBlocked('Project Atlas'), disabled: true },
           action: { kind: 'review', label: COPY.reviewAndCountersign, variant: 'primary', disabled: false },
         },
       ],
+      removed: [],
     },
-    { stage: 'not-started', label: COPY.groupLabel['not-started'], status: 'pending', count: '2', rows: [DESK_MERIDIAN, DESK_COBALT] },
+    { stage: 'not-started', label: COPY.groupLabel['not-started'], status: 'pending', count: '2', rows: [DESK_MERIDIAN, DESK_COBALT], removed: [] },
   ],
   parsing: null,
   drop: { ...DROP_OPEN, disabledReason: 'Finish or stop the live run on Project Atlas to add a file.' },
+  removed: null,
+  empty: null,
 };
 
 // =============================================================================
@@ -2392,6 +2455,7 @@ export const FX_LEDGER_AFTER_ATLAS: LedgerView = {
   activeChip: 'all',
   fileFilter: null,
   empty: null,
+  emptyAction: null,
   files: [
     { key: 'atlas', heading: 'Project Atlas · CAM-2026-0417', runs: [ATLAS_LEDGER_RUN] },
     { key: 'meridian', heading: 'Project Meridian · CAM-2026-0418', runs: [MERIDIAN_LEDGER_RUN] },
@@ -2416,6 +2480,7 @@ export const FX_LEDGER_EMPTY: LedgerView = {
   activeChip: 'all',
   fileFilter: null,
   empty: COPY.ledgerEmpty,
+  emptyAction: { label: COPY.ledgerOpenDesk },
   files: [],
   monitor: null,
 };
@@ -2425,6 +2490,8 @@ export const FIXTURES = {
   FX_TOPBAR,
   FX_DESK_INITIAL,
   FX_DESK_ATLAS_GATE,
+  FX_DESK_COBALT_REMOVED,
+  FX_DESK_EMPTY,
   FX_FILE_NOT_STARTED,
   FX_FILE_PLAN_REVIEW,
   FX_FILE_RUNNING,

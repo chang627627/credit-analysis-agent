@@ -129,3 +129,33 @@
   justify-content: flex-end;
   gap: 4px;
 }
+
+/* ---- R4.7 (P-35): removal undo ---- */
+.desk-remove {
+  display: inline-flex;
+}
+
+/* a file removed during this visit: one line in its group where its row was */
+.desk-removed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+  color: var(--ink-2);
+}
+
+.desk-removed__sep {
+  color: var(--ink-3);
+}
+
+/* the summary's "· n removed · Restore" keeps the summary's ink and line */
+.desk__restore {
+  color: var(--ink-2);
+}
+
+/* the empty Desk's note sits on the drop zone's inset */
+.desk__empty {
+  display: flex;
+  flex-direction: column;
+}

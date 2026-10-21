@@ -127,7 +127,7 @@ export {
 
 // ---- selectors
 export { selectLiveDealId, isRunLive, onLiveFile, chatShown, SPEED_STEPS, selectTopBar, selectTabTitle, policyChecks, policyRule, selectPolicy } from './select-top';
-export { selectDesk } from './select-desk';
+export { deskStageOf, selectDesk } from './select-desk';
 export { selectFile, askRoute, routesOnSign, covenantEvidence, covenantInputsNotInCim } from './select-file';
 export { selectAgentPanel, memoTargetOfAnchor, newActivityLabel } from './select-thread';
 export { composerContext, parseComposer, composerReply, answerFor, sectionOfQuestion } from './composer';
@@ -153,6 +153,8 @@ export {
   FX_TOPBAR,
   FX_DESK_INITIAL,
   FX_DESK_ATLAS_GATE,
+  FX_DESK_COBALT_REMOVED,
+  FX_DESK_EMPTY,
   FX_FILE_NOT_STARTED,
   FX_FILE_PLAN_REVIEW,
   FX_FILE_RUNNING,

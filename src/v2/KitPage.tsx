@@ -14,7 +14,7 @@
 import './kitpage.css';
 import { Fragment, useEffect, useLayoutEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Activity, ArrowDown, ArrowUp, ArrowUpRight, Copy, Download, FileStack, FileText, RotateCcw, ScrollText, Search, X } from 'lucide-react';
+import { Activity, ArrowDown, ArrowUp, ArrowUpRight, Copy, Download, FileStack, FileText, RotateCcw, ScrollText, Search, Trash2, X } from 'lucide-react';
 import {
   AmendField,
   BrandMark,
@@ -67,12 +67,15 @@ import {
   FX_BOOK_ACKED_ITEM,
   FX_BOOK_BREACH,
   FX_DESK_ATLAS_GATE,
+  FX_DESK_COBALT_REMOVED,
+  FX_DESK_EMPTY,
   FX_DESK_INITIAL,
   FX_FILE_ATLAS_GATE,
   FX_FILE_ATLAS_REV2,
   FX_FILE_RUNNING,
   FX_FILE_UPLOAD_GATE,
   FX_LEDGER_AFTER_ATLAS,
+  FX_LEDGER_EMPTY,
   FX_NOTES,
   FX_PANEL_ATLAS_GATE,
   FX_PANEL_ATLAS_REV2,
@@ -118,6 +121,8 @@ import {
 import type {
   AgentPanelView,
   BookAckView,
+  DeskRemovedLine,
+  DeskView,
   BookItem,
   CovenantRow,
   CushionView,
@@ -2881,24 +2886,191 @@ function CaretBoard() {
 }
 
 // =============================================================================
-// Board 21 · EmptyNote · DropZone · LiveRegion
+// Board 21 · EmptyNote · DropZone · LiveRegion (+ the Desk's removal undo, P-35)
 // =============================================================================
+
+const DESK_SPEC_COLUMNS: TableColumn[] = [
+  { key: 'file', label: 'File', width: 'minmax(144px, 1fr)' },
+  { key: 'stage', label: 'Stage', width: '160px' },
+  { key: 'select', label: '', width: '144px', align: 'end' },
+];
+
+/**
+ * The Desk as DeskScreen renders it (File, Stage and the row actions; the Facility, Leverage and
+ * call columns left out for width), verbatim from a DeskView: the summary with "· n removed ·
+ * Restore", each removed file's undo line where its row was, the EmptyNote with its way out, then
+ * the drop zone (R4.7, P-35).
+ */
+function DeskSpecimen(props: { v: DeskView; onRemove?: (dealId: string) => void; onUndo?: (dealId: string) => void; onRestore?: () => void }) {
+  const { v } = props;
+  const remove = props.onRemove ?? noop;
+  const undo = props.onUndo ?? noop;
+  const restore = props.onRestore ?? noop;
+  const lineRow = (l: DeskRemovedLine): TableRow => ({
+    key: `removed:${l.dealId}`,
+    height: 36,
+    span: (
+      <span className="kp-desk-removed t-small" data-pattern="P-35">
+        <span>{l.text}</span>
+        <span className="kp-ink3" aria-hidden="true">
+          ·
+        </span>
+        <LinkButton role="small" ariaLabel={l.undo.ariaLabel} onClick={() => undo(l.dealId)}>
+          {l.undo.label}
+        </LinkButton>
+      </span>
+    ),
+  });
+  const rows: TableRow[] = [];
+  for (const g of v.groups) {
+    rows.push({ key: `group:${g.stage}`, group: { label: g.label, status: g.status, count: g.count, height: 32 } });
+    for (const r of g.rows) {
+      for (const l of g.removed) if (l.before === r.dealId) rows.push(lineRow(l));
+      rows.push({
+        key: r.dealId,
+        height: 56,
+        cells: {
+          file: (
+            <span className="kp-desk-file">
+              <span className="t-strong">{r.name}</span>
+              <span className="t-small kp-ink2">{r.borrower}</span>
+            </span>
+          ),
+          stage: (
+            <StatusLabel state={r.stage.state} role="small">
+              {r.stage.text}
+            </StatusLabel>
+          ),
+          select: (
+            <span className="kp-desk-select">
+              <Button variant="secondary" size="sm" onClick={noop}>
+                {COPY.selectRow}
+              </Button>
+              {r.remove ? <IconButton icon={Trash2} label={r.remove.label} disabled={r.remove.disabled} onClick={() => remove(r.dealId)} /> : null}
+            </span>
+          ),
+        },
+      });
+    }
+    for (const l of g.removed) if (l.before === null) rows.push(lineRow(l));
+  }
+  return (
+    <div className="kp-desk">
+      <p className="t-small kp-ink2">
+        {v.summary}
+        {v.removed ? (
+          <span data-pattern="P-35">
+            {' · '}
+            {v.removed.text}
+            {' · '}
+            <LinkButton role="small" ariaLabel={v.removed.restore.ariaLabel} onClick={restore}>
+              {v.removed.restore.label}
+            </LinkButton>
+          </span>
+        ) : null}
+      </p>
+      {rows.length > 0 ? <Table columns={DESK_SPEC_COLUMNS} rows={rows} caption={`${v.title} (specimen)`} stackBelow={760} /> : null}
+      {v.empty ? (
+        <EmptyNote action={v.empty.restore ? { label: v.empty.restore.label, ariaLabel: v.empty.restore.ariaLabel, onClick: restore } : undefined}>
+          {v.empty.text}
+        </EmptyNote>
+      ) : null}
+      <DropZone label={v.drop.label} sub={v.drop.sub} chooseLabel={v.drop.chooseLabel} disabledReason={v.drop.disabledReason} onFile={noop} />
+    </div>
+  );
+}
+
+/**
+ * The live specimen's view: FX_DESK_INITIAL after removing `removed` during this visit, by the
+ * rules selectDesk applies (R4.7): each removed row is one undo line above the row that followed
+ * it, the summary counts what is left and adds "· n removed · Restore", and an empty Desk says so
+ * beside the drop zone with "Restore sample files".
+ */
+function deskAfterRemoving(removed: string[]): DeskView {
+  if (removed.length === 0) return FX_DESK_INITIAL;
+  const base = FX_DESK_INITIAL.groups[0];
+  const all = base.rows;
+  const rows = all.filter((r) => !removed.includes(r.dealId));
+  const lines: DeskRemovedLine[] = all
+    .filter((r) => removed.includes(r.dealId))
+    .map((r) => {
+      const at = all.indexOf(r);
+      const next = all.slice(at + 1).find((x) => !removed.includes(x.dealId));
+      return { dealId: r.dealId, text: COPY.removedLine(r.name), undo: { label: COPY.undo, ariaLabel: COPY.undoRemove(r.name) }, before: next ? next.dealId : null };
+    });
+  const n = removed.length;
+  const restoreAll = { label: COPY.restore, ariaLabel: COPY.restoreAll(n) };
+  return {
+    ...FX_DESK_INITIAL,
+    summary: rows.length === 0 ? `${COPY.deskEmptySummary} · ${COPY.removedCount(n)}` : `${plural(rows.length, 'file')} · ${COPY.extractionSimulated}`,
+    groups: [{ ...base, count: String(rows.length), rows, removed: lines }],
+    removed: rows.length > 0 ? { text: COPY.removedCount(n), restore: restoreAll } : null,
+    empty: rows.length === 0 ? { text: COPY.deskEmptyNote(true), restore: { label: COPY.restoreSamples, ariaLabel: restoreAll.ariaLabel } } : null,
+  };
+}
+
+function DeskUndoSpecimens() {
+  const [removed, setRemoved] = useState<string[]>([]);
+  return (
+    <>
+      <Cell
+        caption="live · press a trash button: the row collapses at once to one line where it was, “… removed from the Desk · Undo” (no confirm, no toast); Undo brings back that file only; the summary adds “· n removed · Restore” (restores all) while any file is removed; remove all three for the empty Desk"
+        block
+      >
+        <DeskSpecimen
+          v={deskAfterRemoving(removed)}
+          onRemove={(id) => setRemoved((r) => (r.includes(id) ? r : [...r, id]))}
+          onUndo={(id) => setRemoved((r) => r.filter((x) => x !== id))}
+          onRestore={() => setRemoved([])}
+        />
+      </Cell>
+      <Grid size="wide">
+        <Cell caption="FX_DESK_COBALT_REMOVED · Cobalt removed in one click; its line stays until the reviewer leaves the Desk (then the summary alone still offers Restore)" block>
+          <DeskSpecimen v={FX_DESK_COBALT_REMOVED} />
+        </Cell>
+        <Cell caption="FX_DESK_EMPTY · every sample removed: the undo lines, then the EmptyNote with “Restore sample files” beside the drop zone (no refresh advice: a refresh would end every run)" block>
+          <DeskSpecimen v={FX_DESK_EMPTY} />
+        </Cell>
+        <Cell caption="Narrow frame (360px): the table stacks, the undo line wraps after the name" block>
+          <div className="kp-frame360">
+            <DeskSpecimen v={FX_DESK_COBALT_REMOVED} />
+          </div>
+        </Cell>
+      </Grid>
+    </>
+  );
+}
 
 function EmptyDropLiveBoard() {
   const [message, setMessage] = useState<string>(GATE.docBar.status.text);
   const rest = FX_DESK_INITIAL.drop;
   const off = FX_DESK_ATLAS_GATE.drop;
+  const deskEmpty = FX_DESK_EMPTY.empty;
+  const ledgerAction = FX_LEDGER_EMPTY.emptyAction;
   return (
-    <Board id={B.empty.id} name={B.empty.name} spec="EmptyNote t-small --ink-3, padding 16, optional glyph · DropZone 64, --line-provisional, --r-md; drag-over = --line-provisional-active + --accent-wash; disabled = --sunken + the reason · LiveRegion: visually hidden, aria-live polite">
+    <Board id={B.empty.id} name={B.empty.name} spec="EmptyNote t-small --ink-3, padding 16, optional glyph; with a way out (P-35) one secondary sm Button beside the text (column gap 12, wraps under it, row gap 8; the text keeps role=status) · DropZone 64, --line-provisional, --r-md; drag-over = --line-provisional-active + --accent-wash; disabled = --sunken + the reason · LiveRegion: visually hidden, aria-live polite · Desk removal (P-35, R4.7): one click, the row becomes a 36px span row in its group, t-small ink-2, “·” ink-3, Undo a LinkButton small">
       <Group label="EmptyNote">
         <Grid size="wide">
           <Cell caption="plain">
-            <EmptyNote>{COPY.ledgerEmpty}</EmptyNote>
+            <EmptyNote>{COPY.ledgerFilterEmpty}</EmptyNote>
           </Cell>
           <Cell caption="with a status glyph">
             <EmptyNote state="pending">{COPY.firstSweepPending}</EmptyNote>
           </Cell>
+          {deskEmpty && deskEmpty.restore ? (
+            <Cell caption="with a way out (P-35) · the empty Desk, beside its drop zone">
+              <EmptyNote action={{ label: deskEmpty.restore.label, ariaLabel: deskEmpty.restore.ariaLabel, onClick: noop }}>{deskEmpty.text}</EmptyNote>
+            </Cell>
+          ) : null}
+          {FX_LEDGER_EMPTY.empty && ledgerAction ? (
+            <Cell caption="with a way out (P-35) · the empty Ledger offers the Desk">
+              <EmptyNote action={{ label: ledgerAction.label, onClick: noop }}>{FX_LEDGER_EMPTY.empty}</EmptyNote>
+            </Cell>
+          ) : null}
         </Grid>
+      </Group>
+      <Group id="board-deskundo" label="Desk · remove in one click, undo in place (P-35, R4.7)">
+        <DeskUndoSpecimens />
       </Group>
       <Group id="board-dropzone" label="DropZone">
         <Grid size="wide">

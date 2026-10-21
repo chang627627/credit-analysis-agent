@@ -64,7 +64,7 @@ export { SignatureLine, INK_PATH } from './SignatureLine';
 export type { SigState, SignatureLineProps } from './SignatureLine';
 export { Caret } from './Caret';
 export { EmptyNote } from './EmptyNote';
-export type { EmptyNoteProps } from './EmptyNote';
+export type { EmptyNoteAction, EmptyNoteProps } from './EmptyNote';
 export { DropZone } from './DropZone';
 export type { DropZoneProps } from './DropZone';
 export { Palette } from './Palette';

@@ -3,14 +3,16 @@
 // by the stage the engine reports, plus the CIM drop zone. A pure reduction of
 // `selectDesk(s)`: every word, number and tone arrives composed by the model.
 // Step one of the flow: each row has one Select button (and the row itself is
-// clickable) that opens the case file. No other row actions: starting, steering
-// and deciding live in the case file (agent panel + the memo's Decision card).
+// clickable) that opens the case file. Starting, steering and deciding live in
+// the case file (agent panel + the memo's Decision card). The one other row
+// action, remove, is one click with an in-place undo (R4.7, P-35): the row
+// collapses to one line in its group until the reviewer leaves the Desk.
 // ---------------------------------------------------------------------------
 import { Trash2 } from 'lucide-react';
-import { Button, Chip, ConfirmStrip, DropZone, IconButton, LinkButton, StatusLabel, Table, Token } from '../../kit';
+import { Button, Chip, DropZone, EmptyNote, IconButton, LinkButton, StatusLabel, Table, Token } from '../../kit';
 import type { TableColumn, TableRow } from '../../kit';
 import { COPY, selectDesk } from '../../model';
-import type { DeskRow, DeskView } from '../../model';
+import type { DeskRemovedLine, DeskRow, DeskView } from '../../model';
 import { useV2 } from '../../state/store';
 import type { V2Actions } from '../../state/store';
 
@@ -83,21 +85,33 @@ function fileRow(row: DeskRow, actions: V2Actions): TableRow {
             {COPY.selectRow}
           </Button>
           {row.remove ? (
-            <IconButton icon={Trash2} label={row.remove.label} disabled={row.remove.disabled} onClick={() => actions.requestRemove(row.dealId)} />
+            // one click, no confirm: the row becomes its undo line (state/files.ts finds [data-remove] to return focus)
+            <span className="desk-remove" data-remove={row.dealId}>
+              <IconButton icon={Trash2} label={row.remove.label} disabled={row.remove.disabled} onClick={() => actions.removeFile(row.dealId)} />
+            </span>
           ) : null}
         </span>
       ),
     },
-    detail: row.removeConfirm ? (
-      <ConfirmStrip
-        text={row.removeConfirm.text}
-        confirmLabel={row.removeConfirm.confirmLabel}
-        cancelLabel={row.removeConfirm.cancelLabel}
-        tone="bad"
-        onConfirm={() => actions.confirmRemove()}
-        onCancel={() => actions.cancelRemove()}
-      />
-    ) : undefined,
+  };
+}
+
+/** R4.7: a file removed during this visit, one line where its row was ("… removed from the Desk · Undo"). */
+function removedRow(line: DeskRemovedLine, actions: V2Actions): TableRow {
+  return {
+    key: `removed:${line.dealId}`,
+    height: 36,
+    span: (
+      <span className="desk-removed t-small" data-removed={line.dealId} data-pattern="P-35">
+        <span className="desk-removed__text">{line.text}</span>
+        <span className="desk-removed__sep" aria-hidden="true">
+          ·
+        </span>
+        <LinkButton role="small" ariaLabel={line.undo.ariaLabel} onClick={() => actions.undoRemove(line.dealId)}>
+          {line.undo.label}
+        </LinkButton>
+      </span>
+    ),
   };
 }
 
@@ -132,10 +146,15 @@ function rowsOf(view: DeskView, actions: V2Actions): TableRow[] {
       rows.push({ key: 'group:not-started', group: { label: COPY.groupLabel['not-started'], status: 'pending', height: 32 } });
       placeParsing();
     }
-    if (g.rows.length === 0 && !leadsParsing) continue;
+    if (g.rows.length === 0 && g.removed.length === 0 && !leadsParsing) continue;
     rows.push({ key: `group:${g.stage}`, group: { label: g.label, status: g.status, count: g.count, height: 32 } });
     if (leadsParsing) placeParsing();
-    for (const r of g.rows) rows.push(fileRow(r, actions));
+    // each undo line sits where its row was: above the live row that followed it, or after the last
+    for (const r of g.rows) {
+      for (const l of g.removed) if (l.before === r.dealId) rows.push(removedRow(l, actions));
+      rows.push(fileRow(r, actions));
+    }
+    for (const l of g.removed) if (l.before === null || !g.rows.some((r) => r.dealId === l.before)) rows.push(removedRow(l, actions));
   }
   if (!parsingPlaced) {
     rows.push({ key: 'group:not-started', group: { label: COPY.groupLabel['not-started'], status: 'pending', height: 32 } });
@@ -148,14 +167,42 @@ export function DeskScreen() {
   const s = useV2();
   const view = selectDesk(s);
   const { actions } = s;
+  const rows = rowsOf(view, actions);
   return (
     <div className="desk">
       <div className="desk__col">
         <header className="desk__head">
           <h1 className="t-display">{view.title}</h1>
-          <p className="desk__summary t-small">{view.summary}</p>
+          <p className="desk__summary t-small">
+            {view.summary}
+            {view.removed ? (
+              // R4.7: while any file is removed, "· 1 removed · Restore" (brings every removed file back)
+              <span className="desk__restore" data-desk-restore="" data-pattern="P-35">
+                {' · '}
+                {view.removed.text}
+                {' · '}
+                <LinkButton role="small" ariaLabel={view.removed.restore.ariaLabel} onClick={() => actions.restoreRemoved()}>
+                  {view.removed.restore.label}
+                </LinkButton>
+              </span>
+            ) : null}
+          </p>
         </header>
-        <Table columns={COLUMNS} rows={rowsOf(view, actions)} caption={view.title} stackBelow={760} />
+        {rows.length > 0 ? <Table columns={COLUMNS} rows={rows} caption={view.title} stackBelow={760} /> : null}
+        {view.empty ? (
+          // R4.7: nothing on the Desk: the way back sits right beside the drop zone (no refresh advice)
+          <div className="desk__empty" data-desk-restore={view.empty.restore ? '' : undefined}>
+            <EmptyNote
+              action={
+                view.empty.restore
+                  ? { label: view.empty.restore.label, ariaLabel: view.empty.restore.ariaLabel, onClick: () => actions.restoreRemoved() }
+                  : undefined
+              }
+            >
+              {view.empty.text}
+            </EmptyNote>
+          </div>
+        ) : null}
         <DropZone
           label={view.drop.label}
           sub={view.drop.sub}

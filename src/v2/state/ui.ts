@@ -121,7 +121,7 @@ export function initialUi(): UiState {
     stress: {},
     planPreview: {},
     removedFiles: [],
-    removeConfirm: null,
+    deskUndo: [],
     ackConfirm: null,
     ackNotes: {},
     attached: {},
@@ -189,14 +189,19 @@ export function sourceIsOverlay(): boolean {
  * opens already covered; a pushed source is a reading preference and stays
  * open), ends a transient panel reveal and closes the drawer. Any other place
  * change closes the confirm strip and the drawer. Every place change closes an
- * open Acknowledge strip on the Book without acknowledging (R4.6).
+ * open Acknowledge strip on the Book without acknowledging (R4.6) and ends the
+ * Desk's undo lines (R4.7).
  */
 export function routeHygiene(x: V2Internals, to: Route): void {
   const h = x.hygiene.current;
   const file = fileKeyOf(to, h.file);
   const place = placeKeyOf(to);
-  // leaving the Book closes an open Acknowledge strip without acknowledging (R4.6)
-  if (place !== h.place) x.setUi((u) => (u.ackConfirm === null ? u : { ...u, ackConfirm: null }));
+  // leaving the Book closes an open Acknowledge strip without acknowledging (R4.6); leaving the Desk
+  // ends its undo lines (R4.7: they stay until the reviewer leaves; the files stay removed, and the
+  // Desk summary keeps "· n removed · Restore" while any is)
+  if (place !== h.place) {
+    x.setUi((u) => (u.ackConfirm === null && u.deskUndo.length === 0 ? u : { ...u, ackConfirm: null, deskUndo: [] }));
+  }
   if (file !== h.file) {
     x.hygiene.current = { file, place };
     clearReading(x);

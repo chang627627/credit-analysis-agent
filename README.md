@@ -4,7 +4,7 @@
 > The agent analyzes; a human countersigns. That's the whole product thesis.
 
 **▶ Live demo: [credit-analysis-agent.vercel.app](https://credit-analysis-agent.vercel.app)** &nbsp;·&nbsp; auto-deployed from `main` via Vercel
-**This branch is V2.** The original V1 stays one click away at `/?v=1`.
+This is **V2**. The earlier version has its own link: [V1](https://credit-analysis-agent.vercel.app/?v=1).
 
 Countersign is a **front-end research prototype** exploring how an autonomous
 credit-analysis agent can expose its evidence, route uncertainty, pause for accountable
@@ -82,7 +82,7 @@ Each of these came out of a specific problem, and each one is written down in
 8. **It works at any width.** Below 900px the case file stacks: the memo goes full width,
    with the agent panel docked underneath as a strip (latest status line + composer).
 
-## The decision rule (shared by V1 and V2)
+## The decision rule
 
 The recommendation is computed, never hard-coded. It triages by **severity, not by counting
 breaches**. The first rule that matches wins (constants in `src/agent/policy.ts`, rule in
@@ -105,7 +105,7 @@ declines: risk score 82, fixed-charge coverage 0.95x, and four breaches with no 
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173  → V2   ·  /?v=1 → V1  ·  /?kit → V2 component kit
+npm run dev        # http://localhost:5173  ·  /?kit → the component kit
 npm run build      # type-check (tsc --noEmit) + production build
 npm run preview    # serve the build
 ```
@@ -136,7 +136,7 @@ batch of changes went through adversarial review before it shipped.
 ## Architecture
 
 The whole app is a **reducer over a typed event stream**. That one idea is the spine, and
-both V1 and V2 are pure reductions of it:
+the UI is a pure reduction of it:
 
 ```
 runCreditAgent()  ──AsyncGenerator<AgentEvent>──►  useCreditAgent (reduce)  ──►  UI
@@ -169,7 +169,6 @@ src/
                 tools.ts, policy.ts + whatif.ts (the decision rule), monitor.ts, responder.ts
   hooks/        useCreditAgent.ts, useMonitor.ts: generator → reduce → state + controls
   v2/           kit/ · model/ · state/ · screens/ · chrome/ · KitPage.tsx
-  components/   V1's views (served at /?v=1)
 scripts/        v2-check.sh, v2-visual.mjs
 docs/v2/        SPEC.md (the build spec), THREE-PANE.md (the case file and its revisions)
 ```
@@ -178,24 +177,13 @@ docs/v2/        SPEC.md (the build spec), THREE-PANE.md (the case file and its r
 
 Each of these is small *because* of the event-stream design:
 
-- **Add a tool or step**: a `ToolName`, a `TOOLS` entry and one plan row. V1 renders it as
-  is; V2's agent panel gets its status line at once, and its memo needs one section view.
+- **Add a tool or step**: a `ToolName`, a `TOOLS` entry and one plan row. The agent panel
+  gets its status line at once; the memo needs one section view.
 - **Stream real tokens**: swap the mocked stream for `fetch()` + SSE. The reducer doesn't
   change, because the events don't.
 - **Change house policy**: edit the constants in `src/agent/policy.ts`. The memo, the
   Decision card's reasons, the stress test's flip zones and the cure search all follow,
   because they share one `decide` function.
-
----
-
-## V1 (kept at `/?v=1`)
-
-V1 is the original prototype. Its main canvas is the agent's process: streaming reasoning,
-inspectable tool calls, an approval gate with *amend terms*, and a live **what-if panel**
-whose flip zones show which change would move the recommendation. It has light and dark
-themes in the "Graphite & Teal" design system, catalogued at
-[/designsystem](https://credit-analysis-agent.vercel.app/designsystem). It shares V2's
-engine and decision rule.
 
 ---
 

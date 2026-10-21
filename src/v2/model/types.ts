@@ -49,7 +49,9 @@ export type FigureId = 'revenue' | 'ebitda' | 'margin' | 'debt' | 'leverage' | '
 export type EvidenceView =
   | { cls: 'quoted'; text: 'Quoted'; para: number; paraLabel: string; markId: string; citeIndex: number }
   | { cls: 'derived'; text: 'Derived'; formula: string; operands: { text: string; markId: string | null; citeIndex: number | null }[] }
-  | { cls: 'unquoted'; text: 'Not in the CIM · extraction\u00a0model' }   // R4.3: no CIM sentence states it (vocab NOT_IN_CIM; no-break space)
+  // R4.3: no CIM sentence states it. R4.8: `text` is the short form shown in the cell (vocab NOT_IN_CIM_SHORT),
+  // `full` the wording assistive tech reads (vocab NOT_IN_CIM; no-break space)
+  | { cls: 'unquoted'; text: 'Not in CIM'; full: 'Not in the CIM · extraction\u00a0model' }
   | { cls: 'model'; text: string };
 
 // ---- memo targets and section heads (THREE-PANE §2.6, §5.3, §5.5)
@@ -159,6 +161,10 @@ export interface CovenantRow {
   /** the Actual's evidence (R4.3); null in the stress test, whose actuals are scenario values, not the filed figures */
   evidence: CovenantEvidence | null;
 }
+/**
+ * evidenceText is the caption shown under the figure (evidenceCaption: "Not in CIM" for a figure the
+ * CIM does not state, R4.8); ariaLabel carries the full wording ("Not in the CIM · extraction model").
+ */
 export interface KeyFigureView { label: string; value: string; sub: string | null; caption: string | null; tone: 'ink' | 'warn' | 'bad'; dot: MeaningTone | null; evidenceText: string; anchorId: string; ariaLabel: string; target: MemoTarget }
 /** basis, prior, token and sentence are kept for the exports; the card shows them through `takeaway`. */
 export interface RecommendationBody { basis: string; prior: TokenView | null; token: TokenView; sentence: string; summary: string; keyFigures: KeyFigureView[]; aidLabel: string; nearestFlip: string; stressLinkLabel: string; reworkLine: string | null; summaryLabel: string; keyFiguresLabel: string }
@@ -293,7 +299,30 @@ export interface StressView {
   closeLabel: string;
 }
 export interface ExhibitView { id: string; letter: string; heading: string; meta: string; detail: string; from: TokenView; to: TokenView; result: 'flips' | 'holds' }
-export interface BookItem { id: string; origin: 'monitor' | 'countersign'; status: StatusText; covenant: string; reading: string; distance: string; raised: string; muted: boolean; action: { kind: 'acknowledge' | 'mark-handed-off'; label: string } | null; link: { label: string; route: Route } | null; doneText: string | null }
+/**
+ * R4.6 (audit fix 5): the open Acknowledge strip under a Book item, rendered by the kit
+ * ConfirmStrip with its reason field. `text` is the one consequence line under the field (whether
+ * a reason is required, then what acknowledging does); `hint` is the calm line after a confirm with
+ * no reason on a breach. The item's own Acknowledge button hides while the strip is open.
+ */
+export interface BookAckView {
+  label: string;                 // the strip's accessible name: "Acknowledge Max Total Leverage on Project Cobalt"
+  text: string;                  // "Required for a breach. Stays quiet until it recovers."
+  placeholder: string;           // "Why is this acceptable for now?" (also the field's accessible name)
+  value: string;
+  required: boolean;
+  hint: string | null;           // "Write why it is acceptable first."
+  confirmLabel: string;
+  cancelLabel: string;
+}
+export interface BookItem {
+  id: string; origin: 'monitor' | 'countersign'; status: StatusText; covenant: string; reading: string; distance: string; raised: string; muted: boolean;
+  action: { kind: 'acknowledge' | 'mark-handed-off'; label: string } | null; link: { label: string; route: Route } | null; doneText: string | null;
+  /** R4.6: the open Acknowledge strip (monitor items only), else null */
+  ack: BookAckView | null;
+  /** R4.6: an acknowledged monitor item's line under its figures: "until it recovers · “Waiver in negotiation with sponsor”" */
+  ackRecord: string | null;
+}
 export interface BookRow { dealId: string; name: string; borrower: string; resolvedMeta: string | null; status: StatusText; tightest: { name: string; reading: string } | null; cushion: { pct: number; text: string; tone: 'neutral' | 'warn' | 'bad' } | null; tests: string; risk: { text: string; tone: 'ink' | 'bad' }; checked: string; items: BookItem[] }
 export interface BookView { title: string; verdict: StatusText | null; disclosure: string; cadence: string; sweepLabel: string; sweepDisabled: boolean; empty: string | null; rows: BookRow[] }
 export interface LedgerRow { id: string; time: string; actor: Actor; event: string; detail: string | null; raw: Record<string, string>; chip: LedgerChip }
@@ -321,13 +350,22 @@ export type ThreadAction =
   | { kind: 'source'; label: string }
   | { kind: 'ledger'; label: string };
 
-export type ThreadLineKind = 'run' | 'step' | 'flag' | 'revision' | 'gate' | 'you' | 'answer' | 'system' | 'decided';
+/**
+ * 'answer' is a composer reply that stays in the panel (a command acknowledgement, a refusal, the
+ * help line; it may clip to 2 lines). 'answered' is the ONE pointer line a real answer about the deal
+ * leaves in the panel, "Answered in the memo · Questions →" (R4.5): the answer itself is in the memo.
+ */
+export type ThreadLineKind = 'run' | 'step' | 'flag' | 'revision' | 'gate' | 'you' | 'answer' | 'answered' | 'system' | 'decided';
 export interface ThreadLine {
   id: string;
   kind: ThreadLineKind;
   glyph: StatusKey | null;
-  text: string;                                    // one line, plain (an answer may clip to 2 lines)
-  link: { label: string; target: FileAt } | null;  // memo card to scroll to ('signature' = the Decision card)
+  text: string;                                    // one line, plain (a panel reply may clip to 2 lines)
+  /**
+   * The memo card to scroll to ('signature' = the Decision card). anchorId, when set, is the row
+   * inside that card the link cues (the 'answered' line's entry, 'qa:<entryId>'); absent = the card.
+   */
+  link: { label: string; target: FileAt; anchorId?: string } | null;
 }
 export interface PlanPromptView {
   text: string;
@@ -367,4 +405,33 @@ export type ComposerIntent =
   | { kind: 'refuse'; reason: 'decision' | 'amend' | 'note' | 'required-step' | 'ambiguous' | 'no-plan' | 'plan-fixed' | 'already-live'
       | 'parsing' | 'question-closed' | 'nothing-to-hold' | 'nothing-running' | 'no-stress' | 'unknown'; stepId?: string };
 export type ComposerOutcome = 'done' | 'already' | 'confirm-opened' | 'refused';
-export interface ComposerReply { tone: 'answer' | 'done' | 'refusal'; text: string; meta: string | null; action: ThreadAction | null }
+/**
+ * memo: set only on a real answer about the deal (the engine responder, or a deterministic answer
+ * composed from the package), never on a command acknowledgement, a refusal, the help line or the
+ * stress-test pointer. Such an answer goes in full to the memo's Questions block, and the panel keeps
+ * one pointer line to it (R4.5). runId is the run whose package answered (exports and the Ledger
+ * group the question under it).
+ */
+export interface ComposerReply { tone: 'answer' | 'done' | 'refusal'; text: string; meta: string | null; action: ThreadAction | null; memo: { runId: number | null } | null }
+
+// ---- the memo's Questions block (THREE-PANE R4.5) ------------------------------
+
+/**
+ * One answered question in the memo's Questions block: the question as typed (its head), the full
+ * answer, the quiet meta line ("rule-based responder · simulated · 14:32") and the memo card the
+ * answer concerns ("Covenants →", the same target the panel reply used to carry). anchorId
+ * 'qa:<entryId>' is the entry's own cue target: the panel's "Questions →" scrolls to it and flashes it.
+ */
+export interface QuestionEntryView {
+  id: string; anchorId: string;
+  question: string; answer: string; meta: string;
+  link: { label: string; target: MemoTarget } | null;
+}
+/**
+ * The memo's Questions block (R4.5): scratch in the provisional frame (never a MemoCard),
+ * after the Decision card and before the stress test. It exists only once the file has an answered
+ * question since its epoch (a re-run starts fresh); selectQuestions returns null before that.
+ */
+export interface QuestionsView { eyebrow: string; aid: string; entries: QuestionEntryView[] }
+/** One answered question in the file and session exports (R4.5): at is ISO 8601, source the meta line's source. */
+export interface QuestionExport { question: string; answer: string; at: string; source: string }

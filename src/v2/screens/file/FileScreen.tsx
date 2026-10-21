@@ -12,6 +12,8 @@
 //   the Decision card (slots.signature, rendered by screens/decision inside
 //     this screen's MemoCard section="signature"), right after step 5: the
 //     ONE place to decide, and the sealed record once decided
+//   the reviewer's questions (scratch, no card; R4.5): only once the file has
+//     an answered question; the agent panel points here
 //   the stress test (scratch, no card), the exhibits card, the appendix card
 //
 //   .file = [canvas] or [canvas | source 360]   (push at a memo pane of
@@ -41,7 +43,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Caret, EmptyNote, LinkButton, MemoCard, SectionHead, StatusLabel } from '../../kit';
-import { COPY, CUE_HOLD_MS, isRowAnchor, selectFile } from '../../model';
+import { COPY, CUE_HOLD_MS, isRowAnchor, selectFile, selectQuestions } from '../../model';
 import type { FileView, MemoSection, SectionAside, SectionView } from '../../model';
 import { CardFlags, CardFooter } from './CardFoot';
 import { useV2 } from '../../state/store';
@@ -51,6 +53,7 @@ import { cssMs } from '../../state/ui';
 import { Appendix } from './Appendix';
 import { DocBar } from './DocBar';
 import { PageHeader } from './PageHeader';
+import { Questions } from './Questions';
 import { SourcePane } from './SourcePane';
 import { Covenants } from './sections/Covenants';
 import { Financials } from './sections/Financials';
@@ -212,6 +215,7 @@ export function FileScreen({ dealId, at, navSeq, slots }: FileScreenProps) {
   const s = useV2();
   const a = s.actions;
   const view = selectFile(s, dealId);
+  const questions = selectQuestions(s, dealId);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -550,6 +554,13 @@ export function FileScreen({ dealId, at, navSeq, slots }: FileScreenProps) {
             <MemoCard section="signature" ariaLabel={COPY.decision}>
               {slots.signature}
             </MemoCard>
+          ) : null}
+          {/* R4.5: what the reviewer asked and was told, in full (the panel only points here); scratch
+              like the stress test, and only once there is an answered question */}
+          {questions ? (
+            <div className="file-scratch" data-section="questions">
+              <Questions view={questions} ctx={ctx} />
+            </div>
           ) : null}
           {view.rows.stress ? (
             <div className="file-scratch" data-section="stress">

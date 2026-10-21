@@ -26,6 +26,7 @@ import type { CaseFileSnapshot, PresentedAtSign, V2Store } from '../state/contra
 import {
   cushionOf,
   distanceOf,
+  evidenceCaption,
   evidenceFor,
   evidenceText,
   FIGURES,
@@ -36,6 +37,7 @@ import {
   parseThreshold,
   quotedSpans,
   segmentsOf,
+  unquotedEvidence,
 } from './evidence';
 import type { QuotedSpan } from './evidence';
 import {
@@ -129,7 +131,6 @@ import {
   COPY,
   driverTone,
   noCureText,
-  NOT_IN_CIM,
   NOT_IN_CIM_SHORT,
   policyPct,
   provenanceText,
@@ -1250,7 +1251,7 @@ function keyFigures(ctx: FileCtx, pkg: ApprovalPackage, rows: FigureRow[]): KeyF
     const [value, second] = k.value.split(' · ');
     const revised = k.source === 'propose_restructure' && !!pkg.restructure;
     const row = id ? rows.find((r) => r.id === id) : undefined;
-    const evidence: EvidenceView = revised ? modelEvidence('revised') : row?.evidence ?? { cls: 'unquoted', text: NOT_IN_CIM };
+    const evidence: EvidenceView = revised ? modelEvidence('revised') : row?.evidence ?? unquotedEvidence();
     const anchorId = revised && id ? `rev${pkg.revision}:${id}` : id ? `fig:${id}` : 'sec:financials';
     const cov = id ? covenantForFigure(ctx.deal, id) : undefined;
     let caption: string | null = null;
@@ -1264,6 +1265,7 @@ function keyFigures(ctx: FileCtx, pkg: ApprovalPackage, rows: FigureRow[]): KeyF
       dot = tone === 'bad' ? 'bad' : tone === 'warn' ? 'warn' : null;
     }
     const sub = id === 'ebitda' && second ? `${second} margin` : second ?? null;
+    // full words in the accessible name, the short caption on screen (R4.8)
     const evText = evidenceText(evidence);
     // the figure takes the reader to its own row (or card) in the memo
     const where = sectionHeading(revised && id ? `revision-${pkg.revision}` : 'financials');
@@ -1274,7 +1276,7 @@ function keyFigures(ctx: FileCtx, pkg: ApprovalPackage, rows: FigureRow[]): KeyF
       caption,
       tone,
       dot,
-      evidenceText: evText,
+      evidenceText: evidenceCaption(evidence),
       anchorId,
       ariaLabel: `${label} ${value}${caption ? `, ${caption}` : ''}. ${evText}. Show in ${where}.`,
       target: memoTargetOfAnchor(anchorId),
@@ -2081,7 +2083,7 @@ export function askRoute(
     return {
       kind: 'local',
       stress: true,
-      text: 'Use the stress test in this file, below the Decision card. It re-runs the same decide rule the agent uses, and you can attach a scenario as an exhibit.',
+      text: COPY.askStressPointer,
     };
   }
   // a decision question answers with the rule's own reasons (the engine responder only restates the summary)

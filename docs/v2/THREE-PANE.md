@@ -281,7 +281,9 @@ copy and the §9.8 walkthrough's "3 of 8 figures are not quoted in the CIM".
 - **Copy** (model only; `vocab.ts`): the evidence class reads `NOT_IN_CIM` "Not in the CIM ·
   extraction model" everywhere it shows (Financials Source column, key figures, accessible names;
   the class id stays `unquoted`). The short form `NOT_IN_CIM_SHORT` "Not in CIM" is used only where
-  space requires it: the line under a covenant Actual (an 88px column).
+  space requires it: the line under a covenant Actual (an 88px column). **R4.8 narrows this:** on
+  screen the Financials Source column and the key figure captions read the short form too; the full
+  wording stays in the accessible names and the Financials foot line explains it.
 - **Financials foot line** (`evidenceCheckLine`, counts and names computed from the figure rows and
   the deal's covenants): "3 of 4 covenant tests use figures the CIM does not state (interest
   coverage, fixed-charge coverage and liquidity); they come from the extraction model." Singular
@@ -359,6 +361,194 @@ names, and listed here so the change is traceable.
   "Notes on the record" for every count.
 - **R4.3 · the caveat link let a countdown sign off screen.** Following it during a countdown now
   holds the countdown first.
+
+### R4.5 Answers in the memo (Mobbin audit fix 4, P-33)
+
+**The problem (verified in the build).** A Q&A answer in the agent panel was one thread line
+clamped to 2 lines (`chat.css`, `-webkit-line-clamp: 2`) with no way to expand it, while the engine
+responder's covenant, why and amend answers run 150 to 450 characters and `askRoute`'s why branch
+returns every reason; the "You · …" echo was ellipsized too. `ui.thread` was read by neither
+`model/exports.ts` nor `model/select-ledger.ts`, so what the reviewer asked before countersigning
+left no trace.
+
+**The rule.** Everything displayed goes on the right (R2), answers included: the panel stays terse
+and the full answer lives in the memo. This supersedes R2.1's Q&A bullet ("the agent's answer clipped
+to 2 lines"), §4.3's `question` row (the local meta and the stress link now read as below), and §4.4's
+flat 300-entry cap, where they conflict.
+
+- **What moves** (model only, classified from the existing composer path): `ComposerReply.memo:
+  { runId } | null` is set by `answerFor` on a **real answer about the deal**, the engine's
+  rule-based responder (`answerQuestion`) and the deterministic answers `askRoute` composes from the
+  package (the why answer from the decision rule's reasons, the restructured why and leverage
+  answers). It is null on everything else: command acknowledgements (`composerReply`'s `done`
+  replies: toggles, hold, stop, open stress), refusals ("Decide in the memo: Decision →", amend,
+  note, plan fixed, already live, question closed), the unknown-input help line, and the what-if
+  pointer. The what-if pointer is steering, so it stays one panel reply and is now short enough for
+  one line: "Try it in the stress test, below the Decision card." with "Stress test →"
+  (`COPY.askStressPointer`; it was 150 characters and clipped).
+- **State** (`state/contracts.ts`, `state/composer.ts`): `ThreadEntry.qa: { question; runId } | null`,
+  set on the answer entry from `reply.memo` (the question as typed, the run whose package answered);
+  every other entry writes `null`. The thread cap (300) drops answered questions last, keeping up to
+  500 (`QA_CAP`), since they are now on the record. In **column mode**, when the case file is on
+  screen, a new real answer cues its memo entry at once (`cueMemo({ section: 'questions', anchorId:
+  'qa:<id>' })`: scroll and one flash; scroll only, focus stays in the composer, so no key can sign);
+  in drawer mode nothing moves (the drawer overlays the memo) until the reviewer follows the panel's
+  link, which closes the drawer first.
+- **Panel** (`selectAgentPanel`): the reviewer's question stays ONE "You · …" line (ellipsis; the
+  full question heads the memo entry). A real answer becomes ONE unclamped line of the new kind
+  `'answered'`: "Answered in the memo" (`COPY.answeredInMemo`, ink-2, no glyph) with the link
+  "Questions →" (`ThreadLine.link.anchorId` = `qa:<entryId>`, new and optional), which scrolls the
+  memo to that entry with the existing `cueMemo` and flashes it once (a held `--sunken` highlight
+  under reduced motion). Replies that stay (`'answer'` lines) keep their glyphs, links and 2-line
+  clip.
+- **Memo** (`screens/file/Questions.tsx`, `selectQuestions` → `QuestionsView`,
+  `model/select-questions.ts`, `data-section="questions"`, FileAt `'questions'` (also `?at=questions`),
+  `data-pattern="P-33"`): a scratch block in the provisional frame of the stress test
+  (`--line-provisional`, `--r-md`, padding 16 20; 16 at a memo pane under 592px), never a `MemoCard`.
+  Order: … 5 Recommendation → the Decision card → **Questions** → the stress test → exhibits →
+  appendix (the Decision card stays right after step 5; R2.5's order otherwise unchanged). It exists
+  only once the file has an answered question since its epoch (`ui.threadEpoch`, the same filter as
+  the panel: no empty placeholder, and a re-run starts fresh). Head: t-eyebrow ink-3 "Questions" and
+  the t-small ink-2 aid line "Analysis aid · not part of the memo" (`COPY.aidLabel`). One entry per
+  answered question, oldest first, under a 1px `--line` hairline (padding 12 0, gap 4): the question
+  as typed (t-strong ink), the full answer (t-body ink-2, `pre-line`), one t-meta line with the
+  source and the time in ink-3 ("rule-based responder · simulated · 14:03", or
+  "Countersign · deterministic · 14:02" for an `askRoute` answer; `COPY.askMetaLocal` was
+  "Countersign"), then, when the answer concerns a memo card, that card's link ("Covenants →", the
+  target the panel reply used to carry, `sectionOfQuestion` / `memoAction`), which scrolls to the
+  card's head and flashes it. Each entry carries `data-anchor="qa:<entryId>"`; `memoTargetOfAnchor`
+  maps `qa:*` to `'questions'`.
+- **Exports** (`model/exports.ts`): the file export adds `questions: { question, answer, at (ISO),
+  source }[]` for the exported run (`questionsOfRun(s, ctx.runId)`, so a sealed snapshot exports what
+  was asked under it, and a re-run's questions go with the re-run); the session export adds every
+  answered question with its `dealId` and `runId`.
+- **Ledger** (`model/select-ledger.ts`): each answered question is a row of its run, merged in time
+  order with the run's audit entries: actor Reviewer, chip Reviewer, event "Asked · “which covenants
+  are tight?”" (`COPY.askedEvent`), detail the answer (the row truncates it; the raw record's Detail
+  holds it in full), raw label "Reviewer question", kind `question`, and the source under
+  "Answered by". They count in All and Reviewer; they are not reviewer decisions, so the summary's
+  decision counts are unchanged. Questions of a run stay on the Ledger after a re-run (the record
+  keeps every run); only the memo block and the panel start fresh.
+- **Kit page:** a new board "Questions (memo) · analysis aid" (`#board-questions`): the block on the
+  canvas (`FX_QUESTIONS_ATLAS`: the deterministic why answer and the engine's covenant answer, with
+  a "Questions →" action that flashes the second entry as the panel pointer does), the panel side of
+  the same exchanges (two "Answered in the memo" lines, a refusal and the one-line what-if pointer),
+  the block in a 360px frame, and the Ledger row (`FX_LEDGER_QUESTION_ROW`). `FX_PANEL_ATLAS_REV2`
+  now shows the pointer lines instead of a clamped answer; the agent panel board's spec and caption
+  say so.
+
+### R4.6 A reason when acknowledging a breach (Mobbin audit fix 5, P-34)
+
+**The problem (verified in the build).** Each open monitor item on the Book had a ghost
+"Acknowledge" button that called `actions.acknowledge(item.id)` directly (`screens/book/Book.tsx`):
+no note, no confirm, no consequence line. The engine then keeps the item quiet unless it worsens
+(`useMonitor`), and the Ledger recorded only "Acknowledged · <covenant>". The product requires a
+reason to reject a memo (R4.1), yet a live covenant breach could be silenced in one click with no
+rationale.
+
+**The rule.** Acknowledging a covenant item asks why, inline, and the reason goes on the record. A
+breach needs a reason; a watch may go without. This supersedes SPEC.md §7.4's "ghost sm
+'Acknowledge' → `actions.acknowledge(id)`" and §6.2's `acknowledge(id)` above. No time-based
+snooze; Mark handed off (countersign items) is unchanged.
+
+- **State** (`state/contracts.ts`, `state/acknowledge.ts`, `state/ui.ts`; the engine and the hooks
+  are untouched): `UiState.ackConfirm: { id; note; hint } | null` (the item whose strip is open, one
+  at a time, the reason being typed, and whether the calm hint shows) and `UiState.ackNotes:
+  Record<escalationId, AckNote>` (`AckNote { note; at }`, the trimmed reason, `''` when a watch
+  went without one; session only, like the rest of the store). `V2Actions.acknowledge(id)` is gone;
+  in its place `requestAcknowledge(id)` (open monitor items on a shown file only; opening another
+  item's strip replaces the open one), `setAckNote(text)` (any text clears the hint),
+  `confirmAcknowledge()` and `cancelAcknowledge()`. Any place change closes the strip without
+  acknowledging (`routeHygiene`, the documented "any change closes an inline confirm").
+- **The one rule** (`model/select-book.ts`): `ackNoteRequired(e)` (severity critical, i.e. a Book
+  "Breach") is read by the selector and by `confirmAcknowledge`. `ackUntil(e)` words what the
+  acknowledgement holds the item back until from what the engine does: an acknowledged item is
+  raised again only when a sweep finds it at a WORSE severity, and resolves after two passing
+  sweeps, so a watch "stays quiet until it worsens or recovers" while a breach, which has no worse
+  severity, "stays quiet until it recovers" (the task's one sentence would have promised a breach
+  a re-raise the engine never makes).
+- **The strip** (`BookItem.ack: BookAckView | null`, rendered in the item row's `detail` as
+  `<div class="book-ack" data-ack="<id>">`, indented 24 with the sub-rows): the kit `ConfirmStrip`
+  with its new `reason` (P-34): a one-line kit `TextInput`, placeholder and accessible name "Why is
+  this acceptable for now?", `aria-required` on a breach, leads the strip with Acknowledge
+  (secondary) and Cancel (ghost) beside it (they wrap under the field when narrow); under the field,
+  ONE consequence line, t-small ink-2: "Required for a breach. Stays quiet until it recovers." or
+  "Optional for a watch. Stays quiet until it worsens or recovers." (`COPY.ackConsequence`). The
+  group's accessible name is "Acknowledge Max Total Leverage on Project Cobalt"
+  (`ConfirmStrip.label`, new). While the strip is open the item's own Acknowledge button hides
+  (`action` null), so the strip's Acknowledge is the only one.
+- **Validity, the calm way** (the R4.1 pattern, never a disabled button, never a red alert):
+  Acknowledge (click, or Enter in the field) with an empty or blank reason on a breach keeps the
+  strip open, sets `hint`, shows one t-small ink line above the consequence line, "Write why it is
+  acceptable first." (`COPY.ackReasonFirst`; both lines describe the field), announces it through
+  the live region and puts focus back in the field, caret at the end. Any text clears it. If the
+  item was acknowledged, resolved or hidden while the strip was open, Acknowledge just closes it.
+  A sweep that upgrades an open watch to a breach while the strip is open makes the reason required
+  at once.
+- **Confirm** calls the engine's `monitor.acknowledge(id)` unchanged and writes
+  `ackNotes[id]`, closes the strip and announces "Acknowledged Max Total Leverage on Project Cobalt.
+  It stays quiet until it recovers." (`ackAnnouncement`).
+- **Focus:** the strip's field takes the focus on mount (the kit strip focuses its field instead of
+  Cancel when it has one). Esc (from the field or the buttons; the strip's own handler) or Cancel
+  closes it; focus that fell to the body returns to the item's Acknowledge button
+  (`[data-ack-trigger]`). After a confirm, focus that fell to the body lands on the acknowledged
+  item's line (`[data-ack-record]`, tabIndex -1, with a screen-reader prefix naming the status and
+  the covenant). A reviewer who moved focus elsewhere keeps it.
+- **The acknowledged row** (`BookItem.ackRecord`): the status stays "Acknowledged 14:05" (time from
+  the engine's `acknowledgedAt`, formatted in the model), and a second line under the figures, from
+  the covenant column on (t-small ink-2, wraps; a full-width line when the sub-row is narrow), reads
+  what it waits for, then the reason: "until it recovers · “Waiver in negotiation with sponsor”",
+  "until it worsens or recovers · no reason given" (a watch acknowledged without one), or "worsened
+  since and raised again · …" once a sweep has raised a newer open item for the same covenant.
+- **Ledger and export:** the monitor log's acknowledgement row (Reviewer, chip Reviewer, event
+  "Acknowledged · Max Total Leverage") carries the reason as its detail, quoted ("“Waiver in
+  negotiation with sponsor”", or "No reason given"), also in its raw record's Detail
+  (`ackDetailOf`). The session export's `monitorLog` entries gain `detail`: the reason as written on
+  an acknowledgement ("No reason given" when a watch went without), else null (`ackNoteOf`).
+  Countersign hand-offs carry none.
+- **Kit:** `ConfirmStrip` gains `reason?: ConfirmReason` (`{ value; onChange; placeholder;
+  ariaLabel; required? }`), `hint?` and `label?`; with a reason it renders `.k-confirm--reason`
+  (padding 12, row gap 8; `.k-confirm__field` flex 1 1 240, `.k-confirm__lines` full width, the hint
+  `--ink`, the text `--ink-2`) and `data-pattern="P-34"`. `TextInput` gains `describedBy` and
+  `required` (aria only). Kit page: a new group "ConfirmStrip with a reason · Acknowledge on the
+  Book (P-34)" (`#board-acknowledge`) in the Tabs · Menu · Palette · FilterChips · ConfirmStrip
+  board: the live strip under a Book item (hint, Enter, Esc, Cancel, then the acknowledged line),
+  the hint and watch states, a 360px frame, the acknowledged line (`FX_BOOK_ACKED_ITEM`) and the
+  Ledger row with its reason. Fixtures: `FX_BOOK_ACK_BREACH` / `_HINT` / `_WATCH`, the Book's
+  acknowledged items carry `ackRecord`, the Ledger's acknowledgement rows carry their reasons.
+
+### R4.8 The short evidence form in tight cells (improvement batch 2, item 4)
+
+**The problem (verified in the build).** R4.3 printed the full class "Not in the CIM · extraction
+model" in the Financials Source column (200px) and in each Recommendation key figure's evidence
+caption, so those rows and captions wrapped to two lines where the old "Unquoted · extracted" had fit
+on one.
+
+**The rule.** On screen, a figure the CIM does not state reads the short form "Not in CIM" wherever
+its class sits in a table cell or under a figure; the full wording stays where it is read aloud or
+explained. This supersedes R4.3's Copy bullet ("everywhere it shows"; the short form "only … under a
+covenant Actual").
+
+- **Model** (`model/evidence.ts`, `model/types.ts`): the unquoted `EvidenceView` is `{ cls:
+  'unquoted'; text: 'Not in CIM'; full: 'Not in the CIM · extraction model' }`, built by
+  `unquotedEvidence()` from `NOT_IN_CIM_SHORT` and `NOT_IN_CIM` (both `vocab.ts`). `evidenceText(e)`
+  returns the class in full words (accessible names, `CovenantEvidence.text`, sentences); the new
+  `evidenceCaption(e)` returns the short form for that class and `evidenceText` otherwise, and is
+  what `KeyFigureView.evidenceText` now carries.
+- **Financials Source column:** the cell shows "Not in CIM" on one line. The kit `EvidenceTag`
+  gains `srText`: when it differs from the visible text, the visible text is `aria-hidden` and the
+  full wording sits in a `v2-sr` span, so assistive tech reads "Not in the CIM · extraction model".
+- **Key figures:** the caption reads "Not in CIM"; the button's accessible name is unchanged
+  ("Interest coverage 2.10x, 0.10x room · ≥ 2.00x. Not in the CIM · extraction model. Show in
+  Financials.").
+- **Unchanged:** the line under a covenant Actual ("Not in CIM") and the Actual's accessible name,
+  the Financials foot line (`evidenceCheckLine`, which states in full that the figures come from the
+  extraction model), the Decision card's info item and the sealed caption. Other classes ("Quoted ·
+  CIM para 2", "Derived · 96.3 ÷ 22.6", "Model output · …") are short enough already and are
+  printed as before.
+- **Kit page:** the EvidenceTag specimen renders the short form with `srText` and says so; the
+  KeyFigure warn specimen and the Financials card caption name the short caption; `FX_*` key figures
+  carry "Not in CIM" with the full wording in their accessible names.
 
 ## 0. Owner decisions that survive (each is checked in §9)
 
@@ -1272,7 +1462,7 @@ export interface V2Actions {
   submitComposer(dealId: string, text: string): void;     // †
   setComposerDraft(dealId: string, text: string): void;   // † engages (§4.3)
   sweepNow(): void;
-  acknowledge(id: string): void;
+  acknowledge(id: string): void;                          // R4.6: replaced by requestAcknowledge / setAckNote / confirmAcknowledge / cancelAcknowledge
   markHandedOff(id: string): void;
   exportFile(dealId: string): void;
   exportSession(): void;

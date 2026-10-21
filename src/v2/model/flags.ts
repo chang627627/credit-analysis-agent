@@ -55,7 +55,7 @@ export function covenantForFigure(deal: Deal, fig: FigureId): CovenantTest | und
   return deal.covenants.find((c) => covenantKind(c.name) === kind);
 }
 
-const MEMO_SECTIONS: readonly string[] = ['recommendation', 'financials', 'risk', 'peers', 'covenants', 'exhibits', 'stress', 'signature', 'monitoring'];
+const MEMO_SECTIONS: readonly string[] = ['recommendation', 'financials', 'risk', 'peers', 'covenants', 'exhibits', 'stress', 'signature', 'monitoring', 'questions'];
 
 /** A section id as a memo card, or null when it names none ('revision-2' and the fixed cards). */
 function memoSectionOf(id: string): MemoSection | null {
@@ -66,12 +66,14 @@ function memoSectionOf(id: string): MemoSection | null {
 
 /**
  * Where a memo anchor lives (THREE-PANE §2.6): fig:* → financials · cov:* → covenants ·
- * rev<n>:* → revision-n · sec:<id> → that card · anything else → the page header.
+ * qa:* → the Questions block (R4.5) · rev<n>:* → revision-n · sec:<id> → that card · anything
+ * else → the page header.
  * The anchor rides along so the memo can nearest-scroll and cue the exact row.
  */
 export function memoTargetOfAnchor(anchorId: string): MemoTarget {
   if (anchorId.startsWith('fig:')) return { section: 'financials', anchorId };
   if (anchorId.startsWith('cov:')) return { section: 'covenants', anchorId };
+  if (anchorId.startsWith('qa:')) return { section: 'questions', anchorId };
   const rev = /^rev(\d+):/.exec(anchorId);
   if (rev) return { section: `revision-${Number(rev[1])}`, anchorId };
   if (anchorId.startsWith('sec:')) {

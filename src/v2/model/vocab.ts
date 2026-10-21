@@ -32,13 +32,19 @@ export const CONF_NEUTRAL = 0.9;
 // ---- evidence words (THREE-PANE R4.3, Mobbin audit fix 3)
 
 /**
- * The evidence class of a figure no CIM sentence states: the extraction model produced it. The
- * no-break space keeps "extraction model" together, so a narrow Source column or key figure wraps
- * after the "·" ("Not in the CIM ·" / "extraction model") instead of orphaning "model".
+ * The evidence class of a figure no CIM sentence states: the extraction model produced it. The full
+ * wording is what assistive tech reads (the Financials Source cell's hidden text, the key figure's
+ * and the covenant Actual's accessible names) and what the Financials foot line explains; on screen
+ * the short form below stands in wherever the class sits in a table cell or under a figure (R4.8).
+ * The no-break space keeps "extraction model" together wherever the full form does wrap.
  */
 export const NOT_IN_CIM = 'Not in the CIM · extraction\u00a0model' as const;
-/** Its short form, only where space requires it: the line under a covenant's Actual (an 88px column). */
-export const NOT_IN_CIM_SHORT = 'Not in CIM';
+/**
+ * Its short form, on screen wherever space is tight (R4.8): the Financials Source column (200px),
+ * the Recommendation key figures' evidence caption and the line under a covenant's Actual (88px), so
+ * those rows stay one line as they were before R4.3.
+ */
+export const NOT_IN_CIM_SHORT = 'Not in CIM' as const;
 
 // ---- §5 status words
 
@@ -265,6 +271,8 @@ export function sectionLinkLabel(at: FileAt): string {
       return 'Decision →';
     case 'monitoring':
       return 'Appendix →';
+    case 'questions':
+      return 'Questions →';
     default:
       return `Revision ${at.slice('revision-'.length)} →`;
   }
@@ -376,7 +384,16 @@ export const COPY = {
   askDisabledNotStarted: 'Draft the memo first. Questions answer about the file being drafted.',
   askDisabledRunning: 'Questions open when the memo is assembled.',
   askMetaEngine: 'rule-based responder · simulated',
-  askMetaLocal: 'Countersign',
+  askMetaLocal: 'Countersign · deterministic',
+  // the memo's Questions block (THREE-PANE R4.5): answers about the deal live in the memo, the panel points at them
+  questionsEyebrow: 'Questions',
+  answeredInMemo: 'Answered in the memo',
+  /** the stress-test pointer a what-if question gets: a steering reply, so it stays one panel line */
+  askStressPointer: 'Try it in the stress test, below the Decision card.',
+  /** the Ledger row of an answered question (actor Reviewer); its detail is the answer */
+  askedEvent: (question: string): string => `Asked · “${question}”`,
+  askedRawLabel: 'Reviewer question',
+  answeredBy: 'Answered by',
   evidenceCheck: 'Evidence check',
   evidenceCheckMeta: 'Countersign · deterministic check',
   /** R4.3: the Decision card's one info item under Signed over (not a flag, never counted in "you opened n of N") */
@@ -562,6 +579,20 @@ export const COPY = {
   sweepNow: 'Sweep now',
   bookEmpty: 'The Portfolio Monitor runs its first sweep in a moment.',
   acknowledge: 'Acknowledge',
+  // R4.6 (audit fix 5): acknowledging a covenant item asks why. The engine keeps an acknowledged item
+  // quiet until a sweep finds it worse (a watch that becomes a breach is raised again) or it passes
+  // two sweeps in a row (resolved); a breach cannot get worse, so it stays quiet until it recovers.
+  ackQuestion: 'Why is this acceptable for now?',
+  ackStripLabel: (covenant: string, file: string): string => `Acknowledge ${covenant} on ${file}`,
+  ackUntilBreach: 'until it recovers',
+  ackUntilWatch: 'until it worsens or recovers',
+  ackConsequence: (required: boolean, until: string): string =>
+    `${required ? 'Required for a breach' : 'Optional for a watch'}. Stays quiet ${until}.`,
+  ackReasonFirst: 'Write why it is acceptable first.',
+  ackNoReason: 'no reason given',
+  ackNoReasonDetail: 'No reason given',
+  ackReraised: 'worsened since and raised again',
+  ackDone: (covenant: string, file: string, until: string): string => `Acknowledged ${covenant} on ${file}. It stays quiet ${until}.`,
   markHandedOff: 'Mark handed off',
   fromCountersignature: 'From your countersignature',
 

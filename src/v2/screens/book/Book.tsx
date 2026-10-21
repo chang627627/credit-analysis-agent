@@ -2,11 +2,12 @@
 // Countersign V2 · Book (spec §7.4). The live covenant state of every file from
 // the always-on Portfolio Monitor, with open items grouped under their file.
 // It renders selectBook output verbatim: every fact, number and sentence comes
-// from the model. The screen calls only navigate, sweepNow, acknowledge and
-// markHandedOff. The Book has no primary.
+// from the model. The screen calls only navigate, sweepNow, the acknowledge
+// strip's actions (R4.6: requestAcknowledge, setAckNote, confirmAcknowledge,
+// cancelAcknowledge) and markHandedOff. The Book has no primary.
 // ---------------------------------------------------------------------------
 import type { ReactNode } from 'react';
-import { Button, EmptyNote, LinkButton, Meter, StatusLabel, Table } from '../../kit';
+import { Button, ConfirmStrip, EmptyNote, LinkButton, Meter, StatusLabel, Table } from '../../kit';
 import type { TableColumn, TableRow } from '../../kit';
 import { selectBook } from '../../model';
 import type { BookItem, BookRow } from '../../model';
@@ -91,15 +92,18 @@ function ItemActions({ item, row, actions }: { item: BookItem; row: BookRow; act
           {link.label}
         </LinkButton>
       ) : null}
-      {act ? (
-        <Button
-          variant={act.kind === 'mark-handed-off' ? 'secondary' : 'ghost'}
-          size="sm"
-          onClick={() => (act.kind === 'mark-handed-off' ? actions.markHandedOff(item.id) : actions.acknowledge(item.id))}
-          ariaLabel={joinParts(act.label, row.name, item.covenant)}
-        >
+      {act && act.kind === 'mark-handed-off' ? (
+        <Button variant="secondary" size="sm" onClick={() => actions.markHandedOff(item.id)} ariaLabel={joinParts(act.label, row.name, item.covenant)}>
           {act.label}
         </Button>
+      ) : null}
+      {act && act.kind === 'acknowledge' ? (
+        // opens the item's inline strip (a reason first); focus returns here on Cancel
+        <span className="book-subrow__trigger" data-ack-trigger="">
+          <Button variant="ghost" size="sm" onClick={() => actions.requestAcknowledge(item.id)} ariaLabel={joinParts(act.label, row.name, item.covenant)}>
+            {act.label}
+          </Button>
+        </span>
       ) : null}
       {item.doneText ? <span className="book-subrow__done t-small">{item.doneText}</span> : null}
     </span>
@@ -145,7 +149,35 @@ function SubRow({ item, row, actions }: { item: BookItem; row: BookRow; actions:
         <span className="book-subrow__distance t-small">{item.distance}</span>
         <span className="book-subrow__raised t-meta">{item.raised}</span>
         <ItemActions item={item} row={row} actions={actions} />
+        {item.ackRecord ? (
+          // R4.6: what the acknowledgement waits for and the reason given; focus lands here after Acknowledge
+          <span className="book-subrow__ack t-small" data-ack-record="" tabIndex={-1}>
+            <span className="v2-sr">{`${joinParts(item.status.text, item.covenant)}${SEP}`}</span>
+            {item.ackRecord}
+          </span>
+        ) : null}
       </div>
+    </div>
+  );
+}
+
+/** R4.6: the open Acknowledge strip, in the item row's detail (indented with the sub-rows). */
+function AckStrip({ item, actions }: { item: BookItem; actions: V2Actions }) {
+  const a = item.ack;
+  if (!a) return null;
+  return (
+    <div className="book-ack" data-ack={item.id}>
+      <ConfirmStrip
+        text={a.text}
+        label={a.label}
+        reason={{ value: a.value, onChange: (v) => actions.setAckNote(v), placeholder: a.placeholder, ariaLabel: a.placeholder, required: a.required }}
+        hint={a.hint}
+        confirmLabel={a.confirmLabel}
+        cancelLabel={a.cancelLabel}
+        tone="neutral"
+        onConfirm={() => actions.confirmAcknowledge()}
+        onCancel={() => actions.cancelAcknowledge()}
+      />
     </div>
   );
 }
@@ -176,6 +208,7 @@ function rowsOf(rows: BookRow[], actions: V2Actions): TableRow[] {
         indent: true,
         height: 36,
         muted: item.muted,
+        detail: item.ack ? <AckStrip item={item} actions={actions} /> : undefined,
       });
     }
   }

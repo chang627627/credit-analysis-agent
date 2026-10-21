@@ -71,8 +71,10 @@
   transform: translateX(-50%);
 }
 
-/* ---- a line: [16px glyph][text][trailing link]. One line with an ellipsis; an answer clips
-   to two. A reviewer's message opens a little space above it, so each exchange reads apart. ---- */
+/* ---- a line: [16px glyph][text][trailing link]. One line with an ellipsis; a steering reply
+   clips to two. A real answer about the deal is never shown here: its one line, "Answered in the
+   memo · Questions →", points at the memo's Questions block (R4.5). A reviewer's message opens a
+   little space above it, so each exchange reads apart. ---- */
 .chat-line {
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr);
@@ -99,6 +101,8 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
+/* the pointer a real answer leaves (R4.5): one quiet line, never clamped, the link carries it */
+.chat-line__text--answered { color: var(--ink-2); }
 .chat-line__link { display: flex; align-items: center; height: var(--t-body-lh); white-space: nowrap; }
 
 /* ---- the foot: the composer only. No rule across the panel: the composer's own frame closes

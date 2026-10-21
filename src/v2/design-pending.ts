@@ -415,6 +415,32 @@ export const PENDING: PendingPattern[] = [
     kitAnchor: '#board-decisioncard',
     ownerNote: 'Owner asked for it (Mobbin audit fix 3)',
   },
+  {
+    id: 'P-33',
+    type: 'layout',
+    name: 'Answers in the memo: the reviewer\'s questions as a Questions block, one pointer line in the panel',
+    description:
+      'Everything displayed goes on the right, answers included. A real answer about the deal (the engine\'s rule-based responder, or Countersign\'s deterministic answer from the decision rule\'s reasons) is shown in full in a memo block, "Questions" with the aid line "Analysis aid · not part of the memo": scratch in the provisional frame of the stress test, never a memo card, after the Decision card and before the stress test (the Decision card stays right after step 5). It appears with the first answered question and follows the file\'s epoch, so a re-run starts fresh; there is no empty placeholder. Each entry is the question as its head (t-strong), the full answer (t-body ink-2), one quiet t-meta line with the source and the time ("rule-based responder · simulated · 14:03"), and the memo card the answer concerns ("Covenants →"). The agent panel keeps the reviewer\'s question as one "You · …" line and replaces the answer with ONE line, "Answered in the memo · Questions →", that scrolls the memo to that entry and flashes it once; in column mode a new answer is brought into view the same way (scroll only, focus stays in the composer). Command acknowledgements, refusals, the help line and the what-if pointer ("Try it in the stress test, below the Decision card.") stay one-line panel replies. The pairs (question, answer, time, source) go into the file export and the session export, and each is a Reviewer event in the Ledger with the answer as its detail. Before, an answer was one panel line clamped to 2 lines with no way to expand (the covenant, why and amend answers run 150 to 450 characters), the question echo was ellipsized, and nothing the reviewer asked before countersigning reached the export or the Ledger.',
+    evidence: 'Mobbin audit of the case file, fix 4 (verified: chat.css clamped an answer to 2 lines; askRoute\'s why branch returns every reason; neither model/exports.ts nor model/select-ledger.ts read ui.thread); THREE-PANE.md R4.5; owner rule R2 (the middle is command and control, everything displayed goes on the right)',
+    proposedBy: OWNER,
+    proposedDate: ON_3P,
+    status: 'approved',
+    kitAnchor: '#board-questions',
+    ownerNote: 'Owner asked for it (improvement batch 2)',
+  },
+  {
+    id: 'P-34',
+    type: 'interaction',
+    name: 'A reason when acknowledging a covenant item on the Book',
+    description:
+      'The product requires a reason to reject a memo, so a live covenant breach can no longer be silenced in one click without one. Acknowledge on a Book item opens that item\'s inline strip in the row\'s detail, indented with the sub-rows: the kit ConfirmStrip with a reason field (a one-line kit TextInput, "Why is this acceptable for now?", which takes the focus), Acknowledge and Cancel beside it, and one quiet consequence line under it: "Required for a breach. Stays quiet until it recovers." on a breach, "Optional for a watch. Stays quiet until it worsens or recovers." on a watch, worded from what the engine does (an acknowledged item is raised again only at a worse severity, and a breach has none). Acknowledge with no reason on a breach keeps the strip and shows one calm line, "Write why it is acceptable first." (announced, focus back in the field, never a red alert); Enter confirms, Esc or Cancel closes without acknowledging, and focus returns to the item afterwards. The item\'s own Acknowledge button hides while its strip is open, one strip at a time, and leaving the Book closes it. Confirming calls the engine\'s acknowledge unchanged; the reason stays in V2 state by escalation id. The acknowledged item then reads "Acknowledged 14:05" with a second line under its figures, "until it recovers · “Waiver in negotiation with sponsor”" ("no reason given" for a watch acknowledged without one; "worsened since and raised again" once a sweep raised it again), and focus lands on that line. The Ledger\'s Reviewer row carries the reason as its detail, and so does the acknowledgement\'s entry in the session export\'s monitor log. No time-based snooze; Mark handed off is unchanged. Before, Acknowledge acted at once with no note, no confirm and no consequence, and the Ledger recorded only "Acknowledged · <covenant>".',
+    evidence: 'Mobbin audit, fix 5 (verified: Book.tsx called actions.acknowledge(item.id) directly from a ghost button; useMonitor keeps an acknowledged item quiet unless it worsens; the Ledger row had no detail); THREE-PANE.md R4.6; the note-required refusal rule of R4.1',
+    proposedBy: OWNER,
+    proposedDate: ON_3P,
+    status: 'approved',
+    kitAnchor: '#board-acknowledge',
+    ownerNote: 'Owner asked for it (improvement batch 2)',
+  },
 ];
 
 export const REJECTED_BEFORE: { name: string; note: string }[] = [

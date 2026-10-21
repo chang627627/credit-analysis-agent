@@ -578,7 +578,7 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   checks the source; `npm run v2-visual` (Playwright + axe, see Run & build) checks the rendering:
   9 states × phone / tablet / desktop for serious axe violations, sideways overflow, cut-off
   elements and a usable memo pane and Decision card width. Run both before calling V2 UI work done.
-  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-32, rendered on `/?kit`) for
+  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-34, rendered on `/?kit`) for
   owner approval; every `data-pattern` id needs an entry there, every kit export a kit-page specimen.
 - **Storage** (only in `src/v2/state/`): `v2.navCollapsed`, `v2.chatOpen` (only `state/panes.ts`).
   (`v2.showReasoning` was retired with R2: reasoning lives in each card's Record.) **Auto-countersign
@@ -618,8 +618,13 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   tested · Covenants →"; "Peer benchmarks skipped") · action-worthy flags only, at most one per step
   ("4 covenants breached · Covenants →", never the flag sentence, confidences or durations) ·
   revision lines ("Returned for revision · rev 2", "Proposed a $19.5M sponsor equity cure") · the gate
-  as ONE line "Your countersignature is needed · Decision →" (countdown / held variants) · Q&A ("You ·
-  …" and answers clipped to 2 lines) · "You countersigned DECLINE · 00:52 · Record →". **Reads like
+  as ONE line "Your countersignature is needed · Decision →" (countdown / held variants) · Q&A: the
+  reviewer's question as one "You · …" line; a **real answer about the deal is never shown in the
+  panel** (P-33, THREE-PANE R4.5): it leaves ONE line, "Answered in the memo · Questions →", that
+  scrolls the memo to the answer and flashes it once; command acknowledgements, refusals ("Decide in
+  the memo: Decision →"), the help line and the what-if pointer ("Try it in the stress test, below
+  the Decision card. · Stress test →") stay one-line replies (may clip to 2) · "You countersigned
+  DECLINE · 00:52 · Record →". **Reads like
   Claude Code** (THREE-PANE R3): the conversation runs top-down from the top of the panel and the
   plan checklist (locked required steps, a checkbox on the optional one, [Start drafting ⌘↵], the
   countdown line) is a message in that flow, not pinned above the input. Only the composer is pinned
@@ -631,8 +636,28 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   amount, CAM id, prepared-by, CIM paragraphs; no recommendation, and a sealed header seal is the
   who-clause only, "You countersigned.") → one paper `MemoCard` per section, 16px apart (P-26):
   1 Financials → 2 Risk → 3 Peers → 4 Covenants → (revisions) → 5 Recommendation → **the Decision
-  card** → the stress test (dashed scratch frame, no card) → exhibits → the appendix. The source CIM
-  opens on the memo pane's right edge (push at a pane width of 1064px and up, overlay below).
+  card** → **Questions** (scratch, only once the file has an answered question, see below) → the
+  stress test (dashed scratch frame, no card) → exhibits → the appendix. The source CIM opens on the
+  memo pane's right edge (push at a pane width of 1064px and up, overlay below).
+- **Answers in the memo** (P-33, THREE-PANE R4.5, Mobbin audit fix 4): the reviewer's answered
+  questions are a memo block, "Questions" with the aid line "Analysis aid · not part of the memo",
+  in the same dashed provisional frame as the stress test (never a `MemoCard`), after the Decision
+  card and before the stress test (`screens/file/Questions.tsx`, rendering `selectQuestions` →
+  `QuestionsView`, `model/select-questions.ts`). It appears with the first answered question since
+  the file's epoch (no placeholder; a re-run starts fresh). Each entry: the question as typed
+  (t-strong), the full answer (t-body ink-2, line breaks kept), one t-meta line with the source and
+  the time ("rule-based responder · simulated · 14:03", or "Countersign · deterministic" for the
+  answers composed from the decision rule's reasons) and the memo card the answer concerns
+  ("Covenants →"). Its anchor is `qa:<entryId>` (FileAt `'questions'`); the panel's "Questions →"
+  cues it (scroll + one flash, a held highlight under reduced motion), and in column mode a new
+  answer is cued the same way as it arrives (scroll only; focus stays in the composer). Only real
+  answers move (`ComposerReply.memo`, set by `answerFor` on the engine responder and the
+  deterministic answers, never on the stress pointer, acknowledgements or refusals);
+  `ThreadEntry.qa` carries the question and the run whose package answered. The pairs (question,
+  answer, ISO time, source) go into the file export (`questions`, by run) and the session export,
+  and the Ledger shows each as a Reviewer event of its run ("Asked · “…”", the answer as its
+  detail, the source under "Answered by" in the raw record). The thread cap drops answered
+  questions last (kept up to 500).
 - **Section cards** (P-26, owner: sections 1 to 4 "read as one blob"): a step eyebrow ("Step 1 of 5 ·
   Document Intelligence"; drafting / excluded / stopped show a status aside) → the title in
   `t-figure-lg` (the only 18px role in a card: KeyFigure values moved to `t-heading`, the risk score
@@ -705,7 +730,8 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   engine's pure responder, open once a package exists). Typing can never sign, return, reject, amend
   or write the note: such text gets "Decide in the memo: Decision →" (or a pointer to the covenant
   row). Any composer use, typing included, holds a running countdown. Q&A persists per file, scoped
-  by a per-file epoch (a re-run starts fresh).
+  by a per-file epoch (a re-run starts fresh); real answers are shown in the memo's Questions block,
+  not in the panel (P-33).
 - **Shell:** collapsible left sidebar (Desk · Book · Ledger, 64px icon rail, persisted; **no counts**: only
   a small accent dot on the Desk while a file waits on you at plan review or the countersignature);
   top bar = section name + auto-countersign switch + search.
@@ -724,9 +750,13 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   single 36px-row slot).
 - **Covenant inputs the CIM does not state are on the record** (P-32, THREE-PANE R4.3, Mobbin audit
   fix 3). Interest coverage, fixed-charge coverage and liquidity are stated in no sample CIM, yet
-  they are 3 of the 4 covenant-tested actuals. Their evidence class reads "Not in the CIM ·
-  extraction model" everywhere (`NOT_IN_CIM`; class id still `unquoted`; the short "Not in CIM" only
-  under a covenant Actual, an 88px column). The Financials foot line counts and names them, computed:
+  they are 3 of the 4 covenant-tested actuals. Their evidence class is "Not in the CIM ·
+  extraction model" (`NOT_IN_CIM`; class id still `unquoted`) in every accessible name and is
+  explained in full by the Financials foot line; ON SCREEN the tight cells read the short "Not in CIM"
+  (`NOT_IN_CIM_SHORT`): the Financials Source column (the kit `EvidenceTag`'s new `srText` carries
+  the full wording for assistive tech), the Recommendation key figures' caption (`evidenceCaption`;
+  `evidenceText` stays the full words) and the line under a covenant Actual, so those rows stay one
+  line (THREE-PANE R4.8). The Financials foot line counts and names them, computed:
   "3 of 4 covenant tests use figures the CIM does not state (interest coverage, fixed-charge
   coverage and liquidity); they come from the extraction model." (no more "verify them against the
   source", which the CIM cannot support). `CovenantRow.evidence` (`covenantEvidence`: class, text,
@@ -741,6 +771,27 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   countdown holds the countdown first (`reviewManually`). The sealed caption adds "signed with 3
   inputs not stated in the CIM" ("decided with …" on a rejection, whose list is always headed "Notes
   on the record", "· none" with no notes, never "Signed over"). Engine numbers unchanged.
+- **Acknowledging a covenant item asks why** (P-34, THREE-PANE R4.6, Mobbin audit fix 5): the Book's
+  Acknowledge no longer acts in one click. It opens the item's inline strip in the row's detail
+  (indented with the sub-rows): the kit `ConfirmStrip` with its new `reason` field (a kit
+  `TextInput`, "Why is this acceptable for now?", takes the focus), Acknowledge / Cancel beside it
+  and ONE consequence line under it, worded from what the engine does: "Required for a breach.
+  Stays quiet until it recovers." / "Optional for a watch. Stays quiet until it worsens or
+  recovers." (an acknowledged item is raised again only at a worse severity, and a breach has
+  none). An empty reason on a breach keeps the strip and shows the calm hint "Write why it is
+  acceptable first." (announced, focus back in the field; the R4.1 pattern, no disabled button, no
+  red alert). Enter confirms, Esc / Cancel closes (focus back to the item's Acknowledge); the
+  item's own button hides while its strip is open; one strip at a time; leaving the Book closes it.
+  Confirm calls the engine's `monitor.acknowledge(id)` unchanged and keeps the reason in V2 state
+  (`ui.ackNotes` by escalation id, `ui.ackConfirm` for the open strip, `state/acknowledge.ts`;
+  `V2Actions.acknowledge` became `requestAcknowledge` / `setAckNote` / `confirmAcknowledge` /
+  `cancelAcknowledge`; the rule is `ackNoteRequired` in `model/select-book.ts`). The acknowledged
+  row reads "Acknowledged 14:05" plus a line under its figures, "until it recovers · “Waiver in
+  negotiation with sponsor”" ("no reason given" for a watch; "worsened since and raised again"
+  once re-raised), where focus lands. The Ledger's Reviewer row carries the reason as its detail;
+  the session export's `monitorLog` entries gain `detail`. No time-based snooze; Mark handed off
+  unchanged. Kit: `ConfirmStrip` `reason` / `hint` / `label`, `TextInput` `describedBy` /
+  `required`; kit page group `#board-acknowledge`.
 - **Rejected by the owner during the V2 build (do not resurrect):** vertical "Source ¶" spine
   (source opens from a doc-bar button instead) · the ¶ citation mark (reads "CIM para 2") ·
   recommendation at the top of the memo · side margin column of notes (left empty gaps) ·

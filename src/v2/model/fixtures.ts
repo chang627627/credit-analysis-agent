@@ -7,16 +7,19 @@
 // THREE-PANE: memo sections are cards (eyebrow, title, takeaway, labelled
 // blocks, a record footer, row-less flags as foot lines) whose takeaways equal
 // the §5.5 strings; FX_PANEL_* are the agent panel (R2: one-line status lines
-// with links, the plan prompt); FX_SIG_* are the memo's Decision card; FX_NOTES
-// are MarginNote specimens; the raw step record is FX_STUB_EXTRACT.
+// with links, the plan prompt); FX_QUESTIONS_ATLAS is the memo's Questions block
+// (R4.5); FX_SIG_* are the memo's Decision card; FX_NOTES are MarginNote
+// specimens; the raw step record is FX_STUB_EXTRACT.
 // ---------------------------------------------------------------------------
 
 import { AUTO_NOTE, COPY, IMPERATIVE, NOT_IN_CIM, NOT_IN_CIM_SHORT, sectionLinkLabel, STATUS_WORD, tokenOf } from './vocab';
 import { EM, MINUS } from './format';
 import { policyRule } from './select-top';
+import { qaAnchor } from './select-questions';
 import type {
   Actor,
   AgentPanelView,
+  BookAckView,
   BookItem,
   BookRow,
   BookView,
@@ -37,6 +40,7 @@ import type {
   NoteView,
   PeersBody,
   PolicyView,
+  QuestionsView,
   RecommendationBody,
   RevisionBody,
   RiskBody,
@@ -430,7 +434,7 @@ const NOTE_ATLAS_RESTRUCTURE: NoteView = {
 
 const quoted = (para: number, offset: number, citeIndex: number) =>
   ({ cls: 'quoted', text: 'Quoted', para, paraLabel: `CIM para ${para}`, markId: `m${para}-${offset}`, citeIndex }) as const;
-const UNQUOTED = { cls: 'unquoted', text: NOT_IN_CIM } as const;
+const UNQUOTED = { cls: 'unquoted', text: NOT_IN_CIM_SHORT, full: NOT_IN_CIM } as const;
 
 const ATLAS_MARKS = ['m2-80', 'm2-111', 'm2-121', 'm2-190'];
 
@@ -506,7 +510,7 @@ const KEYFIGS_ATLAS: KeyFigureView[] = [
     caption: '0.10x room · ≥ 2.00x',
     tone: 'warn',
     dot: 'warn',
-    evidenceText: NOT_IN_CIM,
+    evidenceText: NOT_IN_CIM_SHORT,
     anchorId: 'fig:interest',
     ariaLabel: `Interest coverage 2.10x, 0.10x room · ≥ 2.00x. ${NOT_IN_CIM}. Show in Financials.`,
     target: { section: 'financials', anchorId: 'fig:interest' },
@@ -518,7 +522,7 @@ const KEYFIGS_ATLAS: KeyFigureView[] = [
     caption: '$4.2M room · ≥ $10.0M',
     tone: 'ink',
     dot: null,
-    evidenceText: NOT_IN_CIM,
+    evidenceText: NOT_IN_CIM_SHORT,
     anchorId: 'fig:liquidity',
     ariaLabel: `Liquidity $14.2M, $4.2M room · ≥ $10.0M. ${NOT_IN_CIM}. Show in Financials.`,
     target: { section: 'financials', anchorId: 'fig:liquidity' },
@@ -1142,6 +1146,7 @@ const FIGURES_UP: FigureRow[] = [
   { id: 'fixed', anchorId: 'fig:fixed', label: 'Fixed-charge coverage', value: '1.45x', evidence: UNQUOTED, group: 'tested', valueTone: 'ink', mark: null },
   { id: 'liquidity', anchorId: 'fig:liquidity', label: 'Liquidity', value: '$25.7M', evidence: UNQUOTED, group: 'tested', valueTone: 'ink', mark: null },
 ];
+// `evidenceText` is the class in full words (the accessible name); the caption shows the short form (R4.8)
 const upKey = (label: string, value: string, evidenceText: string, anchorId: string, extra: Partial<KeyFigureView> = {}): KeyFigureView => ({
   target: { section: 'financials', anchorId },
   label,
@@ -1150,7 +1155,7 @@ const upKey = (label: string, value: string, evidenceText: string, anchorId: str
   caption: null,
   tone: 'ink',
   dot: null,
-  evidenceText,
+  evidenceText: evidenceText === NOT_IN_CIM ? NOT_IN_CIM_SHORT : evidenceText,
   anchorId,
   ariaLabel: `${label} ${value}${extra.caption ? `, ${extra.caption}` : ''}. ${evidenceText}. Show in Financials.`,
   ...extra,
@@ -1389,7 +1394,21 @@ export const FX_PANEL_ATLAS_GATE: AgentPanelView = {
   lines: [...ATLAS_RUN, L('gate:1', 'gate', 'awaiting', COPY.gateLine, 'signature')],
 };
 
-/** Atlas at the rev 2 gate after Q&A at rev 1: a refusal pointing at the Decision card, a short answer, the return and the cure. */
+/** A real answer's ONE panel line (R4.5): the answer itself is in the memo's Questions block, where the link cues its entry. */
+const ANSWERED = (id: string): ThreadLine => ({
+  id,
+  kind: 'answered',
+  glyph: null,
+  text: COPY.answeredInMemo,
+  link: { label: sectionLinkLabel('questions'), target: 'questions', anchorId: qaAnchor(id) },
+});
+
+/**
+ * Atlas at the rev 2 gate after Q&A at rev 1: a typed "countersign" refused with a pointer to the
+ * Decision card, two real answers that each leave one "Answered in the memo" line (the answers are
+ * FX_QUESTIONS_ATLAS), a what-if question that gets the one-line stress-test pointer, then the
+ * return and the cure.
+ */
 export const FX_PANEL_ATLAS_REV2: AgentPanelView = {
   ...FX_PANEL_NOT_STARTED,
   start: null,
@@ -1398,11 +1417,65 @@ export const FX_PANEL_ATLAS_REV2: AgentPanelView = {
     L('e2', 'you', null, 'You · countersign'),
     L('e3', 'answer', 'info', COPY.reply.decisionGate, 'signature'),
     L('e4', 'you', null, 'You · why escalate?'),
-    L('e5', 'answer', null, `The agent recommends ESCALATE. ${ATLAS_REASON_BREACH} ${ATLAS_REASON_THIN}`, 'recommendation'),
+    ANSWERED('e5'),
+    L('e6', 'you', null, 'You · which covenants are tight?'),
+    ANSWERED('e7'),
+    L('e8', 'you', null, 'You · what if EBITDA falls 10%?'),
+    L('e9', 'answer', null, COPY.askStressPointer, 'stress'),
     L('returned:2', 'revision', 'returned', 'Returned for revision · rev 2', 'revision-2'),
     L('step:step_rework_2', 'revision', 'done', 'Proposed a $19.5M sponsor equity cure', 'revision-2'),
     L('gate:2', 'gate', 'awaiting', COPY.gateLine, 'signature'),
   ],
+};
+
+/**
+ * The memo's Questions block for Atlas after the rev 1 Q&A above (R4.5, P-33): each answer in full
+ * under its question, the source and the time, and the memo card it concerns. "why escalate?" is
+ * Countersign's deterministic answer from the decision rule's own reasons; "which covenants are
+ * tight?" is the engine's rule-based responder over the filed figures.
+ */
+export const FX_QUESTIONS_ATLAS: QuestionsView = {
+  eyebrow: COPY.questionsEyebrow,
+  aid: COPY.aidLabel,
+  entries: [
+    {
+      id: 'e5',
+      anchorId: qaAnchor('e5'),
+      question: 'why escalate?',
+      answer: `The agent recommends ESCALATE. ${ATLAS_REASON_BREACH} ${ATLAS_REASON_THIN}`,
+      meta: `${COPY.askMetaLocal} · 14:02`,
+      link: { label: sectionLinkLabel('recommendation'), target: { section: 'recommendation', anchorId: 'sec:recommendation' } },
+    },
+    {
+      id: 'e7',
+      anchorId: qaAnchor('e7'),
+      question: 'which covenants are tight?',
+      answer: `1 of 4 covenant tests fail: Max Total Leverage 4.26x vs ≤ 4.00x (${M}6.5% headroom). Of the passing tests, Min Interest Coverage 2.10x vs ≥ 2.00x (4.8% headroom) and Min Fixed-Charge Coverage 1.18x vs ≥ 1.10x (6.8% headroom) sit inside the 15% policy cushion.`,
+      meta: `${COPY.askMetaEngine} · 14:03`,
+      link: { label: sectionLinkLabel('covenants'), target: { section: 'covenants', anchorId: 'sec:covenants' } },
+    },
+  ],
+};
+
+/** An answered question as its Ledger row (R4.5): a Reviewer event of its run, the answer as the detail. */
+export const FX_LEDGER_QUESTION_ROW: LedgerRow = {
+  id: 'e7',
+  time: '14:03:08',
+  actor: 'Reviewer',
+  event: COPY.askedEvent('which covenants are tight?'),
+  detail: FX_QUESTIONS_ATLAS.entries[1].answer,
+  chip: 'reviewer',
+  raw: {
+    'Event id': 'e7',
+    'ISO time': '2026-10-20T14:03:08.000Z',
+    Actor: 'Reviewer',
+    Kind: 'question',
+    File: 'Project Atlas',
+    Run: '1',
+    'Raw label': COPY.askedRawLabel,
+    Detail: FX_QUESTIONS_ATLAS.entries[1].answer,
+    [COPY.answeredBy]: COPY.askMetaEngine,
+  },
 };
 
 /** Meridian at its clean gate with the policy armed: the countdown is one line. */
@@ -2010,7 +2083,13 @@ export const FX_EXHIBITS: ExhibitView[] = [
 // =============================================================================
 
 const ACK = { kind: 'acknowledge' as const, label: COPY.acknowledge };
-const monitorItem = (id: string, covenant: string, reading: string, distance: string, breach: boolean, ackAt: string | null): BookItem => ({
+/** R4.6 reasons on the record (the Book's acknowledged lines and the Ledger's Reviewer rows agree) */
+const ACK_WAIVER = 'Waiver in negotiation with sponsor';
+const ACK_WAIVER_FCC = 'Same waiver request covers the fixed-charge test';
+const ACK_SEASONAL = 'Thin headroom expected through Q3 seasonality';
+const ackLine = (breach: boolean, note: string | null): string =>
+  `${breach ? COPY.ackUntilBreach : COPY.ackUntilWatch} · ${note ? `“${note}”` : COPY.ackNoReason}`;
+const monitorItem = (id: string, covenant: string, reading: string, distance: string, breach: boolean, ackAt: string | null, ackNote: string | null = null): BookItem => ({
   id,
   origin: 'monitor',
   status: ackAt ? { state: 'acknowledged', text: `Acknowledged ${ackAt}` } : breach ? { state: 'breach', text: 'Breach' } : { state: 'watch', text: 'Watch' },
@@ -2022,6 +2101,8 @@ const monitorItem = (id: string, covenant: string, reading: string, distance: st
   action: ackAt ? null : ACK,
   link: null,
   doneText: null,
+  ack: null,
+  ackRecord: ackAt ? ackLine(breach, ackNote) : null,
 });
 
 const BOOK_COBALT: BookRow = {
@@ -2038,8 +2119,8 @@ const BOOK_COBALT: BookRow = {
   items: [
     monitorItem('esc_4', 'Max Total Leverage', '5.71x / ≤ 4.00x', '1.71x over', true, null),
     monitorItem('esc_7', 'Min Liquidity', '$5.9M / ≥ $10.0M', '$4.1M short', true, null),
-    monitorItem('esc_5', 'Min Interest Coverage', '1.36x / ≥ 2.00x', '0.64x short', true, '14:05'),
-    monitorItem('esc_6', 'Min Fixed-Charge Coverage', '0.93x / ≥ 1.10x', '0.17x short', true, '14:05'),
+    monitorItem('esc_5', 'Min Interest Coverage', '1.36x / ≥ 2.00x', '0.64x short', true, '14:05', ACK_WAIVER),
+    monitorItem('esc_6', 'Min Fixed-Charge Coverage', '0.93x / ≥ 1.10x', '0.17x short', true, '14:05', ACK_WAIVER_FCC),
   ],
 };
 const BOOK_ATLAS: BookRow = {
@@ -2067,8 +2148,10 @@ const BOOK_ATLAS: BookRow = {
       action: { kind: 'mark-handed-off', label: COPY.markHandedOff },
       link: { label: COPY.openRecord, route: { name: 'file', dealId: 'atlas', at: 'signature' } },
       doneText: null,
+      ack: null,
+      ackRecord: null,
     },
-    monitorItem('esc_2', 'Min Interest Coverage', '2.06x / ≥ 2.00x', '0.06x room', false, '14:04'),
+    monitorItem('esc_2', 'Min Interest Coverage', '2.06x / ≥ 2.00x', '0.06x room', false, '14:04', ACK_SEASONAL),
     monitorItem('esc_3', 'Min Fixed-Charge Coverage', '1.16x / ≥ 1.10x', '0.06x room', false, '14:04'),
   ],
 };
@@ -2097,6 +2180,30 @@ export const FX_BOOK_BREACH: BookView = {
   empty: null,
   rows: [BOOK_COBALT, BOOK_ATLAS, BOOK_MERIDIAN],
 };
+
+/** R4.6: the Acknowledge strip under Cobalt's Max Total Leverage breach, just opened (a reason is required). */
+export const FX_BOOK_ACK_BREACH: BookAckView = {
+  label: COPY.ackStripLabel('Max Total Leverage', 'Project Cobalt'),
+  text: COPY.ackConsequence(true, COPY.ackUntilBreach),
+  placeholder: COPY.ackQuestion,
+  value: '',
+  required: true,
+  hint: null,
+  confirmLabel: COPY.acknowledge,
+  cancelLabel: COPY.cancel,
+};
+/** The same strip after Acknowledge with no reason: the calm hint, focus back in the field. */
+export const FX_BOOK_ACK_HINT: BookAckView = { ...FX_BOOK_ACK_BREACH, hint: COPY.ackReasonFirst };
+/** A watch item's strip with a reason typed (a reason is optional there). */
+export const FX_BOOK_ACK_WATCH: BookAckView = {
+  ...FX_BOOK_ACK_BREACH,
+  label: COPY.ackStripLabel('Min Interest Coverage', 'Project Atlas'),
+  text: COPY.ackConsequence(false, COPY.ackUntilWatch),
+  value: ACK_SEASONAL,
+  required: false,
+};
+/** Cobalt's acknowledged Min Interest Coverage item: its line under the figures. */
+export const FX_BOOK_ACKED_ITEM: BookItem = monitorItem('esc_5', 'Min Interest Coverage', '1.36x / ≥ 2.00x', '0.64x short', true, '14:05', ACK_WAIVER);
 
 /** Before the first sweep. */
 export const FX_BOOK_EMPTY: BookView = {
@@ -2223,10 +2330,10 @@ const MONITOR_ROWS: LedgerRow[] = [
   mrow('14:01:00', PM, 'Raised · Project Cobalt · Breach · Min Interest Coverage 1.38x / ≥ 2.00x', 'monitor', 'raised', 'Project Cobalt', `Min Interest Coverage 1.38x breaches the ≥ 2.00x covenant (${M}44.9% headroom)`),
   mrow('14:01:00', PM, 'Raised · Project Cobalt · Breach · Min Fixed-Charge Coverage 0.94x / ≥ 1.10x', 'monitor', 'raised', 'Project Cobalt', `Min Fixed-Charge Coverage 0.94x breaches the ≥ 1.10x covenant (${M}17.0% headroom)`),
   mrow('14:01:00', PM, 'Raised · Project Cobalt · Breach · Min Liquidity $6.3M / ≥ $10.0M', 'monitor', 'raised', 'Project Cobalt', `Min Liquidity $6.3M breaches the ≥ $10.0M covenant (${M}58.7% headroom)`),
-  mrow('14:04:31', RV, 'Acknowledged · Min Interest Coverage', 'reviewer', 'acknowledged', 'Project Atlas', null),
-  mrow('14:04:33', RV, 'Acknowledged · Min Fixed-Charge Coverage', 'reviewer', 'acknowledged', 'Project Atlas', null),
-  mrow('14:05:02', RV, 'Acknowledged · Min Interest Coverage', 'reviewer', 'acknowledged', 'Project Cobalt', null),
-  mrow('14:05:04', RV, 'Acknowledged · Min Fixed-Charge Coverage', 'reviewer', 'acknowledged', 'Project Cobalt', null),
+  mrow('14:04:31', RV, 'Acknowledged · Min Interest Coverage', 'reviewer', 'acknowledged', 'Project Atlas', `“${ACK_SEASONAL}”`),
+  mrow('14:04:33', RV, 'Acknowledged · Min Fixed-Charge Coverage', 'reviewer', 'acknowledged', 'Project Atlas', COPY.ackNoReasonDetail),
+  mrow('14:05:02', RV, 'Acknowledged · Min Interest Coverage', 'reviewer', 'acknowledged', 'Project Cobalt', `“${ACK_WAIVER}”`),
+  mrow('14:05:04', RV, 'Acknowledged · Min Fixed-Charge Coverage', 'reviewer', 'acknowledged', 'Project Cobalt', `“${ACK_WAIVER_FCC}”`),
 ];
 
 const ATLAS_LEDGER_RUN: LedgerRun = {
@@ -2335,6 +2442,8 @@ export const FIXTURES = {
   FX_PANEL_MERIDIAN_COUNTDOWN,
   FX_PANEL_SEALED,
   FX_PANEL_COBALT_REJECTED,
+  FX_QUESTIONS_ATLAS,
+  FX_LEDGER_QUESTION_ROW,
   FX_SIG_ATLAS_GATE,
   FX_SIG_ATLAS_AMENDED,
   FX_SIG_ATLAS_REV2,
@@ -2350,6 +2459,10 @@ export const FIXTURES = {
   FX_EXHIBITS,
   FX_BOOK_BREACH,
   FX_BOOK_EMPTY,
+  FX_BOOK_ACK_BREACH,
+  FX_BOOK_ACK_HINT,
+  FX_BOOK_ACK_WATCH,
+  FX_BOOK_ACKED_ITEM,
   FX_LEDGER_AFTER_ATLAS,
   FX_LEDGER_EMPTY,
 } as const;

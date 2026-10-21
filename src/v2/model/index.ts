@@ -104,6 +104,8 @@ export {
   evidenceFor,
   modelEvidence,
   evidenceText,
+  evidenceCaption,
+  unquotedEvidence,
   parseThreshold,
   cushionOf,
   distanceOf,
@@ -129,6 +131,7 @@ export { selectDesk } from './select-desk';
 export { selectFile, askRoute, routesOnSign, covenantEvidence, covenantInputsNotInCim } from './select-file';
 export { selectAgentPanel, memoTargetOfAnchor, newActivityLabel } from './select-thread';
 export { composerContext, parseComposer, composerReply, answerFor, sectionOfQuestion } from './composer';
+export { selectQuestions, qaAnchor } from './select-questions';
 export {
   financialsTakeaway,
   riskTakeaway,
@@ -138,7 +141,7 @@ export {
   recommendationTakeaway,
 } from './takeaways';
 export { selectSignature, selectStress, selectExhibits } from './select-decision';
-export { selectBook } from './select-book';
+export { selectBook, ackNoteRequired, ackUntil, ackAnnouncement, ackReasonText } from './select-book';
 export { actorOf, chipOf, relabel, relabelMonitor, selectLedger } from './select-ledger';
 export { selectCommands, paletteFooter, startConfirmCopy, stopConfirmCopy, announceFor } from './select-commands';
 
@@ -167,6 +170,8 @@ export {
   FX_PANEL_MERIDIAN_COUNTDOWN,
   FX_PANEL_SEALED,
   FX_PANEL_COBALT_REJECTED,
+  FX_QUESTIONS_ATLAS,
+  FX_LEDGER_QUESTION_ROW,
   FX_SIG_ATLAS_GATE,
   FX_SIG_ATLAS_AMENDED,
   FX_SIG_ATLAS_REV2,
@@ -182,6 +187,10 @@ export {
   FX_EXHIBITS,
   FX_BOOK_BREACH,
   FX_BOOK_EMPTY,
+  FX_BOOK_ACK_BREACH,
+  FX_BOOK_ACK_HINT,
+  FX_BOOK_ACK_WATCH,
+  FX_BOOK_ACKED_ITEM,
   FX_LEDGER_AFTER_ATLAS,
   FX_LEDGER_EMPTY,
   FIXTURES,

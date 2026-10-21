@@ -3,14 +3,18 @@
 // sealed record as presented (snapshot + what the reviewer saw at signing);
 // the session export is everything, with a closed-set actor on every event.
 // Events and exhibits always come from auditHistory filtered by runId, so the
-// export, the memo and the Ledger cannot disagree.
+// export, the memo and the Ledger cannot disagree. The reviewer's answered
+// questions (R4.5) ride along by the run whose package answered them, and each
+// acknowledged covenant item's monitor-log entry carries the reviewer's reason
+// as its detail (R4.6).
 // ---------------------------------------------------------------------------
 
 import type { V2Store } from '../state/contracts';
 import { fileFilename, fmtIso, sessionFilename } from './format';
 import { selectExhibits } from './select-decision';
+import { isAnsweredQuestion, questionExport, questionsOfRun } from './select-questions';
 import { fileContext, runTiming, snapshotContext } from './select-file';
-import { actorOf, relabel } from './select-ledger';
+import { ackNoteOf, actorOf, relabel } from './select-ledger';
 import { provenanceText, VERB_WORD } from './vocab';
 
 export function buildFileExport(s: V2Store, dealId: string): { filename: string; payload: unknown } {
@@ -59,6 +63,8 @@ export function buildFileExport(s: V2Store, dealId: string): { filename: string;
       steps: ctx.steps.map((st) => ({ title: st.title, call: st.call ?? null, result: st.result ?? null, flags: st.flags, thinking: st.thinking })),
       events: ctx.runId === null ? [] : s.agent.auditHistory.filter((e) => e.runId === ctx.runId),
       exhibits: selectExhibits(s, dealId, ctx),
+      // what the reviewer asked under this run, and what it was told (question, answer, time, source)
+      questions: ctx.runId === null ? [] : questionsOfRun(s, ctx.runId).map(questionExport),
     },
   };
 }
@@ -72,9 +78,13 @@ export function buildSessionExport(s: V2Store): { filename: string; payload: unk
       app: 'Countersign V2',
       analysisEvents: a.auditHistory.map((e) => ({ ...e, actor: actorOf(e), display: relabel(e).event })),
       runs: a.runs,
-      monitorLog: s.monitorLog,
+      // every entry gains `detail`: on a covenant item's acknowledgement, the reviewer's reason as
+      // written ("No reason given" for a watch acknowledged without one), else null; the Ledger's
+      // Reviewer row shows the same reason
+      monitorLog: s.monitorLog.map((m) => ({ ...m, detail: ackNoteOf(m, s.ui.ackNotes) })),
       escalations: s.monitor.escalations,
       snapshots: s.snapshotList,
+      questions: (s.ui.thread ?? []).filter(isAnsweredQuestion).map((e) => ({ dealId: e.dealId, runId: e.qa.runId, ...questionExport(e) })),
     },
   };
 }

@@ -1,16 +1,20 @@
 // ---------------------------------------------------------------------------
 // Agent panel · the thread (THREE-PANE.md R2.1, §2.5). Lines only: each
-// ThreadLine is ONE line (an answer may clip to 2) with an optional status
-// glyph and an optional trailing link ("Covenants →", "Decision →",
+// ThreadLine is ONE line (a steering reply may clip to 2) with an optional
+// status glyph and an optional trailing link ("Covenants →", "Decision →",
 // "Record →") that scrolls the memo to that card. No boxes, no cards, no
 // records, no reasoning, no buttons: the detail and the decision are on the
-// right, and a line only points at them. Rendered verbatim. The conversation
+// right, and a line only points at them. A real answer about the deal is in
+// the memo's Questions block; its line here reads "Answered in the memo ·
+// Questions →" and cues that entry (R4.5). Rendered verbatim. The conversation
 // runs top-down; `children` (the plan prompt, the Start drafting button) follow
 // the lines in the same scroller, as a message would.
 //
 // Links: every target is a memo card (cueMemo; the Decision card at the live
 // gate comes into view like "Go to decision", and drawer mode closes the
-// drawer first). The stress test opens if it was closed (openStress cues it).
+// drawer first), or a row in it when the link names one (the Questions entry,
+// scrolled to and flashed once). The stress test opens if it was closed
+// (openStress cues it).
 //
 // Auto-follow (component-local, resets on remount by design):
 //   - pinned = within 24px of the foot, recomputed on every scroll;
@@ -55,6 +59,7 @@ function atFoot(el: HTMLElement): boolean {
 function textClass(line: ThreadLine): string {
   const cls = ['chat-line__text', 't-body'];
   if (line.kind === 'answer') cls.push('chat-line__text--answer');
+  else if (line.kind === 'answered') cls.push('chat-line__text--answered');
   else if (line.glyph !== null && QUIET.has(line.glyph)) cls.push('chat-line__text--quiet');
   return cls.join(' ');
 }
@@ -121,12 +126,12 @@ export function Thread({ dealId, lines, labelledBy, sendSeq, children }: ThreadP
     return () => ro.disconnect();
   }, [jump]);
 
-  const go = (target: FileAt) => {
+  const go = (target: FileAt, anchorId: string | undefined) => {
     if (target === 'stress') {
       a.openStress(dealId);
       return;
     }
-    a.cueMemo({ section: target, anchorId: null });
+    a.cueMemo({ section: target, anchorId: anchorId ?? null });
   };
 
   // the pill leaves once the thread is at its foot: focus it held goes to the composer
@@ -154,7 +159,7 @@ export function Thread({ dealId, lines, labelledBy, sendSeq, children }: ThreadP
                   <span className={textClass(line)}>{line.text}</span>
                   {link ? (
                     <span className="chat-line__link">
-                      <LinkButton role="small" onClick={() => go(link.target)}>
+                      <LinkButton role="small" onClick={() => go(link.target, link.anchorId)}>
                         {link.label}
                       </LinkButton>
                     </span>

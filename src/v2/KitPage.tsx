@@ -61,6 +61,10 @@ import type { ForceState, MeaningTone, PaletteCommand, StatusKey, TableColumn, T
 import {
   AUTO_COUNTDOWN_MS,
   COPY,
+  FX_BOOK_ACK_BREACH,
+  FX_BOOK_ACK_HINT,
+  FX_BOOK_ACK_WATCH,
+  FX_BOOK_ACKED_ITEM,
   FX_BOOK_BREACH,
   FX_DESK_ATLAS_GATE,
   FX_DESK_INITIAL,
@@ -78,6 +82,8 @@ import {
   FX_PANEL_PLAN_REVIEW,
   FX_PANEL_RUNNING,
   FX_PANEL_SEALED,
+  FX_QUESTIONS_ATLAS,
+  FX_LEDGER_QUESTION_ROW,
   FX_STUB_EXTRACT,
   FX_SIG_ATLAS_AMENDED,
   FX_SIG_ATLAS_ARMED_RETURN,
@@ -111,6 +117,8 @@ import {
 } from './model';
 import type {
   AgentPanelView,
+  BookAckView,
+  BookItem,
   CovenantRow,
   CushionView,
   EvidenceView,
@@ -118,6 +126,7 @@ import type {
   FileView,
   KeyFigureView,
   NoteView,
+  QuestionsView,
   SectionAside,
   SectionFlagLine,
   SectionFooter,
@@ -199,6 +208,7 @@ const B = {
   sechead: { id: 'board-sectionhead', name: 'SectionHead · Disclosure · JsonBlock' },
   memocard: { id: 'board-memocard', name: 'MemoCard · section cards' },
   panel: { id: 'board-agentpanel', name: 'Agent panel · command and control' },
+  questions: { id: 'board-questions', name: 'Questions (memo) · analysis aid' },
   keyfig: { id: 'board-keyfigure', name: 'KeyFigure · KeyFigures' },
   slider: { id: 'board-slider', name: 'Slider' },
   decision: { id: 'board-decisioncard', name: 'Decision card (memo)' },
@@ -401,6 +411,7 @@ function EvidenceSpecimen({ ev }: { ev: EvidenceView }) {
       </EvidenceTag>
     );
   }
+  if (ev.cls === 'unquoted') return <EvidenceTag cls="unquoted" text={ev.text} srText={ev.full} />;
   return <EvidenceTag cls={ev.cls} text={ev.text} />;
 }
 
@@ -1129,7 +1140,7 @@ function TipCiteEvidenceBoard() {
             </Cell>
           ) : null}
           {unquoted ? (
-            <Cell caption={`not in the CIM · ${unquoted.label} ${unquoted.value} · it comes from the extraction model (R4.3)`}>
+            <Cell caption={`not in the CIM · ${unquoted.label} ${unquoted.value} · it comes from the extraction model (R4.3) · the short form on screen, "${unquoted.evidence.cls === 'unquoted' ? unquoted.evidence.full : ''}" read aloud through srText (R4.8)`}>
               <EvidenceSpecimen ev={unquoted.evidence} />
             </Cell>
           ) : null}
@@ -1422,13 +1433,171 @@ function ConfirmSpecimens() {
   );
 }
 
+// R4.6 (P-34): the Book's Acknowledge strip. The kit ConfirmStrip with a reason field, in a Book
+// table's item detail (indented with the sub-rows, as book.css does), then the acknowledged line.
+const ACK_ITEM: BookItem | null = FX_BOOK_BREACH.rows[0]?.items[0] ?? null;
+
+/** A Book sub-row as the screen lays it out (status, covenant, reading, distance, trailing slot, then the acknowledged line). */
+function AckSubRow({ item, trailing }: { item: BookItem; trailing?: ReactNode }) {
+  return (
+    <span className="kp-acksub">
+      <StatusLabel state={item.status.state} role="small">
+        {item.status.text}
+      </StatusLabel>
+      <span className="t-small">{item.covenant}</span>
+      <span className="t-figure">{item.reading}</span>
+      <span className="t-small kp-ink2">{item.distance}</span>
+      <span className="kp-acksub__end">{trailing}</span>
+      {item.ackRecord ? <span className="kp-acksub__record t-small">{item.ackRecord}</span> : null}
+    </span>
+  );
+}
+
+function AckStripOf({ a, onChange, onConfirm, onCancel }: { a: BookAckView; onChange: (v: string) => void; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="kp-ackindent">
+      <ConfirmStrip
+        text={a.text}
+        label={a.label}
+        reason={{ value: a.value, onChange, placeholder: a.placeholder, ariaLabel: a.placeholder, required: a.required }}
+        hint={a.hint}
+        confirmLabel={a.confirmLabel}
+        cancelLabel={a.cancelLabel}
+        tone="neutral"
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+      />
+    </div>
+  );
+}
+
+const ACK_COLUMNS: TableColumn[] = [{ key: 'item', label: 'Item', width: '1fr' }];
+
+/** Mounts inert like the confirm strips above (a strip focuses its field on mount), then live. */
+function AckSpecimens() {
+  const [live, setLive] = useState(false);
+  useEffect(() => setLive(true), []);
+  const [open, setOpen] = useState(true);
+  const [note, setNote] = useState('');
+  const [hint, setHint] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
+  if (!ACK_ITEM) return null;
+  const reset = () => {
+    setOpen(true);
+    setNote('');
+    setHint(false);
+    setDone(null);
+  };
+  const liveItem: BookItem = done
+    ? { ...ACK_ITEM, status: FX_BOOK_ACKED_ITEM.status, muted: true, ackRecord: `${COPY.ackUntilBreach} · “${done}”` }
+    : ACK_ITEM;
+  const liveRow: TableRow = {
+    key: 'live',
+    indent: true,
+    muted: liveItem.muted,
+    span: (
+      <AckSubRow
+        item={liveItem}
+        trailing={
+          done ? (
+            <LinkButton role="small" onClick={reset}>
+              Reset specimen
+            </LinkButton>
+          ) : !open ? (
+            <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+              {COPY.acknowledge}
+            </Button>
+          ) : null
+        }
+      />
+    ),
+    detail:
+      open && !done ? (
+        <AckStripOf
+          a={{ ...FX_BOOK_ACK_BREACH, value: note, hint: hint ? COPY.ackReasonFirst : null }}
+          onChange={(v) => {
+            setNote(v);
+            if (v.trim() !== '') setHint(false);
+          }}
+          onConfirm={() => {
+            if (note.trim() === '') {
+              setHint(true);
+              return;
+            }
+            setDone(note.trim());
+            setOpen(false);
+          }}
+          onCancel={() => {
+            setOpen(false);
+            setHint(false);
+          }}
+        />
+      ) : undefined,
+  };
+  const staticRow = (key: string, a: BookAckView): TableRow => ({
+    key,
+    indent: true,
+    span: <AckSubRow item={ACK_ITEM} />,
+    detail: <AckStripOf a={a} onChange={noop} onConfirm={noop} onCancel={noop} />,
+  });
+  const ledgerAck = FX_LEDGER_AFTER_ATLAS.monitor?.rows.find((r) => r.raw.Kind === 'acknowledged' && r.detail?.startsWith('“')) ?? null;
+  return (
+    <div className="kp-stack" inert={!live}>
+      <Cell caption="live · Acknowledge opens the item's strip; the reason field takes the focus (kit TextInput, required for a breach, described by the lines under it); Acknowledge with no reason shows the calm hint and keeps the strip; Enter confirms, Esc or Cancel closes; the item's own Acknowledge hides while its strip is open" block>
+        <Table columns={ACK_COLUMNS} rows={[liveRow]} caption="Book item with its Acknowledge strip (specimen)" header={false} />
+      </Cell>
+      <Grid size="wide">
+        <Cell caption="after Acknowledge with no reason on a breach: the calm hint above the consequence line (t-small ink, never a red alert), announced, focus back in the field" block>
+          <Table columns={ACK_COLUMNS} rows={[staticRow('hint', FX_BOOK_ACK_HINT)]} caption="Acknowledge strip with the hint (specimen)" header={false} />
+        </Cell>
+        <Cell caption="a watch item: a reason is optional, and it stays quiet until it worsens (raised again as a breach) or recovers" block>
+          <Table columns={ACK_COLUMNS} rows={[staticRow('watch', FX_BOOK_ACK_WATCH)]} caption="Acknowledge strip on a watch (specimen)" header={false} />
+        </Cell>
+      </Grid>
+      <Cell caption="in a 360px frame: the actions wrap under the field; the lines span the strip" block>
+        <div className="kp-frame360">
+          <AckStripOf a={FX_BOOK_ACK_BREACH} onChange={noop} onConfirm={noop} onCancel={noop} />
+        </div>
+      </Cell>
+      <Grid size="wide">
+        <Cell caption="afterwards: the acknowledged item's line under its figures, what it waits for, then the reason (focus lands here after Acknowledge)" block>
+          <Table columns={ACK_COLUMNS} rows={[{ key: 'acked', indent: true, muted: true, span: <AckSubRow item={FX_BOOK_ACKED_ITEM} /> }]} caption="Acknowledged Book item (specimen)" header={false} />
+        </Cell>
+        {ledgerAck ? (
+          <Cell caption="the Ledger's Reviewer row carries the reason as its detail (the session export's monitor log too)" block>
+            <Table
+              columns={LEDGER_COLUMNS}
+              rows={[
+                {
+                  key: ledgerAck.id,
+                  cells: {
+                    time: <span className="t-figure">{ledgerAck.time}</span>,
+                    actor: ledgerAck.actor,
+                    event: (
+                      <span className="kp-twoline">
+                        <span>{ledgerAck.event}</span>
+                        <span className="t-small kp-ink2">{ledgerAck.detail}</span>
+                      </span>
+                    ),
+                  },
+                },
+              ]}
+              caption="Ledger acknowledgement row (specimen)"
+            />
+          </Cell>
+        ) : null}
+      </Grid>
+    </div>
+  );
+}
+
 function NavBoard() {
   const [tab, setTab] = useState<string>(FX_TOPBAR.active);
   const [speed, setSpeed] = useState(1);
   const [chip, setChip] = useState<string>(FX_LEDGER_AFTER_ATLAS.activeChip);
   const [paletteOpen, setPaletteOpen] = useState(false);
   return (
-    <Board id={B.nav.id} name={B.nav.name} spec="Tabs 48, active = 2px --ink underline · Menu and Palette: paper, --shadow-pop, --r-md; keyboard-active row = --accent-wash + --accent-ink + 2px inset --accent outline · FilterChips 28, --ink-3 edge · ConfirmStrip 44, --sunken (P-19)">
+    <Board id={B.nav.id} name={B.nav.name} spec="Tabs 48, active = 2px --ink underline · Menu and Palette: paper, --shadow-pop, --r-md; keyboard-active row = --accent-wash + --accent-ink + 2px inset --accent outline · FilterChips 28, --ink-3 edge · ConfirmStrip 44, --sunken (P-19); with a reason (P-34) a kit TextInput leads with the actions beside it, padding 12, then a calm t-small ink hint (after a refused confirm) and the t-small ink-2 consequence line, both describing the field">
       <Group label="Tabs (top-bar fixture; click to switch)">
         <div className="kp-tabsframe">
           <Tabs items={FX_TOPBAR.tabs.map((t) => ({ id: t.id, label: t.label, count: null, countTone: 'ink-3' as const }))} active={tab} onSelect={setTab} ariaLabel="Sections (specimen)" />
@@ -1487,6 +1656,9 @@ function NavBoard() {
       </Group>
       <Group id="board-confirmstrip" label="ConfirmStrip (P-19)">
         <ConfirmSpecimens />
+      </Group>
+      <Group id="board-acknowledge" label="ConfirmStrip with a reason · Acknowledge on the Book (P-34)">
+        <AckSpecimens />
       </Group>
     </Board>
   );
@@ -2054,7 +2226,7 @@ function MemoCardBoard() {
       }
     >
       <Group label="A memo on the canvas: one card per section (Atlas, rev 1 gate and rev 2)">
-        <Cell caption="Financials (breach marked where it sits, the evidence check as a foot line naming the covenant inputs the CIM does not state; press Show row to flash total leverage) · Covenant compliance (stackBelow 640; each Actual traces to its Financials row, and one the CIM does not state carries “Not in CIM”, P-32) · Recommendation rev 2 (struck prior + token) · every set card ends in its footer line and Record" block>
+        <Cell caption="Financials (breach marked where it sits; the Source column reads “Not in CIM” on one line, the full wording read aloud, R4.8; the evidence check as a foot line naming the covenant inputs the CIM does not state; press Show row to flash total leverage) · Covenant compliance (stackBelow 640; each Actual traces to its Financials row, and one the CIM does not state carries “Not in CIM”, P-32) · Recommendation rev 2 (struck prior + token) · every set card ends in its footer line and Record" block>
           <div className="kp-canvas">
             {FIN ? <FinancialsCard s={FIN} prefix="kit-card" flashKey={flash === 0 ? undefined : flash} /> : null}
             {COV_SECTION ? <CovenantsCard s={COV_SECTION} /> : null}
@@ -2096,7 +2268,17 @@ function PanelLine({ l }: { l: ThreadLine }) {
   return (
     <li className="kp-pline" data-kind={l.kind}>
       <span className="kp-pline__glyph">{l.glyph ? <StatusGlyph state={l.glyph} srLabel={STATUS_WORD[l.glyph]} /> : null}</span>
-      <span className={l.kind === 'answer' ? 'kp-pline__text kp-pline__text--answer t-body' : 'kp-pline__text t-body'}>{l.text}</span>
+      <span
+        className={
+          l.kind === 'answer'
+            ? 'kp-pline__text kp-pline__text--answer t-body'
+            : l.kind === 'answered'
+              ? 'kp-pline__text kp-pline__text--answered t-body'
+              : 'kp-pline__text t-body'
+        }
+      >
+        {l.text}
+      </span>
       {l.link ? (
         <span className="kp-pline__link">
           <LinkButton role="small" onClick={noop}>
@@ -2174,7 +2356,7 @@ const PANEL_CASES: { key: string; v: AgentPanelView; caption: string }[] = [
   { key: 'plan', v: FX_PANEL_PLAN_REVIEW, caption: 'plan review · the plan checklist as a message in the thread (Claude Code style), Start drafting, the countdown with Hold; the memo shows its header alone until drafting starts' },
   { key: 'running', v: FX_PANEL_RUNNING, caption: 'drafting · the running step carries the static drafting glyph (the memo caret stays the only loop)' },
   { key: 'gate', v: FX_PANEL_ATLAS_GATE, caption: 'at the gate · ONE line, “Decision →” scrolls the memo to the Decision card; no token, no verbs, no note here' },
-  { key: 'rev2', v: FX_PANEL_ATLAS_REV2, caption: 'rev 2 after Q&A · a typed “countersign” is refused with a pointer to the Decision card; answers clip to 2 lines' },
+  { key: 'rev2', v: FX_PANEL_ATLAS_REV2, caption: 'rev 2 after Q&A · a typed “countersign” is refused with a pointer to the Decision card; a real answer leaves ONE “Answered in the memo · Questions →” line (the answer is in the memo, P-33); the what-if pointer stays a one-line reply' },
   { key: 'countdown', v: FX_PANEL_MERIDIAN_COUNTDOWN, caption: 'policy countdown · one line; the countdown itself fills the reviewer line on the Decision card' },
   { key: 'sealed', v: FX_PANEL_SEALED, caption: 'countersigned · the decided line links to the record on the Decision card' },
   { key: 'rejected', v: FX_PANEL_COBALT_REJECTED, caption: 'rejected after a send-back found no cure' },
@@ -2185,7 +2367,7 @@ function AgentPanelBoard() {
     <Board
       id={B.panel.id}
       name={B.panel.name}
-      spec="The middle pane is command and control only (P-27): head 44 = agent · file + the collapse chevron, nothing else · one-line status lines in t-body (ellipsis on overflow; answers clip to 2 lines), an optional 16px status glyph and an optional trailing link that scrolls the memo to its card · the plan prompt and the composer at the foot · it never displays data and holds no decision: every figure, record and the whole decision live in the memo (P-23)"
+      spec="The middle pane is command and control only (P-27): head 44 = agent · file + the collapse chevron, nothing else · one-line status lines in t-body (ellipsis on overflow; a steering reply may clip to 2 lines), an optional 16px status glyph and an optional trailing link that scrolls the memo to its card · a real answer about the deal is never shown here: it leaves one “Answered in the memo · Questions →” line (P-33) · the plan prompt and the composer at the foot · it never displays data and holds no decision: every figure, record and the whole decision live in the memo (P-23)"
     >
       <div className="kp-panels">
         {PANEL_CASES.map(({ key, v, caption }) => (
@@ -2216,7 +2398,7 @@ function KeyFigureBoard() {
             </Cell>
           ) : null}
           {warn ? (
-            <Cell caption="warn · dot" block>
+            <Cell caption="warn · dot · a figure the CIM does not state: the caption reads “Not in CIM”, the accessible name keeps the full wording (R4.8)" block>
               <KeyFigureSpecimen k={warn} />
             </Cell>
           ) : null}
@@ -2289,6 +2471,93 @@ function SliderBoard() {
           );
         })}
       </Grid>
+    </Board>
+  );
+}
+
+// =============================================================================
+// Board 16d · Questions (memo): the reviewer's answered questions (P-33, R4.5)
+// =============================================================================
+
+/** The memo's Questions block rendered verbatim from a QuestionsView: scratch in the provisional frame, never a MemoCard. */
+function QuestionsSpecimen({ v, flashId, prefix }: { v: QuestionsView; flashId?: { id: string; key: number }; prefix: string }) {
+  const headingId = `${prefix}-questions-h`;
+  return (
+    <section className="kp-qa" aria-labelledby={headingId}>
+      <div className="kp-qa__head">
+        <h4 id={headingId} className="kp-ink3 t-eyebrow">
+          {v.eyebrow}
+        </h4>
+        <p className="kp-ink2 t-small">{v.aid}</p>
+      </div>
+      <ol className="kp-qa__list">
+        {v.entries.map((e) => {
+          const flash = flashId && flashId.id === e.id && flashId.key > 0 ? flashId.key : 0;
+          return (
+            <li key={`${e.id}:${flash}`} className={flash > 0 ? 'kp-qa__entry is-flash' : 'kp-qa__entry'}>
+              <p className="kp-qa__question t-strong">{e.question}</p>
+              <p className="kp-qa__answer t-body">{e.answer}</p>
+              <p className="kp-qa__meta t-meta">
+                <span className="kp-ink3">{e.meta}</span>
+                {e.link ? (
+                  <LinkButton role="meta" onClick={noop}>
+                    {e.link.label}
+                  </LinkButton>
+                ) : null}
+              </p>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+/** The panel side of the same exchanges: the question stays one "You · …" line, the answer leaves one pointer line. */
+const QA_PANEL: AgentPanelView = {
+  ...FX_PANEL_ATLAS_REV2,
+  lines: FX_PANEL_ATLAS_REV2.lines.filter((l) => l.kind === 'you' || l.kind === 'answered' || l.kind === 'answer'),
+};
+
+function QuestionsBoard() {
+  const [flash, setFlash] = useState(0);
+  const row = FX_LEDGER_QUESTION_ROW;
+  const ledgerRows: TableRow[] = [
+    {
+      key: row.id,
+      cells: { time: <span className="t-figure">{row.time}</span>, actor: row.actor, event: row.event },
+      detail: <p className="kp-detail t-small">{row.detail}</p>,
+    },
+  ];
+  return (
+    <Board
+      id={B.questions.id}
+      name={B.questions.name}
+      spec="Questions (P-33, R4.5): everything displayed goes on the right, so a real answer about the deal is shown in full in the memo, never in the agent panel · scratch in the provisional frame (--line-provisional, --r-md, padding 16 20, 16 in a frame under 560), never a MemoCard · after the Decision card and before the stress test, only once the file has an answered question since its epoch (no placeholder; a re-run starts fresh) · head: t-eyebrow ink-3 + the t-small ink-2 aid line · one entry per question under a 1px --line hairline, padding 12 0, gap 4: the question t-strong ink, the full answer t-body ink-2 (its line breaks kept), one t-meta line: the source and the time in ink-3, then the memo card it concerns (LinkButton meta) · the panel keeps “You · …” and ONE “Answered in the memo · Questions →” line; following it scrolls here and flashes the entry once (v2-flash; a held --sunken highlight under reduced motion); in column mode a new answer is cued the same way · acknowledgements, refusals, help and the what-if pointer stay one-line panel replies · the file export carries the pairs (question, answer, time, source) and the Ledger shows each as a Reviewer event, the answer as its detail"
+      action={
+        <Button variant="secondary" size="sm" onClick={() => setFlash((n) => n + 1)}>
+          Questions →
+        </Button>
+      }
+    >
+      <Group label="In the memo: after the Decision card, before the stress test (Atlas after the rev 1 Q&A; press Questions → to flash the second entry, as the panel's pointer does)">
+        <div className="kp-canvas">
+          <QuestionsSpecimen v={FX_QUESTIONS_ATLAS} flashId={{ id: 'e7', key: flash }} prefix="kit-qa" />
+        </div>
+      </Group>
+      <Grid size="wide">
+        <Cell caption="The panel side of the same exchanges: each question stays one “You · …” line (ellipsis); each real answer leaves one pointer line; the what-if question gets the one-line stress-test pointer instead" block>
+          <PanelSpecimen v={QA_PANEL} />
+        </Cell>
+        <Cell caption="Narrow frame (360px, a memo pane under 592px): the frame pads 16, the answer and the meta line wrap" block>
+          <div className="kp-frame360">
+            <QuestionsSpecimen v={FX_QUESTIONS_ATLAS} prefix="kit-qa-narrow" />
+          </div>
+        </Cell>
+      </Grid>
+      <Group label="In the Ledger: a Reviewer event of its run, the question as the event and the answer as its detail (the full answer and its source are in the row's raw record)">
+        <Table columns={LEDGER_COLUMNS} rows={ledgerRows} caption="Ledger · an answered question (specimen)" />
+      </Group>
     </Board>
   );
 }
@@ -2824,6 +3093,7 @@ export default function KitPage() {
             <SectionHeadBoard />
             <MemoCardBoard />
             <AgentPanelBoard />
+            <QuestionsBoard />
             <KeyFigureBoard />
             <SliderBoard />
             <DecisionCardBoard />

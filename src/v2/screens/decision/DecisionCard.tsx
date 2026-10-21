@@ -41,7 +41,6 @@
 // The open reviewer line is a record awaiting ink, never a control (no onActivate).
 import { useCallback, useId, useRef, useState } from 'react';
 import {
-  Button,
   Chip,
   Disclosure,
   LinkButton,
@@ -59,6 +58,7 @@ import { revealInBand } from '../../state/reveal';
 import { useV2 } from '../../state/store';
 import type { DecisionBlockProps } from '../../state/screens';
 import { useHeadCue } from './useHeadCue';
+import { VerbRow } from './VerbRow';
 
 const CLEARED_SUFFIX = ` · ${COPY.clearedByAmendment}`;
 
@@ -335,36 +335,17 @@ export function DecisionCard({ dealId }: DecisionBlockProps) {
                 </div>
 
                 {/* one horizontal row that may wrap sideways; each verb with its consequence under it.
-                    An armed Return or Reject reads its commit label; Cancel joins the same row. */}
-                <ul className="decision__choices">
-                  <li className="decision__choice" data-verb="sign">
-                    <span ref={primaryRef} className="decision__primary" data-sign-primary="">
-                      <Button variant="primary" kbd={v.verbs.kbd.sign ?? undefined} onClick={signFromPrimary} disabled={dead}>
-                        {v.verbs.primary}
-                      </Button>
-                    </span>
-                    <span className="decision__caption decision-ink3 t-meta">{v.verbs.notes.sign}</span>
-                  </li>
-                  <li className="decision__choice" data-verb="rework">
-                    <Button variant="secondary" kbd={v.verbs.kbd.ret ?? undefined} onClick={() => a.tryRework('click')} disabled={dead}>
-                      {v.verbs.returnLabel}
-                    </Button>
-                    <span className="decision__caption decision-ink3 t-meta">{v.verbs.notes.ret}</span>
-                  </li>
-                  <li className="decision__choice" data-verb="reject">
-                    <Button variant="danger" kbd={v.verbs.kbd.rej ?? undefined} onClick={() => a.tryReject('click')} disabled={dead}>
-                      {v.verbs.rejectLabel}
-                    </Button>
-                    <span className="decision__caption decision-ink3 t-meta">{v.verbs.notes.rej}</span>
-                  </li>
-                  {v.verbs.cancelLabel ? (
-                    <li className="decision__cancel" data-pattern="P-30">
-                      <LinkButton role="label" onClick={a.disarm} disabled={dead}>
-                        {v.verbs.cancelLabel}
-                      </LinkButton>
-                    </li>
-                  ) : null}
-                </ul>
+                    An armed Return or Reject reads its commit label; Cancel joins the same row
+                    (VerbRow, shared with the kit page's phone-width check, R4.10). */}
+                <VerbRow
+                  verbs={v.verbs}
+                  dead={dead}
+                  primaryRef={primaryRef}
+                  onSign={signFromPrimary}
+                  onRework={() => a.tryRework('click')}
+                  onReject={() => a.tryReject('click')}
+                  onCancel={a.disarm}
+                />
 
                 <div className="decision__foot">
                   {v.attestation ? <p className="decision-ink3 t-meta">{v.attestation}</p> : null}

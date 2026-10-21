@@ -170,6 +170,8 @@ function questionRow(e: ThreadEntry, question: string, fileName: string, runId: 
       'Raw label': COPY.askedRawLabel,
       Detail: e.text,
       [COPY.answeredBy]: e.meta ?? COPY.askMetaEngine,
+      // R4.11: the package revision that answered (a send-back keeps the answer on the record)
+      [COPY.answeredOnRevision]: e.qa && e.qa.revision !== null ? String(e.qa.revision) : COPY.noCall,
     },
   };
 }
@@ -235,12 +237,16 @@ function signedOverOf(snap: CaseFileSnapshot | undefined): { total: number; live
   return { total: all.length, live: all.filter((c) => !c.cleared).length };
 }
 
-function runHeader(s: V2Store, run: RunRecord, entries: AuditHistoryEntry[]): StatusText & { meta: string } {
+/**
+ * A run's header. `events` counts the run's rows as listed (its audit entries plus its answered
+ * questions, R4.11), so the run headers and the monitor rows always sum to the summary's count.
+ */
+function runHeader(s: V2Store, run: RunRecord, entries: AuditHistoryEntry[], events: number): StatusText & { meta: string } {
   const a = s.agent;
   const current = run.runId === a.runId;
   const endAt = run.decidedAt ?? (entries.length > 0 ? entries[entries.length - 1].t : run.startedAt);
   const timing = runTiming(entries, run.startedAt, run.decision ? endAt : s.now);
-  const meta = [plural(entries.length, 'event'), fmtDuration(timing.draftedMs), fmtHM(run.decision ? endAt : s.now)].join(' · ');
+  const meta = [plural(events, 'event'), fmtDuration(timing.draftedMs), fmtHM(run.decision ? endAt : s.now)].join(' · ');
   const rev = run.revision > 1 ? ` · rev ${run.revision}` : '';
   const word = run.recommendation ? tokenWord(run.recommendation) : null;
   if (run.decision === 'cancelled') {
@@ -354,7 +360,7 @@ export function selectLedger(s: V2Store, fileFilter: string | null): LedgerView 
         runId: g.run.runId,
         dealId,
         expanded: s.ui.ledgerOpen[key] ?? g.run.runId === latestId,
-        header: runHeader(s, g.run, g.entries),
+        header: runHeader(s, g.run, g.entries, g.rows.length),
         decision: runDecision(s, g.run, g.entries),
         rows,
         openFile: deal ? { name: 'file', dealId, at: null } : null,

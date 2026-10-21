@@ -16,7 +16,8 @@
 // only answer (no mirror of the engine's messages).
 //
 // R4.5: a real answer about the deal (ComposerReply.memo) is written with `qa`
-// (the question as typed and the run that answered it). The memo's Questions
+// (the question as typed, the run and the package revision that answered it,
+// R4.11). The memo's Questions
 // block shows it in full and the panel only points at it; in column mode the
 // memo brings the new entry into view and flashes it once (scroll only: focus
 // stays in the composer, so a stray key can never sign).
@@ -179,7 +180,7 @@ export function createComposerActions(x: V2Internals): ComposerActions {
           meta: reply.meta,
           tone: reply.tone,
           action: reply.action,
-          qa: reply.memo ? { question: text, runId: reply.memo.runId } : null,
+          qa: reply.memo ? { question: text, runId: reply.memo.runId, revision: reply.memo.revision } : null,
         });
       }
       x.setUi((u) => {

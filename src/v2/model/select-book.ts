@@ -65,10 +65,15 @@ function ackStrip(s: V2Store, e: EscalationItem, fileName: string): BookAckView 
   };
 }
 
-/** An acknowledged item's line: what it waits for (or that it has since worsened), then the reason. */
+/**
+ * An acknowledged item's line: what it waits for (or that it has since worsened), then the reason.
+ * Worsened = a newer item for the same covenant that is not resolved, open OR acknowledged (R4.11):
+ * the engine resolves every item of a covenant together, so a newer unresolved one can only be the
+ * re-raise, and acknowledging that breach does not undo the fact that the watch worsened.
+ */
 function ackRecordOf(s: V2Store, e: EscalationItem, all: EscalationItem[]): string | null {
   if (e.status !== 'acknowledged') return null;
-  const worsened = all.some((o) => o.id !== e.id && o.key === e.key && o.status === 'open' && o.at > e.at);
+  const worsened = all.some((o) => o.id !== e.id && o.key === e.key && o.status !== 'resolved' && o.at > e.at);
   const rec = s.ui.ackNotes[e.id];
   return [worsened ? COPY.ackReraised : ackUntil(e), rec ? ackReasonText(rec, false) : null].filter((p): p is string => p !== null).join(' · ');
 }
@@ -186,13 +191,25 @@ export function selectBook(s: V2Store): BookView {
       oldestOpen: open.length > 0 ? Math.min(...open.map((e) => e.at)) : Number.MAX_SAFE_INTEGER,
     };
   });
-  rows.sort(
-    (a, b) =>
-      HEALTH_RANK[m.portfolio.find((p) => p.dealId === a.dealId)?.health ?? 'healthy'] -
-        HEALTH_RANK[m.portfolio.find((p) => p.dealId === b.dealId)?.health ?? 'healthy'] ||
-      a.oldestOpen - b.oldestOpen ||
-      a.name.localeCompare(b.name),
-  );
+  const byHealth = (a: BookRow & { oldestOpen: number }, b: BookRow & { oldestOpen: number }) =>
+    HEALTH_RANK[m.portfolio.find((p) => p.dealId === a.dealId)?.health ?? 'healthy'] -
+      HEALTH_RANK[m.portfolio.find((p) => p.dealId === b.dealId)?.health ?? 'healthy'] ||
+    a.oldestOpen - b.oldestOpen ||
+    a.name.localeCompare(b.name);
+  // R4.11: while an Acknowledge strip is open the order holds as it was when the strip opened, so a
+  // sweep that re-ranks the files never moves the row whose reason field the reviewer is typing in
+  // (a moved node loses focus mid-reason); files that joined since go after, in the usual order.
+  // The Book re-sorts when the strip closes.
+  const frozen = s.ui.ackConfirm ? s.ui.ackConfirm.order : null;
+  if (frozen && frozen.length > 0) {
+    const at = (id: string) => {
+      const i = frozen.indexOf(id);
+      return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+    };
+    rows.sort((a, b) => at(a.dealId) - at(b.dealId) || byHealth(a, b));
+  } else {
+    rows.sort(byHealth);
+  }
 
   // A file the monitor has not swept yet (an upload joins the book on the next sweep) can
   // already carry a routed countersignature. Its item shows at once, under a row that says

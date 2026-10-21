@@ -315,7 +315,8 @@ export function answerFor(s: V2Store, dealId: string, text: string): ComposerRep
     revisedLeverage,
     reasons: pkg ? packageDecision(ctx, pkg).reasons : null,
   });
-  const memo = { runId: ctx.runId };
+  // the run and the package revision that answered (R4.11): a send-back keeps the answer, now marked as rev N
+  const memo = { runId: ctx.runId, revision: pkg ? pkg.revision : null };
   if (route.kind === 'local') {
     const stressOk = pkg !== null && (ctx.mode === 'gate' || ctx.mode === 'sealed' || ctx.mode === 'running');
     if (route.stress) return { tone: 'answer', text: route.text, meta: COPY.askMetaLocal, action: stressOk ? { kind: 'stress', label: sectionLinkLabel('stress') } : null, memo: null };

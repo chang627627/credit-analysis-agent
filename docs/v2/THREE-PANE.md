@@ -214,7 +214,9 @@ as today", R2.3's "S / R run return / reject through the note-required flow", §
   ≈ 148 + "Reject now" ≈ 85, both fit where the resting pair (≈ 148 + ≈ 96) does. The verbs stay on
   two lines in every armed state; Cancel (≈ 44) takes a third line of its own there, as the one
   non-verb item. Above 360, where chips show, an armed line 2 is narrower than the resting one:
-  one ⌘↵ chip replaces the S and R chips.
+  one ⌘↵ chip replaces the S and R chips. **R4.10** checks this with the real verb row on the kit
+  page (`#board-phoneverbs`): the 248 above is a 390 viewport's verb row (260) less the gap, so by
+  the same estimates it holds from 390, is on the edge at 375 and breaks at 360.
 
 ### R4.2 Honest auto-countersign rule (Mobbin audit fix 2, P-31)
 
@@ -380,7 +382,7 @@ to 2 lines"), §4.3's `question` row (the local meta and the stress link now rea
 flat 300-entry cap, where they conflict.
 
 - **What moves** (model only, classified from the existing composer path): `ComposerReply.memo:
-  { runId } | null` is set by `answerFor` on a **real answer about the deal**, the engine's
+  { runId, revision } | null` (revision: R4.11) is set by `answerFor` on a **real answer about the deal**, the engine's
   rule-based responder (`answerQuestion`) and the deterministic answers `askRoute` composes from the
   package (the why answer from the decision rule's reasons, the restructured why and leverage
   answers). It is null on everything else: command acknowledgements (`composerReply`'s `done`
@@ -389,8 +391,9 @@ flat 300-entry cap, where they conflict.
   pointer. The what-if pointer is steering, so it stays one panel reply and is now short enough for
   one line: "Try it in the stress test, below the Decision card." with "Stress test →"
   (`COPY.askStressPointer`; it was 150 characters and clipped).
-- **State** (`state/contracts.ts`, `state/composer.ts`): `ThreadEntry.qa: { question; runId } | null`,
-  set on the answer entry from `reply.memo` (the question as typed, the run whose package answered);
+- **State** (`state/contracts.ts`, `state/composer.ts`): `ThreadEntry.qa: { question; runId; revision }
+  | null`, set on the answer entry from `reply.memo` (the question as typed, the run whose package
+  answered, and that package's revision, R4.11);
   every other entry writes `null`. The thread cap (300) drops answered questions last, keeping up to
   500 (`QA_CAP`), since they are now on the record. In **column mode**, when the case file is on
   screen, a new real answer cues its memo entry at once (`cueMemo({ section: 'questions', anchorId:
@@ -409,29 +412,36 @@ flat 300-entry cap, where they conflict.
   `data-pattern="P-33"`): a scratch block in the provisional frame of the stress test
   (`--line-provisional`, `--r-md`, padding 16 20; 16 at a memo pane under 592px), never a `MemoCard`.
   Order: … 5 Recommendation → the Decision card → **Questions** → the stress test → exhibits →
-  appendix (the Decision card stays right after step 5; R2.5's order otherwise unchanged). It exists
-  only once the file has an answered question since its epoch (`ui.threadEpoch`, the same filter as
-  the panel: no empty placeholder, and a re-run starts fresh). Head: t-eyebrow ink-3 "Questions" and
+  appendix (the Decision card stays right after step 5; R2.5's order otherwise unchanged). It lists
+  the questions answered under **the run the memo shows** (`fileContext(s, dealId).runId`,
+  `questionsOfRun`, the same key as the file export and the Ledger; R4.11 replaced the first build's
+  epoch filter, which emptied a sealed memo after a cancelled re-run while its export and the Ledger
+  still listed the questions). It exists only while that run has an answered question: no empty
+  placeholder, a re-run starts fresh (plan review and the new run have no questions yet), and a
+  cancelled re-run gives the sealed record its questions back. Only the panel's lines follow the
+  file's epoch. Head: t-eyebrow ink-3 "Questions" and
   the t-small ink-2 aid line "Analysis aid · not part of the memo" (`COPY.aidLabel`). One entry per
   answered question, oldest first, under a 1px `--line` hairline (padding 12 0, gap 4): the question
   as typed (t-strong ink), the full answer (t-body ink-2, `pre-line`), one t-meta line with the
   source and the time in ink-3 ("rule-based responder · simulated · 14:03", or
   "Countersign · deterministic · 14:02" for an `askRoute` answer; `COPY.askMetaLocal` was
-  "Countersign"), then, when the answer concerns a memo card, that card's link ("Covenants →", the
+  "Countersign"; once the run has more than one revision the line names the revision that answered,
+  "rev 1 · superseded by rev 2" or "rev 2", R4.11), then, when the answer concerns a memo card, that card's link ("Covenants →", the
   target the panel reply used to carry, `sectionOfQuestion` / `memoAction`), which scrolls to the
   card's head and flashes it. Each entry carries `data-anchor="qa:<entryId>"`; `memoTargetOfAnchor`
   maps `qa:*` to `'questions'`.
 - **Exports** (`model/exports.ts`): the file export adds `questions: { question, answer, at (ISO),
-  source }[]` for the exported run (`questionsOfRun(s, ctx.runId)`, so a sealed snapshot exports what
+  source, revision }[]` (revision: R4.11) for the exported run (`questionsOfRun(s, ctx.runId)`, so a sealed snapshot exports what
   was asked under it, and a re-run's questions go with the re-run); the session export adds every
   answered question with its `dealId` and `runId`.
 - **Ledger** (`model/select-ledger.ts`): each answered question is a row of its run, merged in time
   order with the run's audit entries: actor Reviewer, chip Reviewer, event "Asked · “which covenants
   are tight?”" (`COPY.askedEvent`), detail the answer (the row truncates it; the raw record's Detail
-  holds it in full), raw label "Reviewer question", kind `question`, and the source under
-  "Answered by". They count in All and Reviewer; they are not reviewer decisions, so the summary's
+  holds it in full), raw label "Reviewer question", kind `question`, the source under
+  "Answered by" and (R4.11) the package revision under "Revision". They count in All and Reviewer,
+  and in their run header's event count (R4.11); they are not reviewer decisions, so the summary's
   decision counts are unchanged. Questions of a run stay on the Ledger after a re-run (the record
-  keeps every run); only the memo block and the panel start fresh.
+  keeps every run); the memo block lists the run it shows and the panel starts fresh.
 - **Kit page:** a new board "Questions (memo) · analysis aid" (`#board-questions`): the block on the
   canvas (`FX_QUESTIONS_ATLAS`: the deterministic why answer and the engine's covenant answer, with
   a "Questions →" action that flashes the second entry as the panel pointer does), the panel side of
@@ -455,8 +465,9 @@ breach needs a reason; a watch may go without. This supersedes SPEC.md §7.4's "
 snooze; Mark handed off (countersign items) is unchanged.
 
 - **State** (`state/contracts.ts`, `state/acknowledge.ts`, `state/ui.ts`; the engine and the hooks
-  are untouched): `UiState.ackConfirm: { id; note; hint } | null` (the item whose strip is open, one
-  at a time, the reason being typed, and whether the calm hint shows) and `UiState.ackNotes:
+  are untouched): `UiState.ackConfirm: { id; note; hint; order } | null` (the item whose strip is
+  open, one at a time, the reason being typed, whether the calm hint shows, and (R4.11) the Book's
+  file order when the strip opened, held while it is open) and `UiState.ackNotes:
   Record<escalationId, AckNote>` (`AckNote { note; at }`, the trimmed reason, `''` when a watch
   went without one; session only, like the rest of the store). `V2Actions.acknowledge(id)` is gone;
   in its place `requestAcknowledge(id)` (open monitor items on a shown file only; opening another
@@ -479,7 +490,11 @@ snooze; Mark handed off (countersign items) is unchanged.
   "Optional for a watch. Stays quiet until it worsens or recovers." (`COPY.ackConsequence`). The
   group's accessible name is "Acknowledge Max Total Leverage on Project Cobalt"
   (`ConfirmStrip.label`, new). While the strip is open the item's own Acknowledge button hides
-  (`action` null), so the strip's Acknowledge is the only one.
+  (`action` null), so the strip's Acknowledge is the only one, and (R4.11) the Book keeps the file
+  order it had when the strip opened: `selectBook` sorts by `ackConfirm.order` (files that joined
+  since go after, in the usual order) instead of health and oldest open item, so a sweep that
+  re-ranks the files never moves the row whose reason field has the focus. The Book re-sorts when
+  the strip closes.
 - **Validity, the calm way** (the R4.1 pattern, never a disabled button, never a red alert):
   Acknowledge (click, or Enter in the field) with an empty or blank reason on a breach keeps the
   strip open, sets `hint`, shows one t-small ink line above the consequence line, "Write why it is
@@ -502,7 +517,9 @@ snooze; Mark handed off (countersign items) is unchanged.
   the covenant column on (t-small ink-2, wraps; a full-width line when the sub-row is narrow), reads
   what it waits for, then the reason: "until it recovers · “Waiver in negotiation with sponsor”",
   "until it worsens or recovers · no reason given" (a watch acknowledged without one), or "worsened
-  since and raised again · …" once a sweep has raised a newer open item for the same covenant.
+  since and raised again · …" once a sweep has raised a newer item for the same covenant (R4.11:
+  any newer item that is not resolved, open or acknowledged; the engine resolves every item of a
+  covenant together, so acknowledging the re-raised breach never brings back "until it worsens").
 - **Ledger and export:** the monitor log's acknowledgement row (Reviewer, chip Reviewer, event
   "Acknowledged · Max Total Leverage") carries the reason as its detail, quoted ("“Waiver in
   negotiation with sponsor”", or "No reason given"), also in its raw record's Detail
@@ -558,7 +575,9 @@ run is live on still cannot be removed, and Settings keeps "Restore removed file
   `EmptyNote` right above the drop zone reads "Drop a CIM below to open a new file, or bring the
   samples back." with one secondary button, "Restore sample files" (when an upload was removed too:
   "… or bring back the files you removed." and "Restore removed files"). The summary carries no
-  Restore link in this state, so the screen has one way back.
+  Restore link in this state, so the screen has one way back. While an upload is being extracted
+  on an empty Desk the EmptyNote gives way to the extraction row, so (R4.11) the summary reads "No
+  files on the Desk · 3 removed · Restore" instead: there is always exactly one way back.
 - **Kit:** `EmptyNote` gains `action?: { label; onClick; ariaLabel? }`: one secondary sm `Button`
   after the text (`.k-empty--action`: wraps, column gap 12, row gap 8; the text span keeps
   `role="status"`; `data-pattern="P-35"`).
@@ -634,7 +653,9 @@ same `POLICY_TERMS` (`policyRule().short`), never restated by hand. This restore
   row; an arrow key, typing or leaving the list hands it back to the active row): t-meta ink-2,
   wrapping, `flex: 1`, with the count kept at the right edge (alone, the count stays left as
   before). Rows keep their fixed 36px height. Each option with a description also carries a
-  visually hidden copy as its `aria-describedby`, so the rule is read with the active option.
+  visually hidden copy as its `aria-describedby`, so the rule is read with the active option; such
+  an option is named by `aria-labelledby` its label (and hint) only, as the Menu item is, so the
+  hidden copy is read once, as the description, never inside the name (R4.11).
   `data-pattern="P-36"` on the footer while it shows one.
 - **The palette's policy commands** (`selectCommands`, `CommandView.description?`, mapped by
   `paletteCommands`; labels now `COPY.policyOnCommand` / `COPY.policyOffCommand`): both carry
@@ -642,6 +663,87 @@ same `POLICY_TERMS` (`policyRule().short`), never restated by hand. This restore
 - **Kit page:** the Menu group adds the More menu item with its line (specimen and live) and the
   Palette group a specimen with the policy command active (its rule in the hint row); the live
   palette list ends in the policy command, whose rule shows on hover.
+
+### R4.10 The verb row at phone width, checked (improvement batch 2, item 5, P-37)
+
+**The problem.** R4.1 and R4.4 claim the Decision card's verbs keep two lines at phone width, resting
+and armed: the primary on line 1, Return and Reject sharing line 2, Cancel (not a verb) free to take
+a line of its own. The claim rested on estimated label widths, and the kit page's Decision card
+specimens use their own `kp-verbs` styles, not `decision.css`, so nothing on screen could show
+whether it holds.
+
+**The rule.** The check renders the real component. Nothing in the memo changes.
+
+- **One verb row** (`screens/decision/VerbRow.tsx`, new, pure): the `ul.decision__choices` markup
+  moved out of `DecisionCard.tsx` unchanged (the units, `data-verb`, `[data-sign-primary]`, the
+  captions, the armed Cancel with `data-pattern="P-30"`). It takes the model's `verbs`, `dead`, the
+  primary's ref and four handlers, imports `decision.css` itself, and is rendered by the memo's
+  Decision card and by the kit page.
+- **The board** (`#board-phoneverbs`, "Verb row at phone width · the check", after the Decision card
+  board): for each phone viewport, 360, 375, 390 and 414, a kit `MemoCard` at the width that
+  viewport gives the memo card (viewport less the 64px forced rail and the 16px canvas gutters of a
+  memo pane under 640px: 264, 279, 294, 318), holding `.decision > .decision__panel > VerbRow`, so
+  the card body pads 16 and the Decision card's container is the viewport less 130 (230, 245, 260,
+  284). All four are under 360, so the panel goes flat and the decorative chips drop exactly as in
+  the memo. Three states per width: resting (Atlas rev 1), Return armed (commit label "Return with
+  note", ⌘↵, Cancel) and Reject armed (Cobalt, "Reject now", Cancel). Each specimen
+  (`data-pattern="P-37"`, `data-lines`) measures its own layout after mounting, again once the fonts
+  have loaded and on every resize, and states the result under the card: "Verbs on 2 lines · Cancel
+  on a line of its own" (kit `StatusLabel` pass) or "Verbs on 3 lines: Return and Reject do not share
+  a line" (breach). The measured line is the check; the owner reads it on `/?kit`.
+- **What the estimates predict** (13px/500 labels, padding 12 and 1px borders, chips dropped, 12px
+  column gap): line 2 needs about 256 resting ("Return for revision" 148 + "Reject memo" 96), 244
+  with Return armed ("Return with note" 136 + 96) and 245 with Reject armed (148 + "Reject now" 85).
+
+  | Viewport | Verb row | Resting | Return armed | Reject armed |
+  |---|---|---|---|---|
+  | 414 | 284 | 2 lines (28 spare) | 2 lines (40 spare) | 2 lines (39 spare) |
+  | 390 | 260 | 2 lines (4 spare) | 2 lines (16 spare) | 2 lines (15 spare) |
+  | 375 | 245 | 3 lines (11 short) | 2 lines (1 spare) | 2 lines (0 spare) |
+  | 360 | 230 | 3 lines | 3 lines | 3 lines |
+
+  So the claim is expected to hold from a 390 viewport, the width `decision.css` was written for, to
+  sit on the edge at 375 (the browser pane's mobile preset) and to break at 360. Cancel takes a line
+  of its own wherever the verbs keep two lines. These are estimates; the board's measured line
+  decides. If it shows red at a width the owner cares about, the levers are the owner's: shorter
+  resting labels at phone width, tighter verb buttons under a phone-width card (about 16px back),
+  or a 390 floor for the claim.
+
+### R4.11 Review fixes to R4.5 to R4.9 (as built)
+
+An adversarial review of the batch found these; each is folded into the subsection it names, and
+listed here so the change is traceable.
+
+- **R4.5 · a cancelled re-run emptied the sealed memo's Questions block.** The block filtered by the
+  file's thread epoch, which a start resets at plan review, while the file export and the Ledger
+  grouped by run; cancelling the plan (or stopping) brought back the sealed snapshot of run 1
+  without its questions, though its export and the Ledger still listed them. `selectQuestions` now
+  lists `questionsOfRun` for the run the memo shows (`fileContext`), the same key as the export and
+  the Ledger. Only the panel's lines follow the epoch.
+- **R4.5 · an answer did not say which revision it described.** After a send-back the rev 1
+  answers ("The agent recommends ESCALATE. …") sat right under a rev 2 Decision card reading
+  APPROVE. `ComposerReply.memo` and `ThreadEntry.qa` carry the package `revision`; once the run has
+  more than one, each entry's meta line names it, "Countersign · deterministic · rev 1 · superseded
+  by rev 2 · 14:02" (`COPY.qaRevision`); the file and session exports add `revision` and the
+  Ledger's raw record a "Revision" field. Kit: `FX_QUESTIONS_ATLAS_REV2` on the Questions board.
+- **R4.5 · the Ledger's counts disagreed.** Question rows joined their run's rows and the summary's
+  event count, but the run header still counted only audit entries ("24 events" above 26 rows).
+  The header now counts the run's rows as listed (`runHeader(…, rows.length)`), so the run headers
+  and the monitor rows sum to the summary again.
+- **R4.6 · a sweep could take the focus out of the reason field.** `selectBook` re-sorts the files
+  every sweep (health, then oldest open item), and when the open strip's file was overtaken React
+  moved its rows, detaching the focused input mid-reason. The Book now holds its file order while a
+  strip is open (`ackConfirm.order`).
+- **R4.6 · an acknowledged watch went back to "until it worsens or recovers".** The "worsened since"
+  wording held only while the re-raised breach was open; acknowledging that breach brought the old
+  promise back. A newer unresolved item now counts.
+- **R4.7 · extracting on an empty Desk removed every Restore control.** The EmptyNote unmounts
+  while an upload is extracted, and the summary link needed files on the Desk, so the summary said
+  "3 removed" with no way back but Settings. The summary carries Restore while extracting.
+- **R4.9 · the palette read the rule twice.** The hidden description sat inside the option with no
+  `aria-labelledby`, so it was part of the option's name and its description. The option is now
+  named by its label and hint only.
+- **Item 5 of the batch (the phone-width check of armed verbs) had not been built.** It is R4.10.
 
 ## 0. Owner decisions that survive (each is checked in §9)
 

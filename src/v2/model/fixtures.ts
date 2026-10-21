@@ -1520,6 +1520,19 @@ export const FX_QUESTIONS_ATLAS: QuestionsView = {
   ],
 };
 
+/**
+ * The same block once Atlas was returned and the rev 2 gate stands on the revised structure (R4.11):
+ * the rev 1 answers stay on the record, and their meta lines say which package they described, so
+ * "The agent recommends ESCALATE" never reads as the call of the APPROVE card above it.
+ */
+export const FX_QUESTIONS_ATLAS_REV2: QuestionsView = {
+  ...FX_QUESTIONS_ATLAS,
+  entries: [
+    { ...FX_QUESTIONS_ATLAS.entries[0], meta: `${COPY.askMetaLocal} · ${COPY.qaRevision(1, 2)} · 14:02` },
+    { ...FX_QUESTIONS_ATLAS.entries[1], meta: `${COPY.askMetaEngine} · ${COPY.qaRevision(1, 2)} · 14:03` },
+  ],
+};
+
 /** An answered question as its Ledger row (R4.5): a Reviewer event of its run, the answer as the detail. */
 export const FX_LEDGER_QUESTION_ROW: LedgerRow = {
   id: 'e7',
@@ -1538,6 +1551,7 @@ export const FX_LEDGER_QUESTION_ROW: LedgerRow = {
     'Raw label': COPY.askedRawLabel,
     Detail: FX_QUESTIONS_ATLAS.entries[1].answer,
     [COPY.answeredBy]: COPY.askMetaEngine,
+    [COPY.answeredOnRevision]: '1',
   },
 };
 
@@ -2510,6 +2524,7 @@ export const FIXTURES = {
   FX_PANEL_SEALED,
   FX_PANEL_COBALT_REJECTED,
   FX_QUESTIONS_ATLAS,
+  FX_QUESTIONS_ATLAS_REV2,
   FX_LEDGER_QUESTION_ROW,
   FX_SIG_ATLAS_GATE,
   FX_SIG_ATLAS_AMENDED,

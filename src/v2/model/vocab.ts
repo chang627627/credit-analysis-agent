@@ -414,6 +414,9 @@ export const COPY = {
   askedEvent: (question: string): string => `Asked · “${question}”`,
   askedRawLabel: 'Reviewer question',
   answeredBy: 'Answered by',
+  /** R4.11: the revision an answer described, once the run has more than one ("rev 1 · superseded by rev 2") */
+  qaRevision: (rev: number, supersededBy: number | null): string => (supersededBy !== null ? `rev ${rev} · superseded by rev ${supersededBy}` : `rev ${rev}`),
+  answeredOnRevision: 'Revision',
   evidenceCheck: 'Evidence check',
   evidenceCheckMeta: 'Countersign · deterministic check',
   /** R4.3: the Decision card's one info item under Signed over (not a flag, never counted in "you opened n of N") */

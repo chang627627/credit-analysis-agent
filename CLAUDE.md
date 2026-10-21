@@ -547,7 +547,7 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   supersede all of them.
 - **Guardrails:** `npm run v2-check` (28 greps: tokens only, 400/500/600, 4px grid, one
   infinite animation, no hand-rolled controls outside the kit, V1 + engine hashes untouched, …).
-  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-36, rendered on `/?kit`) for
+  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-37, rendered on `/?kit`) for
   owner approval; every `data-pattern` id needs an entry there, every kit export a kit-page specimen.
 - **Storage** (only in `src/v2/state/`): `v2.navCollapsed`, `v2.chatOpen` (only `state/panes.ts`).
   (`v2.showReasoning` was retired with R2: reasoning lives in each card's Record.) **Auto-countersign
@@ -605,28 +605,33 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   amount, CAM id, prepared-by, CIM paragraphs; no recommendation, and a sealed header seal is the
   who-clause only, "You countersigned.") → one paper `MemoCard` per section, 16px apart (P-26):
   1 Financials → 2 Risk → 3 Peers → 4 Covenants → (revisions) → 5 Recommendation → **the Decision
-  card** → **Questions** (scratch, only once the file has an answered question, see below) → the
+  card** → **Questions** (scratch, only while the shown run has an answered question, see below) → the
   stress test (dashed scratch frame, no card) → exhibits → the appendix. The source CIM opens on the
   memo pane's right edge (push at a pane width of 1064px and up, overlay below).
 - **Answers in the memo** (P-33, THREE-PANE R4.5, Mobbin audit fix 4): the reviewer's answered
   questions are a memo block, "Questions" with the aid line "Analysis aid · not part of the memo",
   in the same dashed provisional frame as the stress test (never a `MemoCard`), after the Decision
   card and before the stress test (`screens/file/Questions.tsx`, rendering `selectQuestions` →
-  `QuestionsView`, `model/select-questions.ts`). It appears with the first answered question since
-  the file's epoch (no placeholder; a re-run starts fresh). Each entry: the question as typed
-  (t-strong), the full answer (t-body ink-2, line breaks kept), one t-meta line with the source and
-  the time ("rule-based responder · simulated · 14:03", or "Countersign · deterministic" for the
-  answers composed from the decision rule's reasons) and the memo card the answer concerns
+  `QuestionsView`, `model/select-questions.ts`). It lists the questions answered under the run the
+  memo shows (`fileContext`'s runId, the same key as the file export and the Ledger; R4.11), so it
+  appears with the first answer (no placeholder), a re-run starts fresh, and a cancelled re-run
+  gives the sealed record its questions back; only the panel's lines follow the file's epoch. Each
+  entry: the question as typed (t-strong), the full answer (t-body ink-2, line breaks kept), one
+  t-meta line with the source and the time ("rule-based responder · simulated · 14:03", or
+  "Countersign · deterministic" for the answers composed from the decision rule's reasons; once the
+  run has more than one revision it names the one that answered, "rev 1 · superseded by rev 2",
+  R4.11) and the memo card the answer concerns
   ("Covenants →"). Its anchor is `qa:<entryId>` (FileAt `'questions'`); the panel's "Questions →"
   cues it (scroll + one flash, a held highlight under reduced motion), and in column mode a new
   answer is cued the same way as it arrives (scroll only; focus stays in the composer). Only real
   answers move (`ComposerReply.memo`, set by `answerFor` on the engine responder and the
   deterministic answers, never on the stress pointer, acknowledgements or refusals);
-  `ThreadEntry.qa` carries the question and the run whose package answered. The pairs (question,
-  answer, ISO time, source) go into the file export (`questions`, by run) and the session export,
-  and the Ledger shows each as a Reviewer event of its run ("Asked · “…”", the answer as its
-  detail, the source under "Answered by" in the raw record). The thread cap drops answered
-  questions last (kept up to 500).
+  `ThreadEntry.qa` carries the question, the run whose package answered and its revision. The
+  pairs (question, answer, ISO time, source, revision) go into the file export (`questions`, by
+  run) and the session export, and the Ledger shows each as a Reviewer event of its run ("Asked ·
+  “…”", the answer as its detail, the source under "Answered by" and the revision in the raw
+  record; the run header's event count includes them). The thread cap drops answered questions
+  last (kept up to 500).
 - **Section cards** (P-26, owner: sections 1 to 4 "read as one blob"): a step eyebrow ("Step 1 of 5 ·
   Document Intelligence"; drafting / excluded / stopped show a status aside) → the title in
   `t-figure-lg` (the only 18px role in a card: KeyFigure values moved to `t-heading`, the risk score
@@ -678,7 +683,7 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   instead of replacing the note); the note label becomes the verb's question ("Why reject it? · on
   the record" / "What should the agent revise? · quoted in Revision N"), the armed button reads
   "Reject now" / "Return with note" (no wider than the resting labels, so the verb row keeps its two
-  lines at phone width) with the commit chord ⌘↵, the ONLY chip while armed (A and the other refusal
+  lines at phone width; checked on `/?kit` `#board-phoneverbs`, see below) with the commit chord ⌘↵, the ONLY chip while armed (A and the other refusal
   key cannot act from the note, so their chips drop), its consequence stays, and a quiet "Cancel"
   link joins the same verb row (at phone width it may wrap alone; it is not a verb). A second press
   of the SAME verb commits only with a note: a click, ⌘↵ from the card, or the key with focus
@@ -720,7 +725,8 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   `description`, t-meta ink-3, read as its accessible description); the palette's two policy
   commands carry it as a `description` that the palette shows in its footer hint row for the hovered
   or keyboard-active command (ink-2 beside the count; rows keep 36px; also the option's
-  `aria-describedby`). All four copies come from `policyRule()` / `POLICY_TERMS`.
+  `aria-describedby`, with the option named by its label and hint only so the rule is read once).
+  All four copies come from `policyRule()` / `POLICY_TERMS`.
 - **Covenant inputs the CIM does not state are on the record** (P-32, THREE-PANE R4.3, Mobbin audit
   fix 3). Interest coverage, fixed-charge coverage and liquidity are stated in no sample CIM, yet
   they are 3 of the 4 covenant-tested actuals. Their evidence class is "Not in the CIM ·
@@ -761,7 +767,9 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   `cancelAcknowledge`; the rule is `ackNoteRequired` in `model/select-book.ts`). The acknowledged
   row reads "Acknowledged 14:05" plus a line under its figures, "until it recovers · “Waiver in
   negotiation with sponsor”" ("no reason given" for a watch; "worsened since and raised again"
-  once re-raised), where focus lands. The Ledger's Reviewer row carries the reason as its detail;
+  once a newer item for the covenant exists, open or acknowledged), where focus lands. While a strip
+  is open the Book holds its file order (`ackConfirm.order`), so a sweep never moves the row being
+  typed in (R4.11). The Ledger's Reviewer row carries the reason as its detail;
   the session export's `monitorLog` entries gain `detail`. No time-based snooze; Mark handed off
   unchanged. Kit: `ConfirmStrip` `reason` / `hint` / `label`, `TextInput` `describedBy` /
   `required`; kit page group `#board-acknowledge`.
@@ -769,13 +777,25 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   audit fix 6): no confirm, no toast. The row collapses to ONE line in its group where it was,
   "Project Cobalt removed from the Desk · Undo" (focus lands on Undo), until the reviewer leaves the
   Desk (`ui.deskUndo`, cleared by `routeHygiene`); Undo brings back that file only. While any file
-  is removed the summary adds "· 1 removed · Restore" (restores all). An empty Desk shows a kit
+  is removed the summary adds "· 1 removed · Restore" (restores all; also on an empty Desk while an
+  upload is extracting, R4.11). An empty Desk shows a kit
   `EmptyNote` beside the drop zone with "Restore sample files" (the kit EmptyNote gained an optional
   `action` button; the "a refresh brings the samples back" copy is gone, since a refresh ends every
   run); an empty Ledger's EmptyNote offers "Open the Desk". The live file still cannot be removed;
   Settings keeps "Restore removed files" as a fallback. `V2Actions` `removeFile` / `undoRemove` /
   `restoreRemoved` replace the confirm trio; `V2Store.allFiles` (the engine's list, removed files
   included) lets the Desk place each line and name what a restore brings back.
+- **The verb row at phone width is checked on the kit page** (P-37, THREE-PANE R4.10, improvement
+  batch 2 item 5): the Decision card's verb row is one pure component, `screens/decision/VerbRow.tsx`
+  (markup unchanged, imports `decision.css`), rendered by the memo and by `/?kit`
+  `#board-phoneverbs`, which puts it in a memo card at the width each phone viewport gives (360,
+  375, 390, 414 → cards 264, 279, 294, 318; verb rows 230 to 284, all under 360, so the panel is
+  flat and the chips drop) for the resting row, Return armed and Reject armed, and states the
+  measured line count under each ("Verbs on 2 lines · Cancel on a line of its own", or red when
+  Return and Reject do not share a line). By the estimates the two-line claim holds from a 390
+  viewport, is on the edge at 375 (resting about 11px short) and breaks at 360; the board's measured
+  line decides, and any fix (labels, tighter buttons, a 390 floor) is the owner's call. Review fixes
+  to R4.5 to R4.9 are listed in THREE-PANE R4.11.
 - **Rejected by the owner during the V2 build (do not resurrect):** vertical "Source ¶" spine
   (source opens from a doc-bar button instead) · the ¶ citation mark (reads "CIM para 2") ·
   recommendation at the top of the memo · side margin column of notes (left empty gaps) ·

@@ -184,6 +184,15 @@
 .kp-frame360 { width: 360px; max-width: 100%; }
 .kp-frame480 { width: 480px; max-width: 100%; }
 .kp-frame600 { width: 600px; max-width: 100%; }
+/* board 18c · the verb row at phone width (R4.10, P-37): the memo card width each phone viewport gives
+   (viewport less the 64px rail and the 16px canvas gutters); never shrunk, so the measurement is real */
+.kp-phones { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 20px 16px; min-width: 0; }
+.kp-phone { display: flex; flex-direction: column; gap: 8px; }
+.kp-phonecard { flex: none; }
+.kp-phone360 { width: 264px; }
+.kp-phone375 { width: 279px; }
+.kp-phone390 { width: 294px; }
+.kp-phone414 { width: 318px; }
 .kp-figlabel { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 
 /* ---- board 11 · composer specimen (the agent panel's composer row, P-25) ---- */

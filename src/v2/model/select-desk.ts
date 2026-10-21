@@ -119,7 +119,8 @@ export function selectDesk(s: V2Store): DeskView {
   const removedN = removedIds.length;
   let summary: string;
   if (fileCount === 0) {
-    summary = removedN > 0 ? `${COPY.deskEmptySummary} · ${COPY.removedCount(removedN)}` : COPY.deskEmptySummary;
+    // while an upload is extracting the count moves into the Restore span below (R4.11)
+    summary = removedN > 0 && !parsingRow ? `${COPY.deskEmptySummary} · ${COPY.removedCount(removedN)}` : COPY.deskEmptySummary;
   } else if (awaiting === 0 && decided === 0 && !anyUploaded && removedN === 0) {
     summary = COPY.deskInitialSummary;
   } else {
@@ -137,7 +138,9 @@ export function selectDesk(s: V2Store): DeskView {
 
   // R4.7: Restore brings back every removed file. With files on the Desk it closes the summary; an
   // empty Desk (nothing being extracted either) says so beside the drop zone and offers it there
-  // instead, named for what it brings back (only the samples, or uploads too)
+  // instead, named for what it brings back (only the samples, or uploads too). While an upload is
+  // extracting on an empty Desk the note gives way to the extraction row, so the summary carries
+  // Restore (R4.11): the screen always has one way back.
   const restoreAll = removedN > 0 ? { label: COPY.restore, ariaLabel: COPY.restoreAll(removedN) } : null;
   const samplesOnly = removedIds.every((id) => !s.allFiles.some((f) => f.dealId === id && f.uploaded));
   const empty: DeskView['empty'] =
@@ -154,7 +157,7 @@ export function selectDesk(s: V2Store): DeskView {
     groups,
     parsing,
     drop: { label: COPY.dropLabel, sub: COPY.dropSub, chooseLabel: COPY.dropChoose, disabledReason },
-    removed: fileCount > 0 && restoreAll ? { text: COPY.removedCount(removedN), restore: restoreAll } : null,
+    removed: (fileCount > 0 || parsingRow) && restoreAll ? { text: COPY.removedCount(removedN), restore: restoreAll } : null,
     empty,
   };
 }

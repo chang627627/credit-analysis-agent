@@ -100,11 +100,12 @@ export interface ThreadEntry {
   action: ThreadAction | null;
   /**
    * R4.5: set only on an answer entry that is a real answer about the deal (ComposerReply.memo):
-   * the question as typed and the run whose package answered it. The memo's Questions block shows
-   * the pair in full, the panel keeps one pointer line to it, and the file export and the Ledger
-   * carry it under that run. Null on every other entry (echoes, acknowledgements, refusals, help).
+   * the question as typed, the run whose package answered it and that package's revision (R4.11).
+   * The memo's Questions block shows the pair in full under that run, the panel keeps one pointer
+   * line to it, and the file export and the Ledger carry it under that run. Null on every other
+   * entry (echoes, acknowledgements, refusals, help).
    */
-  qa: { question: string; runId: number | null } | null;
+  qa: { question: string; runId: number | null; revision: number | null } | null;
 }
 
 /**
@@ -151,7 +152,8 @@ export interface UiState {
    * being typed, and whether the calm "write why first" hint shows (a confirm with no reason on a
    * breach; any text clears it). Never acknowledges by itself; any place change closes it.
    */
-  ackConfirm: { id: string; note: string; hint: boolean } | null;
+  // R4.11: `order` is the Book's file order when the strip opened (held while it is open)
+  ackConfirm: { id: string; note: string; hint: boolean; order: string[] } | null;
   /** R4.6: the reason given for each acknowledged monitor item, keyed by escalation id (session only, like the rest) */
   ackNotes: Record<string, AckNote>;
   attached: Record<number, string[]>;                              // stressRecord keys attached, per runId

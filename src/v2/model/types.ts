@@ -427,16 +427,18 @@ export type ComposerOutcome = 'done' | 'already' | 'confirm-opened' | 'refused';
  * memo: set only on a real answer about the deal (the engine responder, or a deterministic answer
  * composed from the package), never on a command acknowledgement, a refusal, the help line or the
  * stress-test pointer. Such an answer goes in full to the memo's Questions block, and the panel keeps
- * one pointer line to it (R4.5). runId is the run whose package answered (exports and the Ledger
- * group the question under it).
+ * one pointer line to it (R4.5). runId is the run whose package answered (the memo block, exports
+ * and the Ledger group the question under it); revision is that package's revision, so an answer
+ * given before a send-back says which package it described (R4.11).
  */
-export interface ComposerReply { tone: 'answer' | 'done' | 'refusal'; text: string; meta: string | null; action: ThreadAction | null; memo: { runId: number | null } | null }
+export interface ComposerReply { tone: 'answer' | 'done' | 'refusal'; text: string; meta: string | null; action: ThreadAction | null; memo: { runId: number | null; revision: number | null } | null }
 
 // ---- the memo's Questions block (THREE-PANE R4.5) ------------------------------
 
 /**
  * One answered question in the memo's Questions block: the question as typed (its head), the full
- * answer, the quiet meta line ("rule-based responder · simulated · 14:32") and the memo card the
+ * answer, the quiet meta line ("rule-based responder · simulated · 14:32"; once the run has more
+ * than one revision it names the entry's, "… · rev 1 · superseded by rev 2 · 14:02", R4.11) and the memo card the
  * answer concerns ("Covenants →", the same target the panel reply used to carry). anchorId
  * 'qa:<entryId>' is the entry's own cue target: the panel's "Questions →" scrolls to it and flashes it.
  */
@@ -447,9 +449,11 @@ export interface QuestionEntryView {
 }
 /**
  * The memo's Questions block (R4.5): scratch in the provisional frame (never a MemoCard),
- * after the Decision card and before the stress test. It exists only once the file has an answered
- * question since its epoch (a re-run starts fresh); selectQuestions returns null before that.
+ * after the Decision card and before the stress test. It lists the questions answered under the run
+ * the memo shows (fileContext's runId, the same key as the file export and the Ledger), so a re-run
+ * starts fresh and a cancelled re-run gives the sealed record its questions back (R4.11);
+ * selectQuestions returns null while there are none.
  */
 export interface QuestionsView { eyebrow: string; aid: string; entries: QuestionEntryView[] }
-/** One answered question in the file and session exports (R4.5): at is ISO 8601, source the meta line's source. */
-export interface QuestionExport { question: string; answer: string; at: string; source: string }
+/** One answered question in the file and session exports (R4.5): at is ISO 8601, source the meta line's source, revision the package revision that answered (R4.11). */
+export interface QuestionExport { question: string; answer: string; at: string; source: string; revision: number | null }

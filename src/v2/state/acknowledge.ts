@@ -9,7 +9,7 @@
 // open (the kit strip does that on mount) and back to the item afterwards.
 // ---------------------------------------------------------------------------
 
-import { ackAnnouncement, ackNoteRequired, COPY } from '../model';
+import { ackAnnouncement, ackNoteRequired, COPY, selectBook } from '../model';
 import type { V2Actions, V2Internals, V2Store } from './store';
 import { cssEscape, focusLost, onFrames, rendered } from './reveal';
 
@@ -81,8 +81,11 @@ export function createAckActions(x: V2Internals): AckActions {
         focusField(id);
         return;
       }
-      // one strip at a time (like the Desk's remove confirm); the kit strip focuses its field on mount
-      x.setUi((u) => ({ ...u, ackConfirm: { id, note: '', hint: false } }));
+      // one strip at a time (like the Desk's remove confirm); the kit strip focuses its field on mount.
+      // The Book's file order is held while the strip is open (R4.11), so no sweep moves the row
+      // the reviewer is typing in.
+      const order = selectBook(s).rows.map((r) => r.dealId);
+      x.setUi((u) => ({ ...u, ackConfirm: { id, note: '', hint: false, order } }));
     },
 
     setAckNote: (text) =>

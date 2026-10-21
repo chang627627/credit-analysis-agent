@@ -12,7 +12,7 @@
 // card after step 5. The specimens below follow that split.
 // ---------------------------------------------------------------------------
 import './kitpage.css';
-import { Fragment, useEffect, useLayoutEffect, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Activity, ArrowDown, ArrowUp, ArrowUpRight, Copy, Download, FileStack, FileText, RotateCcw, ScrollText, Search, Trash2, X } from 'lucide-react';
 import {
@@ -86,6 +86,7 @@ import {
   FX_PANEL_RUNNING,
   FX_PANEL_SEALED,
   FX_QUESTIONS_ATLAS,
+  FX_QUESTIONS_ATLAS_REV2,
   FX_LEDGER_QUESTION_ROW,
   FX_STUB_EXTRACT,
   FX_SIG_ATLAS_AMENDED,
@@ -140,6 +141,8 @@ import type {
   ThreadLine,
 } from './model';
 import { PENDING, REJECTED_BEFORE } from './design-pending';
+// the Decision card's real verb row (markup and decision.css), for the phone-width check (R4.10, P-37)
+import { VerbRow } from './screens/decision/VerbRow';
 import type { PendingPattern } from './design-pending';
 
 const noop = () => {};
@@ -217,6 +220,7 @@ const B = {
   keyfig: { id: 'board-keyfigure', name: 'KeyFigure · KeyFigures' },
   slider: { id: 'board-slider', name: 'Slider' },
   decision: { id: 'board-decisioncard', name: 'Decision card (memo)' },
+  phoneverbs: { id: 'board-phoneverbs', name: 'Verb row at phone width · the check' },
   sig: { id: 'board-signatureline', name: 'SignatureLine' },
   caret: { id: 'board-caret', name: 'Caret' },
   empty: { id: 'board-emptynote', name: 'EmptyNote · DropZone · LiveRegion' },
@@ -2567,7 +2571,7 @@ function QuestionsBoard() {
     <Board
       id={B.questions.id}
       name={B.questions.name}
-      spec="Questions (P-33, R4.5): everything displayed goes on the right, so a real answer about the deal is shown in full in the memo, never in the agent panel · scratch in the provisional frame (--line-provisional, --r-md, padding 16 20, 16 in a frame under 560), never a MemoCard · after the Decision card and before the stress test, only once the file has an answered question since its epoch (no placeholder; a re-run starts fresh) · head: t-eyebrow ink-3 + the t-small ink-2 aid line · one entry per question under a 1px --line hairline, padding 12 0, gap 4: the question t-strong ink, the full answer t-body ink-2 (its line breaks kept), one t-meta line: the source and the time in ink-3, then the memo card it concerns (LinkButton meta) · the panel keeps “You · …” and ONE “Answered in the memo · Questions →” line; following it scrolls here and flashes the entry once (v2-flash; a held --sunken highlight under reduced motion); in column mode a new answer is cued the same way · acknowledgements, refusals, help and the what-if pointer stay one-line panel replies · the file export carries the pairs (question, answer, time, source) and the Ledger shows each as a Reviewer event, the answer as its detail"
+      spec="Questions (P-33, R4.5): everything displayed goes on the right, so a real answer about the deal is shown in full in the memo, never in the agent panel · scratch in the provisional frame (--line-provisional, --r-md, padding 16 20, 16 in a frame under 560), never a MemoCard · after the Decision card and before the stress test, only while the run the memo shows has an answered question (the same key as the file export and the Ledger: no placeholder, a re-run starts fresh, a cancelled re-run gives the sealed record its questions back; R4.11) · head: t-eyebrow ink-3 + the t-small ink-2 aid line · one entry per question under a 1px --line hairline, padding 12 0, gap 4: the question t-strong ink, the full answer t-body ink-2 (its line breaks kept), one t-meta line: the source and the time in ink-3, then the memo card it concerns (LinkButton meta) · the panel keeps “You · …” and ONE “Answered in the memo · Questions →” line; following it scrolls here and flashes the entry once (v2-flash; a held --sunken highlight under reduced motion); in column mode a new answer is cued the same way · acknowledgements, refusals, help and the what-if pointer stay one-line panel replies · the file export carries the pairs (question, answer, time, source) and the Ledger shows each as a Reviewer event, the answer as its detail"
       action={
         <Button variant="secondary" size="sm" onClick={() => setFlash((n) => n + 1)}>
           Questions →
@@ -2586,6 +2590,11 @@ function QuestionsBoard() {
         <Cell caption="Narrow frame (360px, a memo pane under 592px): the frame pads 16, the answer and the meta line wrap" block>
           <div className="kp-frame360">
             <QuestionsSpecimen v={FX_QUESTIONS_ATLAS} prefix="kit-qa-narrow" />
+          </div>
+        </Cell>
+        <Cell caption="After a send-back (R4.11): Atlas returned, the rev 2 gate on the revised structure reads APPROVE. The rev 1 answers stay under the run, and each meta line names the package it described, “rev 1 · superseded by rev 2”, so the ESCALATE answer never reads as the call of the card above it. The block lists the questions of the run the memo shows (a cancelled re-run gives them back)" block>
+          <div className="kp-frame360">
+            <QuestionsSpecimen v={FX_QUESTIONS_ATLAS_REV2} prefix="kit-qa-rev2" />
           </div>
         </Cell>
       </Grid>
@@ -2797,6 +2806,129 @@ function DecisionCardBoard() {
           </Cell>
         ))}
       </div>
+    </Board>
+  );
+}
+
+// =============================================================================
+// Board 18c · Verb row at phone width: the check (R4.10, P-37)
+// =============================================================================
+
+type Verbs = NonNullable<SignatureView['verbs']>;
+
+/**
+ * The phone viewports the check covers. The memo card there is the viewport less the forced 64px
+ * rail and the canvas's 16px gutters (a memo pane under 640px), so its body pads 16 and the
+ * Decision card's container is the viewport less 130: 230, 245, 260 and 284. All four are under
+ * 360, where the decision panel goes flat and the verbs drop their decorative chips.
+ */
+const PHONE_VIEWPORTS: { vw: number; cls: string; card: number }[] = [
+  { vw: 360, cls: 'kp-phone360', card: 264 },
+  { vw: 375, cls: 'kp-phone375', card: 279 },
+  { vw: 390, cls: 'kp-phone390', card: 294 },
+  { vw: 414, cls: 'kp-phone414', card: 318 },
+];
+
+const PHONE_STATES: { key: string; label: string; verbs: Verbs | null }[] = [
+  { key: 'rest', label: 'resting (Atlas rev 1)', verbs: FX_SIG_ATLAS_GATE.verbs },
+  { key: 'return', label: 'Return armed', verbs: FX_SIG_ATLAS_ARMED_RETURN.verbs },
+  { key: 'reject', label: 'Reject armed (Cobalt)', verbs: FX_SIG_COBALT_ARMED_REJECT.verbs },
+];
+
+interface VerbLines { verbs: number; cancel: 'none' | 'own' | 'shares' }
+
+/** How many lines the three verbs take as laid out, and where Cancel sits (2px tolerance per line). */
+function measureVerbLines(root: HTMLElement): VerbLines | null {
+  const top = (sel: string): number | null => {
+    const el = root.querySelector(sel);
+    return el instanceof HTMLElement ? Math.round(el.getBoundingClientRect().top) : null;
+  };
+  const tops: number[] = [];
+  for (const k of ['sign', 'rework', 'reject']) {
+    const t = top(`[data-verb="${k}"]`);
+    if (t === null) return null;
+    tops.push(t);
+  }
+  const lines: number[] = [];
+  for (const t of tops) if (!lines.some((l) => Math.abs(l - t) <= 2)) lines.push(t);
+  const c = top('.decision__cancel');
+  const cancel: VerbLines['cancel'] = c === null ? 'none' : lines.some((l) => Math.abs(l - c) <= 2) ? 'shares' : 'own';
+  return { verbs: lines.length, cancel };
+}
+
+function verbLinesText(l: VerbLines): string {
+  const cancel = l.cancel === 'own' ? ' · Cancel on a line of its own' : l.cancel === 'shares' ? ' · Cancel shares a verb line' : '';
+  const n = plural(l.verbs, 'line');
+  return l.verbs <= 2 ? `Verbs on ${n}${cancel}` : `Verbs on ${n}: Return and Reject do not share a line${cancel}`;
+}
+
+/**
+ * The real verb row (VerbRow + decision.css) in a kit MemoCard at a phone viewport's card width,
+ * inside .decision and .decision__panel as in the memo, so the container query that flattens the
+ * panel and drops the chips fires exactly as it does there. It measures itself after layout, again
+ * once the fonts have loaded and on every resize, and says how many lines the verbs took.
+ */
+function PhoneVerbSpecimen({ cls, verbs, label }: { cls: string; verbs: Verbs; label: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [lines, setLines] = useState<VerbLines | null>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let alive = true;
+    const measure = () => {
+      if (!alive) return;
+      const next = measureVerbLines(el);
+      setLines((prev) => (prev && next && prev.verbs === next.verbs && prev.cancel === next.cancel ? prev : next));
+    };
+    measure();
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    ro?.observe(el);
+    void document.fonts.ready.then(measure);
+    return () => {
+      alive = false;
+      ro?.disconnect();
+    };
+  }, []);
+  return (
+    <div className="kp-phone" data-pattern="P-37" data-lines={lines ? String(lines.verbs) : undefined}>
+      <div ref={ref} className={`kp-phonecard ${cls}`}>
+        <MemoCard section="signature" ariaLabel={`Verb row specimen · ${label}`}>
+          <div className="decision">
+            <div className="decision__panel">
+              <VerbRow verbs={verbs} dead={false} onSign={noop} onRework={noop} onReject={noop} onCancel={noop} />
+            </div>
+          </div>
+        </MemoCard>
+      </div>
+      {lines ? (
+        <StatusLabel state={lines.verbs <= 2 ? 'pass' : 'breach'} role="small">
+          {verbLinesText(lines)}
+        </StatusLabel>
+      ) : null}
+    </div>
+  );
+}
+
+function PhoneVerbsBoard() {
+  return (
+    <Board
+      id={B.phoneverbs.id}
+      name={B.phoneverbs.name}
+      spec="The phone-width check of the verb row (R4.10, P-37). R4.1 claims the verbs keep two lines at phone width, resting and armed: the primary on line 1, Return and Reject sharing line 2 (Cancel, not a verb, may take a line of its own). This board renders the memo's REAL verb row (the VerbRow component the Decision card uses, with decision.css) in a memo card at the width each phone viewport gives it: viewport less the 64px rail and the 16px canvas gutters, so the Decision card's container is the viewport less 130 (230, 245, 260, 284). All four are under 360, so the panel goes flat and the decorative chips drop, as in the memo. Each specimen measures its own layout (after the fonts load and on resize) and states the result; a red line means Return and Reject did not share a line. Estimated widths (13px/500 labels, padding 12, 12px gap): line 2 needs about 256 resting, 244 with Return armed, 245 with Reject armed, so the claim is expected to hold from a 390 viewport (the width decision.css was written for) and to fail at 360; 375 sits on the edge. The measured result here is the check; the estimates only say where to look."
+    >
+      {PHONE_VIEWPORTS.map((p) => (
+        <Group key={p.vw} label={`${p.vw} viewport · memo card ${p.card} · verb row ${p.card - 34}`}>
+          <div className="kp-phones">
+            {PHONE_STATES.map((st) =>
+              st.verbs ? (
+                <Cell key={st.key} caption={st.label} block>
+                  <PhoneVerbSpecimen cls={p.cls} verbs={st.verbs} label={`${p.vw} · ${st.label}`} />
+                </Cell>
+              ) : null,
+            )}
+          </div>
+        </Group>
+      ))}
     </Board>
   );
 }
@@ -3298,6 +3430,7 @@ export default function KitPage() {
             <KeyFigureBoard />
             <SliderBoard />
             <DecisionCardBoard />
+            <PhoneVerbsBoard />
             <SignatureBoard />
             <CaretBoard />
             <EmptyDropLiveBoard />

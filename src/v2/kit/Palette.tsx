@@ -6,6 +6,8 @@
 // for the command the reviewer last pointed at or moved to (hover, else the keyboard-active row),
 // beside the count; rows keep their fixed 36px height. It is also each option's accessible
 // description (a visually hidden copy inside the option), so it is read with the active option.
+// Such an option is named by aria-labelledby (its label and hint only, as the kit Menu does), so
+// the hidden copy is read once, as the description, never as part of the name (R4.11).
 // `specimen` (kit page only) renders the panel in normal flow: no portal, no scrim, no fixed
 // positioning, no focus trap, no autofocus, no document listeners.
 import { useEffect, useId, useRef, useState } from 'react';
@@ -177,6 +179,9 @@ export function Palette({ open, onClose, placeholder, commands, footer, specimen
               const i = index;
               const on = i === activeIndex;
               const desc = cmd.description ? cmd.description : null;
+              // with a description the name comes from the label (and hint) only, so the hidden
+              // description inside the option is not read twice
+              const labelledBy = desc ? [`${optId(i)}-label`, cmd.hint ? `${optId(i)}-hint` : null].filter(Boolean).join(' ') : undefined;
               return (
                 <div
                   key={cmd.id}
@@ -184,13 +189,20 @@ export function Palette({ open, onClose, placeholder, commands, footer, specimen
                   data-index={i}
                   role="option"
                   aria-selected={on}
+                  aria-labelledby={labelledBy}
                   aria-describedby={desc ? `${optId(i)}-desc` : undefined}
                   className={on ? 'k-palette__row is-active' : 'k-palette__row'}
                   onClick={() => runAt(i)}
                   onMouseEnter={() => setPointed(i)}
                 >
-                  <span className="k-palette__label t-body">{cmd.label}</span>
-                  {cmd.hint ? <span className="k-palette__hint t-meta">{cmd.hint}</span> : null}
+                  <span id={desc ? `${optId(i)}-label` : undefined} className="k-palette__label t-body">
+                    {cmd.label}
+                  </span>
+                  {cmd.hint ? (
+                    <span id={desc ? `${optId(i)}-hint` : undefined} className="k-palette__hint t-meta">
+                      {cmd.hint}
+                    </span>
+                  ) : null}
                   {cmd.kbd ? <Kbd>{cmd.kbd}</Kbd> : null}
                   {desc ? (
                     <span id={`${optId(i)}-desc`} className="v2-sr">

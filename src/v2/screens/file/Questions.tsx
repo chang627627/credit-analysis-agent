@@ -7,10 +7,11 @@
 //
 // Scratch, not the record of the memo: the provisional frame like the
 // stress test, never a MemoCard, after the Decision card and before the stress
-// test (the Decision card stays right after step 5). It exists only once the
-// file has an answered question since its epoch (no empty placeholder). Each
-// entry: the question as its head, the full answer, one quiet meta line (the
-// source and the time) and, when the answer concerns a memo card, that card's
+// test (the Decision card stays right after step 5). It exists only while the
+// run the memo shows has an answered question (no empty placeholder; R4.11).
+// Each entry: the question as its head, the full answer, one quiet meta line
+// (the source, the revision once there is more than one, and the time) and,
+// when the answer concerns a memo card, that card's
 // link. Renders selectQuestions verbatim and calls only store actions.
 // ---------------------------------------------------------------------------
 

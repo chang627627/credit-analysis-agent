@@ -48,12 +48,15 @@ error. Prints a state × viewport table plus each failure; exit 0 / 1 / 2 (setup
 `--only atlas-gate,book` and `--viewport tablet,desktop`. ~25 s for all 27 cells; reruns are
 identical (the agent is deterministic). The shell is `overflow: hidden`, so the page itself never
 scrolls: the sideways-scroller and cut-edge checks are what catch overflow. **Status 2026-10-20:**
-tablet 9/9 green; phone fails on the known bug (the case file keeps the side-by-side split at 390px,
-so the memo pane gets 0px and the Countersign button cannot be clicked; a stacked phone layout is in
-progress) and on the kit page at phone width (91px page overflow, a non-focusable token matrix
-scroller); desktop fails on one real axe finding, `label-content-name-mismatch` (WCAG 2.5.3): kit
-`Button` sets `aria-label` to its text while a visible letter chip (A / S / R / ⌘K, `aria-hidden`)
-sits inside, so the Decision verbs and the top-bar Search button have a name that omits visible text.
+desktop and tablet 9/9 green; phone fails on the known bug (the case file keeps the side-by-side
+split at 390px, so the memo pane gets 0px and the Countersign button cannot be clicked; a stacked
+phone layout is in progress) and on the kit page at phone width (91px page overflow, a
+non-focusable token matrix scroller). Its first run caught axe `label-content-name-mismatch`
+(WCAG 2.5.3) on desktop: kit `Button` set `aria-label={ariaLabel ?? children}`, so a visible letter
+chip (A / S / R / ⌘K) was missing from the name of the Decision verbs and Search. Fixed: Button sets
+`aria-label` only when `ariaLabel` is passed, and the name comes from the content (icon and Kbd are
+`aria-hidden`, so the names did not change). Gotcha: never put a shortcut chip inside an
+`aria-label`led control unless the label contains the chip's text.
 
 ## Deploy — GitHub + Vercel
 

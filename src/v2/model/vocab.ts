@@ -573,6 +573,20 @@ export const COPY = {
   sweepNow: 'Sweep now',
   bookEmpty: 'The Portfolio Monitor runs its first sweep in a moment.',
   acknowledge: 'Acknowledge',
+  // R4.6 (audit fix 5): acknowledging a covenant item asks why. The engine keeps an acknowledged item
+  // quiet until a sweep finds it worse (a watch that becomes a breach is raised again) or it passes
+  // two sweeps in a row (resolved); a breach cannot get worse, so it stays quiet until it recovers.
+  ackQuestion: 'Why is this acceptable for now?',
+  ackStripLabel: (covenant: string, file: string): string => `Acknowledge ${covenant} on ${file}`,
+  ackUntilBreach: 'until it recovers',
+  ackUntilWatch: 'until it worsens or recovers',
+  ackConsequence: (required: boolean, until: string): string =>
+    `${required ? 'Required for a breach' : 'Optional for a watch'}. Stays quiet ${until}.`,
+  ackReasonFirst: 'Write why it is acceptable first.',
+  ackNoReason: 'no reason given',
+  ackNoReasonDetail: 'No reason given',
+  ackReraised: 'worsened since and raised again',
+  ackDone: (covenant: string, file: string, until: string): string => `Acknowledged ${covenant} on ${file}. It stays quiet ${until}.`,
   markHandedOff: 'Mark handed off',
   fromCountersignature: 'From your countersignature',
 

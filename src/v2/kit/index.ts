@@ -74,4 +74,4 @@ export type { LiveRegionProps } from './LiveRegion';
 export { FilterChips } from './FilterChips';
 export type { FilterChipsProps, FilterChipsItem } from './FilterChips';
 export { ConfirmStrip } from './ConfirmStrip';
-export type { ConfirmStripProps } from './ConfirmStrip';
+export type { ConfirmStripProps, ConfirmReason } from './ConfirmStrip';

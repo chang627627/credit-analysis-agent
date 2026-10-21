@@ -61,6 +61,10 @@ import type { ForceState, MeaningTone, PaletteCommand, StatusKey, TableColumn, T
 import {
   AUTO_COUNTDOWN_MS,
   COPY,
+  FX_BOOK_ACK_BREACH,
+  FX_BOOK_ACK_HINT,
+  FX_BOOK_ACK_WATCH,
+  FX_BOOK_ACKED_ITEM,
   FX_BOOK_BREACH,
   FX_DESK_ATLAS_GATE,
   FX_DESK_INITIAL,
@@ -113,6 +117,8 @@ import {
 } from './model';
 import type {
   AgentPanelView,
+  BookAckView,
+  BookItem,
   CovenantRow,
   CushionView,
   EvidenceView,
@@ -1426,13 +1432,171 @@ function ConfirmSpecimens() {
   );
 }
 
+// R4.6 (P-34): the Book's Acknowledge strip. The kit ConfirmStrip with a reason field, in a Book
+// table's item detail (indented with the sub-rows, as book.css does), then the acknowledged line.
+const ACK_ITEM: BookItem | null = FX_BOOK_BREACH.rows[0]?.items[0] ?? null;
+
+/** A Book sub-row as the screen lays it out (status, covenant, reading, distance, trailing slot, then the acknowledged line). */
+function AckSubRow({ item, trailing }: { item: BookItem; trailing?: ReactNode }) {
+  return (
+    <span className="kp-acksub">
+      <StatusLabel state={item.status.state} role="small">
+        {item.status.text}
+      </StatusLabel>
+      <span className="t-small">{item.covenant}</span>
+      <span className="t-figure">{item.reading}</span>
+      <span className="t-small kp-ink2">{item.distance}</span>
+      <span className="kp-acksub__end">{trailing}</span>
+      {item.ackRecord ? <span className="kp-acksub__record t-small">{item.ackRecord}</span> : null}
+    </span>
+  );
+}
+
+function AckStripOf({ a, onChange, onConfirm, onCancel }: { a: BookAckView; onChange: (v: string) => void; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="kp-ackindent">
+      <ConfirmStrip
+        text={a.text}
+        label={a.label}
+        reason={{ value: a.value, onChange, placeholder: a.placeholder, ariaLabel: a.placeholder, required: a.required }}
+        hint={a.hint}
+        confirmLabel={a.confirmLabel}
+        cancelLabel={a.cancelLabel}
+        tone="neutral"
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+      />
+    </div>
+  );
+}
+
+const ACK_COLUMNS: TableColumn[] = [{ key: 'item', label: 'Item', width: '1fr' }];
+
+/** Mounts inert like the confirm strips above (a strip focuses its field on mount), then live. */
+function AckSpecimens() {
+  const [live, setLive] = useState(false);
+  useEffect(() => setLive(true), []);
+  const [open, setOpen] = useState(true);
+  const [note, setNote] = useState('');
+  const [hint, setHint] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
+  if (!ACK_ITEM) return null;
+  const reset = () => {
+    setOpen(true);
+    setNote('');
+    setHint(false);
+    setDone(null);
+  };
+  const liveItem: BookItem = done
+    ? { ...ACK_ITEM, status: FX_BOOK_ACKED_ITEM.status, muted: true, ackRecord: `${COPY.ackUntilBreach} · “${done}”` }
+    : ACK_ITEM;
+  const liveRow: TableRow = {
+    key: 'live',
+    indent: true,
+    muted: liveItem.muted,
+    span: (
+      <AckSubRow
+        item={liveItem}
+        trailing={
+          done ? (
+            <LinkButton role="small" onClick={reset}>
+              Reset specimen
+            </LinkButton>
+          ) : !open ? (
+            <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+              {COPY.acknowledge}
+            </Button>
+          ) : null
+        }
+      />
+    ),
+    detail:
+      open && !done ? (
+        <AckStripOf
+          a={{ ...FX_BOOK_ACK_BREACH, value: note, hint: hint ? COPY.ackReasonFirst : null }}
+          onChange={(v) => {
+            setNote(v);
+            if (v.trim() !== '') setHint(false);
+          }}
+          onConfirm={() => {
+            if (note.trim() === '') {
+              setHint(true);
+              return;
+            }
+            setDone(note.trim());
+            setOpen(false);
+          }}
+          onCancel={() => {
+            setOpen(false);
+            setHint(false);
+          }}
+        />
+      ) : undefined,
+  };
+  const staticRow = (key: string, a: BookAckView): TableRow => ({
+    key,
+    indent: true,
+    span: <AckSubRow item={ACK_ITEM} />,
+    detail: <AckStripOf a={a} onChange={noop} onConfirm={noop} onCancel={noop} />,
+  });
+  const ledgerAck = FX_LEDGER_AFTER_ATLAS.monitor?.rows.find((r) => r.raw.Kind === 'acknowledged' && r.detail?.startsWith('“')) ?? null;
+  return (
+    <div className="kp-stack" inert={!live}>
+      <Cell caption="live · Acknowledge opens the item's strip; the reason field takes the focus (kit TextInput, required for a breach, described by the lines under it); Acknowledge with no reason shows the calm hint and keeps the strip; Enter confirms, Esc or Cancel closes; the item's own Acknowledge hides while its strip is open" block>
+        <Table columns={ACK_COLUMNS} rows={[liveRow]} caption="Book item with its Acknowledge strip (specimen)" header={false} />
+      </Cell>
+      <Grid size="wide">
+        <Cell caption="after Acknowledge with no reason on a breach: the calm hint above the consequence line (t-small ink, never a red alert), announced, focus back in the field" block>
+          <Table columns={ACK_COLUMNS} rows={[staticRow('hint', FX_BOOK_ACK_HINT)]} caption="Acknowledge strip with the hint (specimen)" header={false} />
+        </Cell>
+        <Cell caption="a watch item: a reason is optional, and it stays quiet until it worsens (raised again as a breach) or recovers" block>
+          <Table columns={ACK_COLUMNS} rows={[staticRow('watch', FX_BOOK_ACK_WATCH)]} caption="Acknowledge strip on a watch (specimen)" header={false} />
+        </Cell>
+      </Grid>
+      <Cell caption="in a 360px frame: the actions wrap under the field; the lines span the strip" block>
+        <div className="kp-frame360">
+          <AckStripOf a={FX_BOOK_ACK_BREACH} onChange={noop} onConfirm={noop} onCancel={noop} />
+        </div>
+      </Cell>
+      <Grid size="wide">
+        <Cell caption="afterwards: the acknowledged item's line under its figures, what it waits for, then the reason (focus lands here after Acknowledge)" block>
+          <Table columns={ACK_COLUMNS} rows={[{ key: 'acked', indent: true, muted: true, span: <AckSubRow item={FX_BOOK_ACKED_ITEM} /> }]} caption="Acknowledged Book item (specimen)" header={false} />
+        </Cell>
+        {ledgerAck ? (
+          <Cell caption="the Ledger's Reviewer row carries the reason as its detail (the session export's monitor log too)" block>
+            <Table
+              columns={LEDGER_COLUMNS}
+              rows={[
+                {
+                  key: ledgerAck.id,
+                  cells: {
+                    time: <span className="t-figure">{ledgerAck.time}</span>,
+                    actor: ledgerAck.actor,
+                    event: (
+                      <span className="kp-twoline">
+                        <span>{ledgerAck.event}</span>
+                        <span className="t-small kp-ink2">{ledgerAck.detail}</span>
+                      </span>
+                    ),
+                  },
+                },
+              ]}
+              caption="Ledger acknowledgement row (specimen)"
+            />
+          </Cell>
+        ) : null}
+      </Grid>
+    </div>
+  );
+}
+
 function NavBoard() {
   const [tab, setTab] = useState<string>(FX_TOPBAR.active);
   const [speed, setSpeed] = useState(1);
   const [chip, setChip] = useState<string>(FX_LEDGER_AFTER_ATLAS.activeChip);
   const [paletteOpen, setPaletteOpen] = useState(false);
   return (
-    <Board id={B.nav.id} name={B.nav.name} spec="Tabs 48, active = 2px --ink underline · Menu and Palette: paper, --shadow-pop, --r-md; keyboard-active row = --accent-wash + --accent-ink + 2px inset --accent outline · FilterChips 28, --ink-3 edge · ConfirmStrip 44, --sunken (P-19)">
+    <Board id={B.nav.id} name={B.nav.name} spec="Tabs 48, active = 2px --ink underline · Menu and Palette: paper, --shadow-pop, --r-md; keyboard-active row = --accent-wash + --accent-ink + 2px inset --accent outline · FilterChips 28, --ink-3 edge · ConfirmStrip 44, --sunken (P-19); with a reason (P-34) a kit TextInput leads with the actions beside it, padding 12, then a calm t-small ink hint (after a refused confirm) and the t-small ink-2 consequence line, both describing the field">
       <Group label="Tabs (top-bar fixture; click to switch)">
         <div className="kp-tabsframe">
           <Tabs items={FX_TOPBAR.tabs.map((t) => ({ id: t.id, label: t.label, count: null, countTone: 'ink-3' as const }))} active={tab} onSelect={setTab} ariaLabel="Sections (specimen)" />
@@ -1491,6 +1655,9 @@ function NavBoard() {
       </Group>
       <Group id="board-confirmstrip" label="ConfirmStrip (P-19)">
         <ConfirmSpecimens />
+      </Group>
+      <Group id="board-acknowledge" label="ConfirmStrip with a reason · Acknowledge on the Book (P-34)">
+        <AckSpecimens />
       </Group>
     </Board>
   );

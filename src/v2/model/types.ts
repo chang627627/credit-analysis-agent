@@ -293,7 +293,30 @@ export interface StressView {
   closeLabel: string;
 }
 export interface ExhibitView { id: string; letter: string; heading: string; meta: string; detail: string; from: TokenView; to: TokenView; result: 'flips' | 'holds' }
-export interface BookItem { id: string; origin: 'monitor' | 'countersign'; status: StatusText; covenant: string; reading: string; distance: string; raised: string; muted: boolean; action: { kind: 'acknowledge' | 'mark-handed-off'; label: string } | null; link: { label: string; route: Route } | null; doneText: string | null }
+/**
+ * R4.6 (audit fix 5): the open Acknowledge strip under a Book item, rendered by the kit
+ * ConfirmStrip with its reason field. `text` is the one consequence line under the field (whether
+ * a reason is required, then what acknowledging does); `hint` is the calm line after a confirm with
+ * no reason on a breach. The item's own Acknowledge button hides while the strip is open.
+ */
+export interface BookAckView {
+  label: string;                 // the strip's accessible name: "Acknowledge Max Total Leverage on Project Cobalt"
+  text: string;                  // "Required for a breach. Stays quiet until it recovers."
+  placeholder: string;           // "Why is this acceptable for now?" (also the field's accessible name)
+  value: string;
+  required: boolean;
+  hint: string | null;           // "Write why it is acceptable first."
+  confirmLabel: string;
+  cancelLabel: string;
+}
+export interface BookItem {
+  id: string; origin: 'monitor' | 'countersign'; status: StatusText; covenant: string; reading: string; distance: string; raised: string; muted: boolean;
+  action: { kind: 'acknowledge' | 'mark-handed-off'; label: string } | null; link: { label: string; route: Route } | null; doneText: string | null;
+  /** R4.6: the open Acknowledge strip (monitor items only), else null */
+  ack: BookAckView | null;
+  /** R4.6: an acknowledged monitor item's line under its figures: "until it recovers · “Waiver in negotiation with sponsor”" */
+  ackRecord: string | null;
+}
 export interface BookRow { dealId: string; name: string; borrower: string; resolvedMeta: string | null; status: StatusText; tightest: { name: string; reading: string } | null; cushion: { pct: number; text: string; tone: 'neutral' | 'warn' | 'bad' } | null; tests: string; risk: { text: string; tone: 'ink' | 'bad' }; checked: string; items: BookItem[] }
 export interface BookView { title: string; verdict: StatusText | null; disclosure: string; cadence: string; sweepLabel: string; sweepDisabled: boolean; empty: string | null; rows: BookRow[] }
 export interface LedgerRow { id: string; time: string; actor: Actor; event: string; detail: string | null; raw: Record<string, string>; chip: LedgerChip }

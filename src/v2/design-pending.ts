@@ -428,6 +428,19 @@ export const PENDING: PendingPattern[] = [
     kitAnchor: '#board-questions',
     ownerNote: 'Owner asked for it (improvement batch 2)',
   },
+  {
+    id: 'P-34',
+    type: 'interaction',
+    name: 'A reason when acknowledging a covenant item on the Book',
+    description:
+      'The product requires a reason to reject a memo, so a live covenant breach can no longer be silenced in one click without one. Acknowledge on a Book item opens that item\'s inline strip in the row\'s detail, indented with the sub-rows: the kit ConfirmStrip with a reason field (a one-line kit TextInput, "Why is this acceptable for now?", which takes the focus), Acknowledge and Cancel beside it, and one quiet consequence line under it: "Required for a breach. Stays quiet until it recovers." on a breach, "Optional for a watch. Stays quiet until it worsens or recovers." on a watch, worded from what the engine does (an acknowledged item is raised again only at a worse severity, and a breach has none). Acknowledge with no reason on a breach keeps the strip and shows one calm line, "Write why it is acceptable first." (announced, focus back in the field, never a red alert); Enter confirms, Esc or Cancel closes without acknowledging, and focus returns to the item afterwards. The item\'s own Acknowledge button hides while its strip is open, one strip at a time, and leaving the Book closes it. Confirming calls the engine\'s acknowledge unchanged; the reason stays in V2 state by escalation id. The acknowledged item then reads "Acknowledged 14:05" with a second line under its figures, "until it recovers · “Waiver in negotiation with sponsor”" ("no reason given" for a watch acknowledged without one; "worsened since and raised again" once a sweep raised it again), and focus lands on that line. The Ledger\'s Reviewer row carries the reason as its detail, and so does the acknowledgement\'s entry in the session export\'s monitor log. No time-based snooze; Mark handed off is unchanged. Before, Acknowledge acted at once with no note, no confirm and no consequence, and the Ledger recorded only "Acknowledged · <covenant>".',
+    evidence: 'Mobbin audit, fix 5 (verified: Book.tsx called actions.acknowledge(item.id) directly from a ghost button; useMonitor keeps an acknowledged item quiet unless it worsens; the Ledger row had no detail); THREE-PANE.md R4.6; the note-required refusal rule of R4.1',
+    proposedBy: OWNER,
+    proposedDate: ON_3P,
+    status: 'approved',
+    kitAnchor: '#board-acknowledge',
+    ownerNote: 'Owner asked for it (improvement batch 2)',
+  },
 ];
 
 export const REJECTED_BEFORE: { name: string; note: string }[] = [

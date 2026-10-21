@@ -150,6 +150,7 @@
   grid-template-columns: 152px minmax(0, 200px) 136px 104px minmax(0, 1fr) auto;
   align-items: center;
   column-gap: 12px;
+  row-gap: 4px;
   min-width: 0;
 }
 
@@ -186,6 +187,24 @@
   min-width: 0;
 }
 
+.book-subrow__trigger {
+  display: inline-flex;
+}
+
+/* R4.6: an acknowledged item's second line (what it waits for, then the reason given), under its
+   figures from the covenant column on (the grid's 4px row gap); the row grows past its 36px minimum */
+.book-subrow__ack {
+  grid-column: 2 / -1;
+  min-width: 0;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+/* R4.6: the open Acknowledge strip sits in the item row's detail, indented with the sub-rows */
+.book-ack {
+  padding-left: var(--s-6);
+}
+
 /* narrow tables: the item reads as one wrapping line, actions pushed to the end */
 @container book-sub (max-width: 839px) {
   .book-subrow,
@@ -201,6 +220,9 @@
   }
   .book-subrow__actions {
     margin-left: auto;
+  }
+  .book-subrow__ack {
+    flex: 1 1 100%;
   }
 }
 

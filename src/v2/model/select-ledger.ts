@@ -3,12 +3,14 @@
 // entry gets a closed-set actor, a display label and a filter chip; the raw
 // engine label always stays in the row's `raw` grid and in the export. The
 // reviewer's answered questions (R4.5) join their run as Reviewer events, the
-// answer as the detail.
+// answer as the detail. An acknowledged covenant item carries the reason the
+// reviewer gave (R4.6) as the detail of its Reviewer row.
 // ---------------------------------------------------------------------------
 
 import type { AuditHistoryEntry, RunRecord } from '../../hooks/useCreditAgent';
-import type { CaseFileSnapshot, LedgerChip, MonitorLogEntry, ThreadEntry, V2Store } from '../state/contracts';
+import type { AckNote, CaseFileSnapshot, LedgerChip, MonitorLogEntry, ThreadEntry, V2Store } from '../state/contracts';
 import { EM, fmtClock, fmtDuration, fmtElapsed, fmtHM, fmtIso, plural } from './format';
+import { ackReasonText } from './select-book';
 import { countedFlagsOf, runTiming, signedVerdict } from './select-file';
 import { questionsOfRun } from './select-questions';
 import type { Actor, LedgerRow, LedgerRun, LedgerView, StatusKey, StatusText } from './types';
@@ -182,9 +184,30 @@ function runRows(s: V2Store, runId: number, entries: AuditHistoryEntry[], fileNa
     .map((x) => x.row);
 }
 
-function monitorRow(m: MonitorLogEntry): LedgerRow {
+/**
+ * The reason behind a monitor item's acknowledgement (R4.6), as the record shows it: the quoted
+ * note, or "No reason given" for a watch acknowledged without one. Null for every other entry, a
+ * countersign hand-off, or an acknowledgement this session holds no reason for.
+ */
+export function ackDetailOf(m: MonitorLogEntry, notes: Record<string, AckNote>): string | null {
+  const rec = ackOf(m, notes);
+  return rec ? ackReasonText(rec, true) : null;
+}
+
+/** The same reason for the session export: the note as written (unquoted), or "No reason given". */
+export function ackNoteOf(m: MonitorLogEntry, notes: Record<string, AckNote>): string | null {
+  const rec = ackOf(m, notes);
+  return rec ? rec.note || COPY.ackNoReasonDetail : null;
+}
+
+function ackOf(m: MonitorLogEntry, notes: Record<string, AckNote>): AckNote | null {
+  if (m.kind !== 'acknowledged' || m.origin === 'countersign') return null;
+  return notes[m.escalationId] ?? null;
+}
+
+function monitorRow(m: MonitorLogEntry, notes: Record<string, AckNote>): LedgerRow {
   const r = relabelMonitor(m);
-  const detail = m.kind === 'raised' || m.kind === 'upgraded' ? m.reason : null;
+  const detail = m.kind === 'raised' || m.kind === 'upgraded' ? m.reason : ackDetailOf(m, notes);
   return {
     id: m.id,
     time: fmtClock(m.at),
@@ -302,7 +325,7 @@ export function selectLedger(s: V2Store, fileFilter: string | null): LedgerView 
     }
     runsByFile.get(run.dealId)?.push({ run, entries, rows });
   }
-  const monitorAll = s.monitorLog.filter((m) => fileFilter === null || m.dealId === fileFilter).map(monitorRow);
+  const monitorAll = s.monitorLog.filter((m) => fileFilter === null || m.dealId === fileFilter).map((m) => monitorRow(m, s.ui.ackNotes));
   allRows.push(...monitorAll);
 
   const count = (c: LedgerChip) => allRows.filter((r) => c === 'all' || r.chip === c).length;

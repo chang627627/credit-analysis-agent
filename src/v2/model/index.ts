@@ -139,7 +139,7 @@ export {
   recommendationTakeaway,
 } from './takeaways';
 export { selectSignature, selectStress, selectExhibits } from './select-decision';
-export { selectBook } from './select-book';
+export { selectBook, ackNoteRequired, ackUntil, ackAnnouncement, ackReasonText } from './select-book';
 export { actorOf, chipOf, relabel, relabelMonitor, selectLedger } from './select-ledger';
 export { selectCommands, paletteFooter, startConfirmCopy, stopConfirmCopy, announceFor } from './select-commands';
 
@@ -185,6 +185,10 @@ export {
   FX_EXHIBITS,
   FX_BOOK_BREACH,
   FX_BOOK_EMPTY,
+  FX_BOOK_ACK_BREACH,
+  FX_BOOK_ACK_HINT,
+  FX_BOOK_ACK_WATCH,
+  FX_BOOK_ACKED_ITEM,
   FX_LEDGER_AFTER_ATLAS,
   FX_LEDGER_EMPTY,
   FIXTURES,

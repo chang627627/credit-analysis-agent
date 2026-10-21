@@ -304,3 +304,10 @@
 }
 
 .kp-navframe { display: flex; flex-direction: column; gap: 4px; width: 216px; padding: 12px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-md); }
+
+/* R4.6 (P-34): a Book sub-row as book.css lays it out, and the strip's indent under it */
+.kp-acksub { display: flex; flex-wrap: wrap; align-items: center; column-gap: 12px; row-gap: 4px; min-width: 0; }
+.kp-acksub__end { display: inline-flex; margin-left: auto; }
+.kp-acksub__end:empty { display: none; }
+.kp-acksub__record { flex: 1 1 100%; min-width: 0; color: var(--ink-2); overflow-wrap: anywhere; }
+.kp-ackindent { padding-left: 24px; }

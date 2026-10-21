@@ -20,6 +20,7 @@ import { createPlanActions, initialPlan, usePlanEffects } from './plan';
 import { createFileActions, useSnapshots } from './files';
 import { createPaneActions, initialPanes, useChatLayout, usePaneEffects } from './panes';
 import { createComposerActions } from './composer';
+import { createAckActions } from './acknowledge';
 import { useMonitorLog } from './monitorLog';
 import { useV2Effects } from './effects';
 import { useShortcuts } from './shortcuts';
@@ -144,7 +145,6 @@ export function V2Provider(props: { children: ReactNode }) {
       navigate: (to) => x.navigate(to),
       setSpeed: (n) => x.current().agent.setSpeed(n),
       sweepNow: () => x.current().monitor.sweepNow(),
-      acknowledge: (id) => x.current().monitor.acknowledge(id),
       markHandedOff: (id) => {
         const m = x.current().monitor;
         const item = m.escalations.find((e) => e.id === id);
@@ -156,6 +156,7 @@ export function V2Provider(props: { children: ReactNode }) {
       ...createFileActions(x),
       ...createPaneActions(x),
       ...createComposerActions(x),
+      ...createAckActions(x),
     }),
     [x],
   );

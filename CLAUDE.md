@@ -547,7 +547,7 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   supersede all of them.
 - **Guardrails:** `npm run v2-check` (28 greps: tokens only, 400/500/600, 4px grid, one
   infinite animation, no hand-rolled controls outside the kit, V1 + engine hashes untouched, …).
-  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-32, rendered on `/?kit`) for
+  New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-34, rendered on `/?kit`) for
   owner approval; every `data-pattern` id needs an entry there, every kit export a kit-page specimen.
 - **Storage** (only in `src/v2/state/`): `v2.navCollapsed`, `v2.chatOpen` (only `state/panes.ts`).
   (`v2.showReasoning` was retired with R2: reasoning lives in each card's Record.) **Auto-countersign
@@ -736,6 +736,27 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   countdown holds the countdown first (`reviewManually`). The sealed caption adds "signed with 3
   inputs not stated in the CIM" ("decided with …" on a rejection, whose list is always headed "Notes
   on the record", "· none" with no notes, never "Signed over"). Engine numbers unchanged.
+- **Acknowledging a covenant item asks why** (P-34, THREE-PANE R4.6, Mobbin audit fix 5): the Book's
+  Acknowledge no longer acts in one click. It opens the item's inline strip in the row's detail
+  (indented with the sub-rows): the kit `ConfirmStrip` with its new `reason` field (a kit
+  `TextInput`, "Why is this acceptable for now?", takes the focus), Acknowledge / Cancel beside it
+  and ONE consequence line under it, worded from what the engine does: "Required for a breach.
+  Stays quiet until it recovers." / "Optional for a watch. Stays quiet until it worsens or
+  recovers." (an acknowledged item is raised again only at a worse severity, and a breach has
+  none). An empty reason on a breach keeps the strip and shows the calm hint "Write why it is
+  acceptable first." (announced, focus back in the field; the R4.1 pattern, no disabled button, no
+  red alert). Enter confirms, Esc / Cancel closes (focus back to the item's Acknowledge); the
+  item's own button hides while its strip is open; one strip at a time; leaving the Book closes it.
+  Confirm calls the engine's `monitor.acknowledge(id)` unchanged and keeps the reason in V2 state
+  (`ui.ackNotes` by escalation id, `ui.ackConfirm` for the open strip, `state/acknowledge.ts`;
+  `V2Actions.acknowledge` became `requestAcknowledge` / `setAckNote` / `confirmAcknowledge` /
+  `cancelAcknowledge`; the rule is `ackNoteRequired` in `model/select-book.ts`). The acknowledged
+  row reads "Acknowledged 14:05" plus a line under its figures, "until it recovers · “Waiver in
+  negotiation with sponsor”" ("no reason given" for a watch; "worsened since and raised again"
+  once re-raised), where focus lands. The Ledger's Reviewer row carries the reason as its detail;
+  the session export's `monitorLog` entries gain `detail`. No time-based snooze; Mark handed off
+  unchanged. Kit: `ConfirmStrip` `reason` / `hint` / `label`, `TextInput` `describedBy` /
+  `required`; kit page group `#board-acknowledge`.
 - **Rejected by the owner during the V2 build (do not resurrect):** vertical "Source ¶" spine
   (source opens from a doc-bar button instead) · the ¶ citation mark (reads "CIM para 2") ·
   recommendation at the top of the memo · side margin column of notes (left empty gaps) ·

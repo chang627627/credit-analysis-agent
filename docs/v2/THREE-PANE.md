@@ -435,6 +435,86 @@ flat 300-entry cap, where they conflict.
   now shows the pointer lines instead of a clamped answer; the agent panel board's spec and caption
   say so.
 
+### R4.6 A reason when acknowledging a breach (Mobbin audit fix 5, P-34)
+
+**The problem (verified in the build).** Each open monitor item on the Book had a ghost
+"Acknowledge" button that called `actions.acknowledge(item.id)` directly (`screens/book/Book.tsx`):
+no note, no confirm, no consequence line. The engine then keeps the item quiet unless it worsens
+(`useMonitor`), and the Ledger recorded only "Acknowledged · <covenant>". The product requires a
+reason to reject a memo (R4.1), yet a live covenant breach could be silenced in one click with no
+rationale.
+
+**The rule.** Acknowledging a covenant item asks why, inline, and the reason goes on the record. A
+breach needs a reason; a watch may go without. This supersedes SPEC.md §7.4's "ghost sm
+'Acknowledge' → `actions.acknowledge(id)`" and §6.2's `acknowledge(id)` above. No time-based
+snooze; Mark handed off (countersign items) is unchanged.
+
+- **State** (`state/contracts.ts`, `state/acknowledge.ts`, `state/ui.ts`; the engine and the hooks
+  are untouched): `UiState.ackConfirm: { id; note; hint } | null` (the item whose strip is open, one
+  at a time, the reason being typed, and whether the calm hint shows) and `UiState.ackNotes:
+  Record<escalationId, AckNote>` (`AckNote { note; at }`, the trimmed reason, `''` when a watch
+  went without one; session only, like the rest of the store). `V2Actions.acknowledge(id)` is gone;
+  in its place `requestAcknowledge(id)` (open monitor items on a shown file only; opening another
+  item's strip replaces the open one), `setAckNote(text)` (any text clears the hint),
+  `confirmAcknowledge()` and `cancelAcknowledge()`. Any place change closes the strip without
+  acknowledging (`routeHygiene`, the documented "any change closes an inline confirm").
+- **The one rule** (`model/select-book.ts`): `ackNoteRequired(e)` (severity critical, i.e. a Book
+  "Breach") is read by the selector and by `confirmAcknowledge`. `ackUntil(e)` words what the
+  acknowledgement holds the item back until from what the engine does: an acknowledged item is
+  raised again only when a sweep finds it at a WORSE severity, and resolves after two passing
+  sweeps, so a watch "stays quiet until it worsens or recovers" while a breach, which has no worse
+  severity, "stays quiet until it recovers" (the task's one sentence would have promised a breach
+  a re-raise the engine never makes).
+- **The strip** (`BookItem.ack: BookAckView | null`, rendered in the item row's `detail` as
+  `<div class="book-ack" data-ack="<id>">`, indented 24 with the sub-rows): the kit `ConfirmStrip`
+  with its new `reason` (P-34): a one-line kit `TextInput`, placeholder and accessible name "Why is
+  this acceptable for now?", `aria-required` on a breach, leads the strip with Acknowledge
+  (secondary) and Cancel (ghost) beside it (they wrap under the field when narrow); under the field,
+  ONE consequence line, t-small ink-2: "Required for a breach. Stays quiet until it recovers." or
+  "Optional for a watch. Stays quiet until it worsens or recovers." (`COPY.ackConsequence`). The
+  group's accessible name is "Acknowledge Max Total Leverage on Project Cobalt"
+  (`ConfirmStrip.label`, new). While the strip is open the item's own Acknowledge button hides
+  (`action` null), so the strip's Acknowledge is the only one.
+- **Validity, the calm way** (the R4.1 pattern, never a disabled button, never a red alert):
+  Acknowledge (click, or Enter in the field) with an empty or blank reason on a breach keeps the
+  strip open, sets `hint`, shows one t-small ink line above the consequence line, "Write why it is
+  acceptable first." (`COPY.ackReasonFirst`; both lines describe the field), announces it through
+  the live region and puts focus back in the field, caret at the end. Any text clears it. If the
+  item was acknowledged, resolved or hidden while the strip was open, Acknowledge just closes it.
+  A sweep that upgrades an open watch to a breach while the strip is open makes the reason required
+  at once.
+- **Confirm** calls the engine's `monitor.acknowledge(id)` unchanged and writes
+  `ackNotes[id]`, closes the strip and announces "Acknowledged Max Total Leverage on Project Cobalt.
+  It stays quiet until it recovers." (`ackAnnouncement`).
+- **Focus:** the strip's field takes the focus on mount (the kit strip focuses its field instead of
+  Cancel when it has one). Esc (from the field or the buttons; the strip's own handler) or Cancel
+  closes it; focus that fell to the body returns to the item's Acknowledge button
+  (`[data-ack-trigger]`). After a confirm, focus that fell to the body lands on the acknowledged
+  item's line (`[data-ack-record]`, tabIndex -1, with a screen-reader prefix naming the status and
+  the covenant). A reviewer who moved focus elsewhere keeps it.
+- **The acknowledged row** (`BookItem.ackRecord`): the status stays "Acknowledged 14:05" (time from
+  the engine's `acknowledgedAt`, formatted in the model), and a second line under the figures, from
+  the covenant column on (t-small ink-2, wraps; a full-width line when the sub-row is narrow), reads
+  what it waits for, then the reason: "until it recovers · “Waiver in negotiation with sponsor”",
+  "until it worsens or recovers · no reason given" (a watch acknowledged without one), or "worsened
+  since and raised again · …" once a sweep has raised a newer open item for the same covenant.
+- **Ledger and export:** the monitor log's acknowledgement row (Reviewer, chip Reviewer, event
+  "Acknowledged · Max Total Leverage") carries the reason as its detail, quoted ("“Waiver in
+  negotiation with sponsor”", or "No reason given"), also in its raw record's Detail
+  (`ackDetailOf`). The session export's `monitorLog` entries gain `detail`: the reason as written on
+  an acknowledgement ("No reason given" when a watch went without), else null (`ackNoteOf`).
+  Countersign hand-offs carry none.
+- **Kit:** `ConfirmStrip` gains `reason?: ConfirmReason` (`{ value; onChange; placeholder;
+  ariaLabel; required? }`), `hint?` and `label?`; with a reason it renders `.k-confirm--reason`
+  (padding 12, row gap 8; `.k-confirm__field` flex 1 1 240, `.k-confirm__lines` full width, the hint
+  `--ink`, the text `--ink-2`) and `data-pattern="P-34"`. `TextInput` gains `describedBy` and
+  `required` (aria only). Kit page: a new group "ConfirmStrip with a reason · Acknowledge on the
+  Book (P-34)" (`#board-acknowledge`) in the Tabs · Menu · Palette · FilterChips · ConfirmStrip
+  board: the live strip under a Book item (hint, Enter, Esc, Cancel, then the acknowledged line),
+  the hint and watch states, a 360px frame, the acknowledged line (`FX_BOOK_ACKED_ITEM`) and the
+  Ledger row with its reason. Fixtures: `FX_BOOK_ACK_BREACH` / `_HINT` / `_WATCH`, the Book's
+  acknowledged items carry `ackRecord`, the Ledger's acknowledgement rows carry their reasons.
+
 ## 0. Owner decisions that survive (each is checked in §9)
 
 | Decision | Where it holds |
@@ -1347,7 +1427,7 @@ export interface V2Actions {
   submitComposer(dealId: string, text: string): void;     // †
   setComposerDraft(dealId: string, text: string): void;   // † engages (§4.3)
   sweepNow(): void;
-  acknowledge(id: string): void;
+  acknowledge(id: string): void;                          // R4.6: replaced by requestAcknowledge / setAckNote / confirmAcknowledge / cancelAcknowledge
   markHandedOff(id: string): void;
   exportFile(dealId: string): void;
   exportSession(): void;

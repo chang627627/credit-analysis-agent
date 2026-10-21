@@ -3,17 +3,19 @@
 // file from the always-on Portfolio Monitor, with open items grouped under
 // their file. Sub-row figures read the LIVE reading of the item's covenant
 // (never the reason sentence); the tightest covenant is the minimum signed
-// cushion; tests count watch as passing.
+// cushion; tests count watch as passing. Acknowledging an item asks why first
+// (R4.6): the open strip, the one rule (a breach needs a reason) and the
+// acknowledged line ("until it recovers · “…”") are worded here.
 // ---------------------------------------------------------------------------
 
 import type { EscalationItem, PortfolioDealState } from '../../agent/monitor';
 import { DECLINE_SCORE } from '../../agent/rating';
-import type { V2Store } from '../state/contracts';
+import type { AckNote, V2Store } from '../state/contracts';
 import { cushionOf, distanceOf } from './evidence';
 import { fmtAgo, fmtCountdown, fmtHM, fmtSeconds, plural } from './format';
 import { healthStatus } from './select-file';
 import { dealOf } from './select-top';
-import type { BookItem, BookRow, BookView, StatusText } from './types';
+import type { BookAckView, BookItem, BookRow, BookView, StatusText } from './types';
 import { COPY, STATUS_WORD } from './vocab';
 
 /** The monitor's sweep cadence (useMonitor: 25 s ÷ demo pace). */
@@ -21,7 +23,57 @@ const SWEEP_MS = 25000;
 
 const HEALTH_RANK: Record<PortfolioDealState['health'], number> = { breach: 0, watch: 1, healthy: 2 };
 
-function monitorItem(s: V2Store, p: PortfolioDealState | undefined, e: EscalationItem): BookItem {
+// ---- acknowledging a covenant item (R4.6, audit fix 5) -------------------------
+
+/** A breach needs a reason to be acknowledged; a watch may go without. The one rule the Book and state/acknowledge.ts read. */
+export function ackNoteRequired(e: Pick<EscalationItem, 'severity'>): boolean {
+  return e.severity === 'critical';
+}
+
+/**
+ * What an acknowledgement holds the item back until, worded from what the engine does: an
+ * acknowledged item is raised again only when a sweep finds it at a worse severity, and closes when
+ * it passes two sweeps in a row. A breach has no worse severity, so it stays quiet until it recovers.
+ */
+export function ackUntil(e: Pick<EscalationItem, 'severity'>): string {
+  return e.severity === 'critical' ? COPY.ackUntilBreach : COPY.ackUntilWatch;
+}
+
+/** The live-region sentence after an acknowledgement. */
+export function ackAnnouncement(e: Pick<EscalationItem, 'severity' | 'covenant' | 'dealName'>): string {
+  return COPY.ackDone(e.covenant ?? e.dealName, e.dealName, ackUntil(e));
+}
+
+/** The reason as the record shows it: quoted, or "no reason given" (a watch acknowledged without one). */
+export function ackReasonText(rec: AckNote, sentence: boolean): string {
+  return rec.note ? `“${rec.note}”` : sentence ? COPY.ackNoReasonDetail : COPY.ackNoReason;
+}
+
+function ackStrip(s: V2Store, e: EscalationItem, fileName: string): BookAckView | null {
+  const c = s.ui.ackConfirm;
+  if (!c || c.id !== e.id || e.status !== 'open') return null;
+  const required = ackNoteRequired(e);
+  return {
+    label: COPY.ackStripLabel(e.covenant ?? fileName, fileName),
+    text: COPY.ackConsequence(required, ackUntil(e)),
+    placeholder: COPY.ackQuestion,
+    value: c.note,
+    required,
+    hint: c.hint && required && c.note.trim() === '' ? COPY.ackReasonFirst : null,
+    confirmLabel: COPY.acknowledge,
+    cancelLabel: COPY.cancel,
+  };
+}
+
+/** An acknowledged item's line: what it waits for (or that it has since worsened), then the reason. */
+function ackRecordOf(s: V2Store, e: EscalationItem, all: EscalationItem[]): string | null {
+  if (e.status !== 'acknowledged') return null;
+  const worsened = all.some((o) => o.id !== e.id && o.key === e.key && o.status === 'open' && o.at > e.at);
+  const rec = s.ui.ackNotes[e.id];
+  return [worsened ? COPY.ackReraised : ackUntil(e), rec ? ackReasonText(rec, false) : null].filter((p): p is string => p !== null).join(' · ');
+}
+
+function monitorItem(s: V2Store, p: PortfolioDealState | undefined, e: EscalationItem, all: EscalationItem[], fileName: string): BookItem {
   const name = e.covenant ?? '';
   const live = p && e.covenant ? p.covenants.find((c) => c.name === e.covenant) : undefined;
   const actual = live ? live.actual : e.actual ?? '';
@@ -32,6 +84,7 @@ function monitorItem(s: V2Store, p: PortfolioDealState | undefined, e: Escalatio
     : e.severity === 'critical'
       ? { state: 'breach', text: STATUS_WORD.breach }
       : { state: 'watch', text: STATUS_WORD.watch };
+  const ack = acked ? null : ackStrip(s, e, fileName);
   return {
     id: e.id,
     origin: 'monitor',
@@ -41,9 +94,12 @@ function monitorItem(s: V2Store, p: PortfolioDealState | undefined, e: Escalatio
     distance: actual && threshold ? distanceOf(name, threshold, actual) : '',
     raised: `raised ${fmtAgo(s.now - e.at)}`,
     muted: acked,
-    action: acked ? null : { kind: 'acknowledge', label: COPY.acknowledge },
+    // the strip's own Acknowledge is the only one while it is open
+    action: acked || ack ? null : { kind: 'acknowledge', label: COPY.acknowledge },
     link: null,
     doneText: null,
+    ack,
+    ackRecord: ackRecordOf(s, e, all),
   };
 }
 
@@ -63,6 +119,8 @@ function countersignItem(s: V2Store, e: EscalationItem): BookItem {
     action: acked ? null : { kind: 'mark-handed-off', label: COPY.markHandedOff },
     link: { label: COPY.openRecord, route: { name: 'file', dealId: e.dealId, at: 'signature' } },
     doneText: acked ? `Marked handed off to senior review · ${fmtHM(e.acknowledgedAt ?? e.at)}` : null,
+    ack: null,
+    ackRecord: null,
   };
 }
 
@@ -124,7 +182,7 @@ export function selectBook(s: V2Store): BookView {
       tests: `${passing} of ${p.covenants.length} pass${watching > 0 ? ` · ${watching} on watch` : ''}`,
       risk: { text: String(p.riskScore), tone: p.riskScore >= DECLINE_SCORE ? 'bad' : 'ink' },
       checked: `#${p.lastSweepId}`,
-      items: visible.map((e) => (e.origin === 'countersign' ? countersignItem(s, e) : monitorItem(s, p, e))),
+      items: visible.map((e) => (e.origin === 'countersign' ? countersignItem(s, e) : monitorItem(s, p, e, mine, p.name))),
       oldestOpen: open.length > 0 ? Math.min(...open.map((e) => e.at)) : Number.MAX_SAFE_INTEGER,
     };
   });
@@ -162,7 +220,7 @@ export function selectBook(s: V2Store): BookView {
       tests: COPY.noCall,
       risk: { text: COPY.noCall, tone: 'ink' },
       checked: COPY.noCall,
-      items: mine.map((e) => (e.origin === 'countersign' ? countersignItem(s, e) : monitorItem(s, undefined, e))),
+      items: mine.map((e) => (e.origin === 'countersign' ? countersignItem(s, e) : monitorItem(s, undefined, e, mine, deal ? deal.name : e.dealName))),
       oldestOpen: Number.MAX_SAFE_INTEGER,
     });
   }

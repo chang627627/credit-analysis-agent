@@ -107,6 +107,12 @@ export interface ThreadEntry {
   qa: { question: string; runId: number | null } | null;
 }
 
+/**
+ * R4.6: why a covenant item was acknowledged, as the reviewer wrote it (trimmed). `note` is '' when
+ * none was given, which only a watch item allows; `at` is when it was confirmed (Date.now()).
+ */
+export interface AckNote { note: string; at: number }
+
 /** A cue carries time: consumers react to a tick change, and on mount honour a cue whose `at` is under 1000 ms old (§2.6). */
 export interface Cue { tick: number; at: number }
 
@@ -128,6 +134,14 @@ export interface UiState {
   removedFiles: string[];
   /** the Desk row whose remove confirm is open */
   removeConfirm: string | null;
+  /**
+   * R4.6 (audit fix 5): the Book item whose Acknowledge strip is open (one at a time), the reason
+   * being typed, and whether the calm "write why first" hint shows (a confirm with no reason on a
+   * breach; any text clears it). Never acknowledges by itself; any place change closes it.
+   */
+  ackConfirm: { id: string; note: string; hint: boolean } | null;
+  /** R4.6: the reason given for each acknowledged monitor item, keyed by escalation id (session only, like the rest) */
+  ackNotes: Record<string, AckNote>;
   attached: Record<number, string[]>;                              // stressRecord keys attached, per runId
   thread: ThreadEntry[];                    // capped 300 (answered questions kept up to 500, R4.5); not cleared by clearReading
   threadEpoch: Record<string, number>;      // per dealId: entries older than the epoch are hidden
@@ -224,7 +238,20 @@ export interface V2Actions {
   submitComposer(dealId: string, text: string): void;      // §4 intents; typing never signs, returns or rejects (refused with a link to the Decision card)
   setComposerDraft(dealId: string, text: string): void;   // engages (§4.3): holds a running countdown
   sweepNow(): void;
-  acknowledge(id: string): void;               // monitor.acknowledge
+  /**
+   * R4.6 (audit fix 5): Acknowledge on a Book item never acts at once. requestAcknowledge opens that
+   * open monitor item's inline strip (a reason field, the consequence line, Acknowledge / Cancel;
+   * the field takes focus). confirmAcknowledge needs a reason for a breach (empty: the calm hint,
+   * announced, focus back in the field; a watch may go without), then calls the engine's
+   * monitor.acknowledge(id) unchanged and keeps the reason in ui.ackNotes (the Book row, the
+   * Ledger's Reviewer row and the session export read it); focus that fell to the body lands on the
+   * item's acknowledged line. cancelAcknowledge (Cancel, Esc) closes without acknowledging; focus
+   * that fell to the body returns to the item's Acknowledge button.
+   */
+  requestAcknowledge(id: string): void;
+  setAckNote(text: string): void;              // any text clears the hint
+  confirmAcknowledge(): void;
+  cancelAcknowledge(): void;
   markHandedOff(id: string): void;             // monitor.acknowledge on a countersign-origin item
   exportFile(dealId: string): void;
   exportSession(): void;

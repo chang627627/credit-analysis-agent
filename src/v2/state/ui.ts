@@ -122,6 +122,8 @@ export function initialUi(): UiState {
     planPreview: {},
     removedFiles: [],
     removeConfirm: null,
+    ackConfirm: null,
+    ackNotes: {},
     attached: {},
     thread: [],
     threadEpoch: {},
@@ -186,12 +188,15 @@ export function sourceIsOverlay(): boolean {
  * Opening another file also closes an overlaid source (so the next file never
  * opens already covered; a pushed source is a reading preference and stays
  * open), ends a transient panel reveal and closes the drawer. Any other place
- * change closes the confirm strip and the drawer.
+ * change closes the confirm strip and the drawer. Every place change closes an
+ * open Acknowledge strip on the Book without acknowledging (R4.6).
  */
 export function routeHygiene(x: V2Internals, to: Route): void {
   const h = x.hygiene.current;
   const file = fileKeyOf(to, h.file);
   const place = placeKeyOf(to);
+  // leaving the Book closes an open Acknowledge strip without acknowledging (R4.6)
+  if (place !== h.place) x.setUi((u) => (u.ackConfirm === null ? u : { ...u, ackConfirm: null }));
   if (file !== h.file) {
     x.hygiene.current = { file, place };
     clearReading(x);

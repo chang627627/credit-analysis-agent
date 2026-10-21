@@ -19,6 +19,7 @@ import { qaAnchor } from './select-questions';
 import type {
   Actor,
   AgentPanelView,
+  BookAckView,
   BookItem,
   BookRow,
   BookView,
@@ -2081,7 +2082,13 @@ export const FX_EXHIBITS: ExhibitView[] = [
 // =============================================================================
 
 const ACK = { kind: 'acknowledge' as const, label: COPY.acknowledge };
-const monitorItem = (id: string, covenant: string, reading: string, distance: string, breach: boolean, ackAt: string | null): BookItem => ({
+/** R4.6 reasons on the record (the Book's acknowledged lines and the Ledger's Reviewer rows agree) */
+const ACK_WAIVER = 'Waiver in negotiation with sponsor';
+const ACK_WAIVER_FCC = 'Same waiver request covers the fixed-charge test';
+const ACK_SEASONAL = 'Thin headroom expected through Q3 seasonality';
+const ackLine = (breach: boolean, note: string | null): string =>
+  `${breach ? COPY.ackUntilBreach : COPY.ackUntilWatch} · ${note ? `“${note}”` : COPY.ackNoReason}`;
+const monitorItem = (id: string, covenant: string, reading: string, distance: string, breach: boolean, ackAt: string | null, ackNote: string | null = null): BookItem => ({
   id,
   origin: 'monitor',
   status: ackAt ? { state: 'acknowledged', text: `Acknowledged ${ackAt}` } : breach ? { state: 'breach', text: 'Breach' } : { state: 'watch', text: 'Watch' },
@@ -2093,6 +2100,8 @@ const monitorItem = (id: string, covenant: string, reading: string, distance: st
   action: ackAt ? null : ACK,
   link: null,
   doneText: null,
+  ack: null,
+  ackRecord: ackAt ? ackLine(breach, ackNote) : null,
 });
 
 const BOOK_COBALT: BookRow = {
@@ -2109,8 +2118,8 @@ const BOOK_COBALT: BookRow = {
   items: [
     monitorItem('esc_4', 'Max Total Leverage', '5.71x / ≤ 4.00x', '1.71x over', true, null),
     monitorItem('esc_7', 'Min Liquidity', '$5.9M / ≥ $10.0M', '$4.1M short', true, null),
-    monitorItem('esc_5', 'Min Interest Coverage', '1.36x / ≥ 2.00x', '0.64x short', true, '14:05'),
-    monitorItem('esc_6', 'Min Fixed-Charge Coverage', '0.93x / ≥ 1.10x', '0.17x short', true, '14:05'),
+    monitorItem('esc_5', 'Min Interest Coverage', '1.36x / ≥ 2.00x', '0.64x short', true, '14:05', ACK_WAIVER),
+    monitorItem('esc_6', 'Min Fixed-Charge Coverage', '0.93x / ≥ 1.10x', '0.17x short', true, '14:05', ACK_WAIVER_FCC),
   ],
 };
 const BOOK_ATLAS: BookRow = {
@@ -2138,8 +2147,10 @@ const BOOK_ATLAS: BookRow = {
       action: { kind: 'mark-handed-off', label: COPY.markHandedOff },
       link: { label: COPY.openRecord, route: { name: 'file', dealId: 'atlas', at: 'signature' } },
       doneText: null,
+      ack: null,
+      ackRecord: null,
     },
-    monitorItem('esc_2', 'Min Interest Coverage', '2.06x / ≥ 2.00x', '0.06x room', false, '14:04'),
+    monitorItem('esc_2', 'Min Interest Coverage', '2.06x / ≥ 2.00x', '0.06x room', false, '14:04', ACK_SEASONAL),
     monitorItem('esc_3', 'Min Fixed-Charge Coverage', '1.16x / ≥ 1.10x', '0.06x room', false, '14:04'),
   ],
 };
@@ -2168,6 +2179,30 @@ export const FX_BOOK_BREACH: BookView = {
   empty: null,
   rows: [BOOK_COBALT, BOOK_ATLAS, BOOK_MERIDIAN],
 };
+
+/** R4.6: the Acknowledge strip under Cobalt's Max Total Leverage breach, just opened (a reason is required). */
+export const FX_BOOK_ACK_BREACH: BookAckView = {
+  label: COPY.ackStripLabel('Max Total Leverage', 'Project Cobalt'),
+  text: COPY.ackConsequence(true, COPY.ackUntilBreach),
+  placeholder: COPY.ackQuestion,
+  value: '',
+  required: true,
+  hint: null,
+  confirmLabel: COPY.acknowledge,
+  cancelLabel: COPY.cancel,
+};
+/** The same strip after Acknowledge with no reason: the calm hint, focus back in the field. */
+export const FX_BOOK_ACK_HINT: BookAckView = { ...FX_BOOK_ACK_BREACH, hint: COPY.ackReasonFirst };
+/** A watch item's strip with a reason typed (a reason is optional there). */
+export const FX_BOOK_ACK_WATCH: BookAckView = {
+  ...FX_BOOK_ACK_BREACH,
+  label: COPY.ackStripLabel('Min Interest Coverage', 'Project Atlas'),
+  text: COPY.ackConsequence(false, COPY.ackUntilWatch),
+  value: ACK_SEASONAL,
+  required: false,
+};
+/** Cobalt's acknowledged Min Interest Coverage item: its line under the figures. */
+export const FX_BOOK_ACKED_ITEM: BookItem = monitorItem('esc_5', 'Min Interest Coverage', '1.36x / ≥ 2.00x', '0.64x short', true, '14:05', ACK_WAIVER);
 
 /** Before the first sweep. */
 export const FX_BOOK_EMPTY: BookView = {
@@ -2294,10 +2329,10 @@ const MONITOR_ROWS: LedgerRow[] = [
   mrow('14:01:00', PM, 'Raised · Project Cobalt · Breach · Min Interest Coverage 1.38x / ≥ 2.00x', 'monitor', 'raised', 'Project Cobalt', `Min Interest Coverage 1.38x breaches the ≥ 2.00x covenant (${M}44.9% headroom)`),
   mrow('14:01:00', PM, 'Raised · Project Cobalt · Breach · Min Fixed-Charge Coverage 0.94x / ≥ 1.10x', 'monitor', 'raised', 'Project Cobalt', `Min Fixed-Charge Coverage 0.94x breaches the ≥ 1.10x covenant (${M}17.0% headroom)`),
   mrow('14:01:00', PM, 'Raised · Project Cobalt · Breach · Min Liquidity $6.3M / ≥ $10.0M', 'monitor', 'raised', 'Project Cobalt', `Min Liquidity $6.3M breaches the ≥ $10.0M covenant (${M}58.7% headroom)`),
-  mrow('14:04:31', RV, 'Acknowledged · Min Interest Coverage', 'reviewer', 'acknowledged', 'Project Atlas', null),
-  mrow('14:04:33', RV, 'Acknowledged · Min Fixed-Charge Coverage', 'reviewer', 'acknowledged', 'Project Atlas', null),
-  mrow('14:05:02', RV, 'Acknowledged · Min Interest Coverage', 'reviewer', 'acknowledged', 'Project Cobalt', null),
-  mrow('14:05:04', RV, 'Acknowledged · Min Fixed-Charge Coverage', 'reviewer', 'acknowledged', 'Project Cobalt', null),
+  mrow('14:04:31', RV, 'Acknowledged · Min Interest Coverage', 'reviewer', 'acknowledged', 'Project Atlas', `“${ACK_SEASONAL}”`),
+  mrow('14:04:33', RV, 'Acknowledged · Min Fixed-Charge Coverage', 'reviewer', 'acknowledged', 'Project Atlas', COPY.ackNoReasonDetail),
+  mrow('14:05:02', RV, 'Acknowledged · Min Interest Coverage', 'reviewer', 'acknowledged', 'Project Cobalt', `“${ACK_WAIVER}”`),
+  mrow('14:05:04', RV, 'Acknowledged · Min Fixed-Charge Coverage', 'reviewer', 'acknowledged', 'Project Cobalt', `“${ACK_WAIVER_FCC}”`),
 ];
 
 const ATLAS_LEDGER_RUN: LedgerRun = {
@@ -2423,6 +2458,10 @@ export const FIXTURES = {
   FX_EXHIBITS,
   FX_BOOK_BREACH,
   FX_BOOK_EMPTY,
+  FX_BOOK_ACK_BREACH,
+  FX_BOOK_ACK_HINT,
+  FX_BOOK_ACK_WATCH,
+  FX_BOOK_ACKED_ITEM,
   FX_LEDGER_AFTER_ATLAS,
   FX_LEDGER_EMPTY,
 } as const;

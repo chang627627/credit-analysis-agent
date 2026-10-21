@@ -360,6 +360,81 @@ names, and listed here so the change is traceable.
 - **R4.3 · the caveat link let a countdown sign off screen.** Following it during a countdown now
   holds the countdown first.
 
+### R4.5 Answers in the memo (Mobbin audit fix 4, P-33)
+
+**The problem (verified in the build).** A Q&A answer in the agent panel was one thread line
+clamped to 2 lines (`chat.css`, `-webkit-line-clamp: 2`) with no way to expand it, while the engine
+responder's covenant, why and amend answers run 150 to 450 characters and `askRoute`'s why branch
+returns every reason; the "You · …" echo was ellipsized too. `ui.thread` was read by neither
+`model/exports.ts` nor `model/select-ledger.ts`, so what the reviewer asked before countersigning
+left no trace.
+
+**The rule.** Everything displayed goes on the right (R2), answers included: the panel stays terse
+and the full answer lives in the memo. This supersedes R2.1's Q&A bullet ("the agent's answer clipped
+to 2 lines"), §4.3's `question` row (the local meta and the stress link now read as below), and §4.4's
+flat 300-entry cap, where they conflict.
+
+- **What moves** (model only, classified from the existing composer path): `ComposerReply.memo:
+  { runId } | null` is set by `answerFor` on a **real answer about the deal**, the engine's
+  rule-based responder (`answerQuestion`) and the deterministic answers `askRoute` composes from the
+  package (the why answer from the decision rule's reasons, the restructured why and leverage
+  answers). It is null on everything else: command acknowledgements (`composerReply`'s `done`
+  replies: toggles, hold, stop, open stress), refusals ("Decide in the memo: Decision →", amend,
+  note, plan fixed, already live, question closed), the unknown-input help line, and the what-if
+  pointer. The what-if pointer is steering, so it stays one panel reply and is now short enough for
+  one line: "Try it in the stress test, below the Decision card." with "Stress test →"
+  (`COPY.askStressPointer`; it was 150 characters and clipped).
+- **State** (`state/contracts.ts`, `state/composer.ts`): `ThreadEntry.qa: { question; runId } | null`,
+  set on the answer entry from `reply.memo` (the question as typed, the run whose package answered);
+  every other entry writes `null`. The thread cap (300) drops answered questions last, keeping up to
+  500 (`QA_CAP`), since they are now on the record. In **column mode**, when the case file is on
+  screen, a new real answer cues its memo entry at once (`cueMemo({ section: 'questions', anchorId:
+  'qa:<id>' })`: scroll and one flash; scroll only, focus stays in the composer, so no key can sign);
+  in drawer mode nothing moves (the drawer overlays the memo) until the reviewer follows the panel's
+  link, which closes the drawer first.
+- **Panel** (`selectAgentPanel`): the reviewer's question stays ONE "You · …" line (ellipsis; the
+  full question heads the memo entry). A real answer becomes ONE unclamped line of the new kind
+  `'answered'`: "Answered in the memo" (`COPY.answeredInMemo`, ink-2, no glyph) with the link
+  "Questions →" (`ThreadLine.link.anchorId` = `qa:<entryId>`, new and optional), which scrolls the
+  memo to that entry with the existing `cueMemo` and flashes it once (a held `--sunken` highlight
+  under reduced motion). Replies that stay (`'answer'` lines) keep their glyphs, links and 2-line
+  clip.
+- **Memo** (`screens/file/Questions.tsx`, `selectQuestions` → `QuestionsView`,
+  `model/select-questions.ts`, `data-section="questions"`, FileAt `'questions'` (also `?at=questions`),
+  `data-pattern="P-33"`): a scratch block in the provisional frame of the stress test
+  (`--line-provisional`, `--r-md`, padding 16 20; 16 at a memo pane under 592px), never a `MemoCard`.
+  Order: … 5 Recommendation → the Decision card → **Questions** → the stress test → exhibits →
+  appendix (the Decision card stays right after step 5; R2.5's order otherwise unchanged). It exists
+  only once the file has an answered question since its epoch (`ui.threadEpoch`, the same filter as
+  the panel: no empty placeholder, and a re-run starts fresh). Head: t-eyebrow ink-3 "Questions" and
+  the t-small ink-2 aid line "Analysis aid · not part of the memo" (`COPY.aidLabel`). One entry per
+  answered question, oldest first, under a 1px `--line` hairline (padding 12 0, gap 4): the question
+  as typed (t-strong ink), the full answer (t-body ink-2, `pre-line`), one t-meta line with the
+  source and the time in ink-3 ("rule-based responder · simulated · 14:03", or
+  "Countersign · deterministic · 14:02" for an `askRoute` answer; `COPY.askMetaLocal` was
+  "Countersign"), then, when the answer concerns a memo card, that card's link ("Covenants →", the
+  target the panel reply used to carry, `sectionOfQuestion` / `memoAction`), which scrolls to the
+  card's head and flashes it. Each entry carries `data-anchor="qa:<entryId>"`; `memoTargetOfAnchor`
+  maps `qa:*` to `'questions'`.
+- **Exports** (`model/exports.ts`): the file export adds `questions: { question, answer, at (ISO),
+  source }[]` for the exported run (`questionsOfRun(s, ctx.runId)`, so a sealed snapshot exports what
+  was asked under it, and a re-run's questions go with the re-run); the session export adds every
+  answered question with its `dealId` and `runId`.
+- **Ledger** (`model/select-ledger.ts`): each answered question is a row of its run, merged in time
+  order with the run's audit entries: actor Reviewer, chip Reviewer, event "Asked · “which covenants
+  are tight?”" (`COPY.askedEvent`), detail the answer (the row truncates it; the raw record's Detail
+  holds it in full), raw label "Reviewer question", kind `question`, and the source under
+  "Answered by". They count in All and Reviewer; they are not reviewer decisions, so the summary's
+  decision counts are unchanged. Questions of a run stay on the Ledger after a re-run (the record
+  keeps every run); only the memo block and the panel start fresh.
+- **Kit page:** a new board "Questions (memo) · analysis aid" (`#board-questions`): the block on the
+  canvas (`FX_QUESTIONS_ATLAS`: the deterministic why answer and the engine's covenant answer, with
+  a "Questions →" action that flashes the second entry as the panel pointer does), the panel side of
+  the same exchanges (two "Answered in the memo" lines, a refusal and the one-line what-if pointer),
+  the block in a 360px frame, and the Ledger row (`FX_LEDGER_QUESTION_ROW`). `FX_PANEL_ATLAS_REV2`
+  now shows the pointer lines instead of a clamped answer; the agent panel board's spec and caption
+  say so.
+
 ## 0. Owner decisions that survive (each is checked in §9)
 
 | Decision | Where it holds |

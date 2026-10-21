@@ -7,13 +7,15 @@
 // THREE-PANE: memo sections are cards (eyebrow, title, takeaway, labelled
 // blocks, a record footer, row-less flags as foot lines) whose takeaways equal
 // the §5.5 strings; FX_PANEL_* are the agent panel (R2: one-line status lines
-// with links, the plan prompt); FX_SIG_* are the memo's Decision card; FX_NOTES
-// are MarginNote specimens; the raw step record is FX_STUB_EXTRACT.
+// with links, the plan prompt); FX_QUESTIONS_ATLAS is the memo's Questions block
+// (R4.5); FX_SIG_* are the memo's Decision card; FX_NOTES are MarginNote
+// specimens; the raw step record is FX_STUB_EXTRACT.
 // ---------------------------------------------------------------------------
 
 import { AUTO_NOTE, COPY, IMPERATIVE, NOT_IN_CIM, NOT_IN_CIM_SHORT, sectionLinkLabel, STATUS_WORD, tokenOf } from './vocab';
 import { EM, MINUS } from './format';
 import { policyRule } from './select-top';
+import { qaAnchor } from './select-questions';
 import type {
   Actor,
   AgentPanelView,
@@ -37,6 +39,7 @@ import type {
   NoteView,
   PeersBody,
   PolicyView,
+  QuestionsView,
   RecommendationBody,
   RevisionBody,
   RiskBody,
@@ -1389,7 +1392,21 @@ export const FX_PANEL_ATLAS_GATE: AgentPanelView = {
   lines: [...ATLAS_RUN, L('gate:1', 'gate', 'awaiting', COPY.gateLine, 'signature')],
 };
 
-/** Atlas at the rev 2 gate after Q&A at rev 1: a refusal pointing at the Decision card, a short answer, the return and the cure. */
+/** A real answer's ONE panel line (R4.5): the answer itself is in the memo's Questions block, where the link cues its entry. */
+const ANSWERED = (id: string): ThreadLine => ({
+  id,
+  kind: 'answered',
+  glyph: null,
+  text: COPY.answeredInMemo,
+  link: { label: sectionLinkLabel('questions'), target: 'questions', anchorId: qaAnchor(id) },
+});
+
+/**
+ * Atlas at the rev 2 gate after Q&A at rev 1: a typed "countersign" refused with a pointer to the
+ * Decision card, two real answers that each leave one "Answered in the memo" line (the answers are
+ * FX_QUESTIONS_ATLAS), a what-if question that gets the one-line stress-test pointer, then the
+ * return and the cure.
+ */
 export const FX_PANEL_ATLAS_REV2: AgentPanelView = {
   ...FX_PANEL_NOT_STARTED,
   start: null,
@@ -1398,11 +1415,65 @@ export const FX_PANEL_ATLAS_REV2: AgentPanelView = {
     L('e2', 'you', null, 'You · countersign'),
     L('e3', 'answer', 'info', COPY.reply.decisionGate, 'signature'),
     L('e4', 'you', null, 'You · why escalate?'),
-    L('e5', 'answer', null, `The agent recommends ESCALATE. ${ATLAS_REASON_BREACH} ${ATLAS_REASON_THIN}`, 'recommendation'),
+    ANSWERED('e5'),
+    L('e6', 'you', null, 'You · which covenants are tight?'),
+    ANSWERED('e7'),
+    L('e8', 'you', null, 'You · what if EBITDA falls 10%?'),
+    L('e9', 'answer', null, COPY.askStressPointer, 'stress'),
     L('returned:2', 'revision', 'returned', 'Returned for revision · rev 2', 'revision-2'),
     L('step:step_rework_2', 'revision', 'done', 'Proposed a $19.5M sponsor equity cure', 'revision-2'),
     L('gate:2', 'gate', 'awaiting', COPY.gateLine, 'signature'),
   ],
+};
+
+/**
+ * The memo's Questions block for Atlas after the rev 1 Q&A above (R4.5, P-33): each answer in full
+ * under its question, the source and the time, and the memo card it concerns. "why escalate?" is
+ * Countersign's deterministic answer from the decision rule's own reasons; "which covenants are
+ * tight?" is the engine's rule-based responder over the filed figures.
+ */
+export const FX_QUESTIONS_ATLAS: QuestionsView = {
+  eyebrow: COPY.questionsEyebrow,
+  aid: COPY.aidLabel,
+  entries: [
+    {
+      id: 'e5',
+      anchorId: qaAnchor('e5'),
+      question: 'why escalate?',
+      answer: `The agent recommends ESCALATE. ${ATLAS_REASON_BREACH} ${ATLAS_REASON_THIN}`,
+      meta: `${COPY.askMetaLocal} · 14:02`,
+      link: { label: sectionLinkLabel('recommendation'), target: { section: 'recommendation', anchorId: 'sec:recommendation' } },
+    },
+    {
+      id: 'e7',
+      anchorId: qaAnchor('e7'),
+      question: 'which covenants are tight?',
+      answer: `1 of 4 covenant tests fail: Max Total Leverage 4.26x vs ≤ 4.00x (${M}6.5% headroom). Of the passing tests, Min Interest Coverage 2.10x vs ≥ 2.00x (4.8% headroom) and Min Fixed-Charge Coverage 1.18x vs ≥ 1.10x (6.8% headroom) sit inside the 15% policy cushion.`,
+      meta: `${COPY.askMetaEngine} · 14:03`,
+      link: { label: sectionLinkLabel('covenants'), target: { section: 'covenants', anchorId: 'sec:covenants' } },
+    },
+  ],
+};
+
+/** An answered question as its Ledger row (R4.5): a Reviewer event of its run, the answer as the detail. */
+export const FX_LEDGER_QUESTION_ROW: LedgerRow = {
+  id: 'e7',
+  time: '14:03:08',
+  actor: 'Reviewer',
+  event: COPY.askedEvent('which covenants are tight?'),
+  detail: FX_QUESTIONS_ATLAS.entries[1].answer,
+  chip: 'reviewer',
+  raw: {
+    'Event id': 'e7',
+    'ISO time': '2026-10-20T14:03:08.000Z',
+    Actor: 'Reviewer',
+    Kind: 'question',
+    File: 'Project Atlas',
+    Run: '1',
+    'Raw label': COPY.askedRawLabel,
+    Detail: FX_QUESTIONS_ATLAS.entries[1].answer,
+    [COPY.answeredBy]: COPY.askMetaEngine,
+  },
 };
 
 /** Meridian at its clean gate with the policy armed: the countdown is one line. */
@@ -2335,6 +2406,8 @@ export const FIXTURES = {
   FX_PANEL_MERIDIAN_COUNTDOWN,
   FX_PANEL_SEALED,
   FX_PANEL_COBALT_REJECTED,
+  FX_QUESTIONS_ATLAS,
+  FX_LEDGER_QUESTION_ROW,
   FX_SIG_ATLAS_GATE,
   FX_SIG_ATLAS_AMENDED,
   FX_SIG_ATLAS_REV2,

@@ -2081,7 +2081,7 @@ export function askRoute(
     return {
       kind: 'local',
       stress: true,
-      text: 'Use the stress test in this file, below the Decision card. It re-runs the same decide rule the agent uses, and you can attach a scenario as an exhibit.',
+      text: COPY.askStressPointer,
     };
   }
   // a decision question answers with the rule's own reasons (the engine responder only restates the summary)

@@ -265,6 +265,8 @@ export function sectionLinkLabel(at: FileAt): string {
       return 'Decision →';
     case 'monitoring':
       return 'Appendix →';
+    case 'questions':
+      return 'Questions →';
     default:
       return `Revision ${at.slice('revision-'.length)} →`;
   }
@@ -376,7 +378,16 @@ export const COPY = {
   askDisabledNotStarted: 'Draft the memo first. Questions answer about the file being drafted.',
   askDisabledRunning: 'Questions open when the memo is assembled.',
   askMetaEngine: 'rule-based responder · simulated',
-  askMetaLocal: 'Countersign',
+  askMetaLocal: 'Countersign · deterministic',
+  // the memo's Questions block (THREE-PANE R4.5): answers about the deal live in the memo, the panel points at them
+  questionsEyebrow: 'Questions',
+  answeredInMemo: 'Answered in the memo',
+  /** the stress-test pointer a what-if question gets: a steering reply, so it stays one panel line */
+  askStressPointer: 'Try it in the stress test, below the Decision card.',
+  /** the Ledger row of an answered question (actor Reviewer); its detail is the answer */
+  askedEvent: (question: string): string => `Asked · “${question}”`,
+  askedRawLabel: 'Reviewer question',
+  answeredBy: 'Answered by',
   evidenceCheck: 'Evidence check',
   evidenceCheckMeta: 'Countersign · deterministic check',
   /** R4.3: the Decision card's one info item under Signed over (not a flag, never counted in "you opened n of N") */

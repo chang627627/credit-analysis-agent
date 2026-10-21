@@ -78,6 +78,8 @@ import {
   FX_PANEL_PLAN_REVIEW,
   FX_PANEL_RUNNING,
   FX_PANEL_SEALED,
+  FX_QUESTIONS_ATLAS,
+  FX_LEDGER_QUESTION_ROW,
   FX_STUB_EXTRACT,
   FX_SIG_ATLAS_AMENDED,
   FX_SIG_ATLAS_ARMED_RETURN,
@@ -118,6 +120,7 @@ import type {
   FileView,
   KeyFigureView,
   NoteView,
+  QuestionsView,
   SectionAside,
   SectionFlagLine,
   SectionFooter,
@@ -199,6 +202,7 @@ const B = {
   sechead: { id: 'board-sectionhead', name: 'SectionHead · Disclosure · JsonBlock' },
   memocard: { id: 'board-memocard', name: 'MemoCard · section cards' },
   panel: { id: 'board-agentpanel', name: 'Agent panel · command and control' },
+  questions: { id: 'board-questions', name: 'Questions (memo) · analysis aid' },
   keyfig: { id: 'board-keyfigure', name: 'KeyFigure · KeyFigures' },
   slider: { id: 'board-slider', name: 'Slider' },
   decision: { id: 'board-decisioncard', name: 'Decision card (memo)' },
@@ -2096,7 +2100,17 @@ function PanelLine({ l }: { l: ThreadLine }) {
   return (
     <li className="kp-pline" data-kind={l.kind}>
       <span className="kp-pline__glyph">{l.glyph ? <StatusGlyph state={l.glyph} srLabel={STATUS_WORD[l.glyph]} /> : null}</span>
-      <span className={l.kind === 'answer' ? 'kp-pline__text kp-pline__text--answer t-body' : 'kp-pline__text t-body'}>{l.text}</span>
+      <span
+        className={
+          l.kind === 'answer'
+            ? 'kp-pline__text kp-pline__text--answer t-body'
+            : l.kind === 'answered'
+              ? 'kp-pline__text kp-pline__text--answered t-body'
+              : 'kp-pline__text t-body'
+        }
+      >
+        {l.text}
+      </span>
       {l.link ? (
         <span className="kp-pline__link">
           <LinkButton role="small" onClick={noop}>
@@ -2174,7 +2188,7 @@ const PANEL_CASES: { key: string; v: AgentPanelView; caption: string }[] = [
   { key: 'plan', v: FX_PANEL_PLAN_REVIEW, caption: 'plan review · the plan checklist as a message in the thread (Claude Code style), Start drafting, the countdown with Hold; the memo shows its header alone until drafting starts' },
   { key: 'running', v: FX_PANEL_RUNNING, caption: 'drafting · the running step carries the static drafting glyph (the memo caret stays the only loop)' },
   { key: 'gate', v: FX_PANEL_ATLAS_GATE, caption: 'at the gate · ONE line, “Decision →” scrolls the memo to the Decision card; no token, no verbs, no note here' },
-  { key: 'rev2', v: FX_PANEL_ATLAS_REV2, caption: 'rev 2 after Q&A · a typed “countersign” is refused with a pointer to the Decision card; answers clip to 2 lines' },
+  { key: 'rev2', v: FX_PANEL_ATLAS_REV2, caption: 'rev 2 after Q&A · a typed “countersign” is refused with a pointer to the Decision card; a real answer leaves ONE “Answered in the memo · Questions →” line (the answer is in the memo, P-33); the what-if pointer stays a one-line reply' },
   { key: 'countdown', v: FX_PANEL_MERIDIAN_COUNTDOWN, caption: 'policy countdown · one line; the countdown itself fills the reviewer line on the Decision card' },
   { key: 'sealed', v: FX_PANEL_SEALED, caption: 'countersigned · the decided line links to the record on the Decision card' },
   { key: 'rejected', v: FX_PANEL_COBALT_REJECTED, caption: 'rejected after a send-back found no cure' },
@@ -2185,7 +2199,7 @@ function AgentPanelBoard() {
     <Board
       id={B.panel.id}
       name={B.panel.name}
-      spec="The middle pane is command and control only (P-27): head 44 = agent · file + the collapse chevron, nothing else · one-line status lines in t-body (ellipsis on overflow; answers clip to 2 lines), an optional 16px status glyph and an optional trailing link that scrolls the memo to its card · the plan prompt and the composer at the foot · it never displays data and holds no decision: every figure, record and the whole decision live in the memo (P-23)"
+      spec="The middle pane is command and control only (P-27): head 44 = agent · file + the collapse chevron, nothing else · one-line status lines in t-body (ellipsis on overflow; a steering reply may clip to 2 lines), an optional 16px status glyph and an optional trailing link that scrolls the memo to its card · a real answer about the deal is never shown here: it leaves one “Answered in the memo · Questions →” line (P-33) · the plan prompt and the composer at the foot · it never displays data and holds no decision: every figure, record and the whole decision live in the memo (P-23)"
     >
       <div className="kp-panels">
         {PANEL_CASES.map(({ key, v, caption }) => (
@@ -2289,6 +2303,93 @@ function SliderBoard() {
           );
         })}
       </Grid>
+    </Board>
+  );
+}
+
+// =============================================================================
+// Board 16d · Questions (memo): the reviewer's answered questions (P-33, R4.5)
+// =============================================================================
+
+/** The memo's Questions block rendered verbatim from a QuestionsView: scratch in the provisional frame, never a MemoCard. */
+function QuestionsSpecimen({ v, flashId, prefix }: { v: QuestionsView; flashId?: { id: string; key: number }; prefix: string }) {
+  const headingId = `${prefix}-questions-h`;
+  return (
+    <section className="kp-qa" aria-labelledby={headingId}>
+      <div className="kp-qa__head">
+        <h4 id={headingId} className="kp-ink3 t-eyebrow">
+          {v.eyebrow}
+        </h4>
+        <p className="kp-ink2 t-small">{v.aid}</p>
+      </div>
+      <ol className="kp-qa__list">
+        {v.entries.map((e) => {
+          const flash = flashId && flashId.id === e.id && flashId.key > 0 ? flashId.key : 0;
+          return (
+            <li key={`${e.id}:${flash}`} className={flash > 0 ? 'kp-qa__entry is-flash' : 'kp-qa__entry'}>
+              <p className="kp-qa__question t-strong">{e.question}</p>
+              <p className="kp-qa__answer t-body">{e.answer}</p>
+              <p className="kp-qa__meta t-meta">
+                <span className="kp-ink3">{e.meta}</span>
+                {e.link ? (
+                  <LinkButton role="meta" onClick={noop}>
+                    {e.link.label}
+                  </LinkButton>
+                ) : null}
+              </p>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+/** The panel side of the same exchanges: the question stays one "You · …" line, the answer leaves one pointer line. */
+const QA_PANEL: AgentPanelView = {
+  ...FX_PANEL_ATLAS_REV2,
+  lines: FX_PANEL_ATLAS_REV2.lines.filter((l) => l.kind === 'you' || l.kind === 'answered' || l.kind === 'answer'),
+};
+
+function QuestionsBoard() {
+  const [flash, setFlash] = useState(0);
+  const row = FX_LEDGER_QUESTION_ROW;
+  const ledgerRows: TableRow[] = [
+    {
+      key: row.id,
+      cells: { time: <span className="t-figure">{row.time}</span>, actor: row.actor, event: row.event },
+      detail: <p className="kp-detail t-small">{row.detail}</p>,
+    },
+  ];
+  return (
+    <Board
+      id={B.questions.id}
+      name={B.questions.name}
+      spec="Questions (P-33, R4.5): everything displayed goes on the right, so a real answer about the deal is shown in full in the memo, never in the agent panel · scratch in the provisional frame (--line-provisional, --r-md, padding 16 20, 16 in a frame under 560), never a MemoCard · after the Decision card and before the stress test, only once the file has an answered question since its epoch (no placeholder; a re-run starts fresh) · head: t-eyebrow ink-3 + the t-small ink-2 aid line · one entry per question under a 1px --line hairline, padding 12 0, gap 4: the question t-strong ink, the full answer t-body ink-2 (its line breaks kept), one t-meta line: the source and the time in ink-3, then the memo card it concerns (LinkButton meta) · the panel keeps “You · …” and ONE “Answered in the memo · Questions →” line; following it scrolls here and flashes the entry once (v2-flash; a held --sunken highlight under reduced motion); in column mode a new answer is cued the same way · acknowledgements, refusals, help and the what-if pointer stay one-line panel replies · the file export carries the pairs (question, answer, time, source) and the Ledger shows each as a Reviewer event, the answer as its detail"
+      action={
+        <Button variant="secondary" size="sm" onClick={() => setFlash((n) => n + 1)}>
+          Questions →
+        </Button>
+      }
+    >
+      <Group label="In the memo: after the Decision card, before the stress test (Atlas after the rev 1 Q&A; press Questions → to flash the second entry, as the panel's pointer does)">
+        <div className="kp-canvas">
+          <QuestionsSpecimen v={FX_QUESTIONS_ATLAS} flashId={{ id: 'e7', key: flash }} prefix="kit-qa" />
+        </div>
+      </Group>
+      <Grid size="wide">
+        <Cell caption="The panel side of the same exchanges: each question stays one “You · …” line (ellipsis); each real answer leaves one pointer line; the what-if question gets the one-line stress-test pointer instead" block>
+          <PanelSpecimen v={QA_PANEL} />
+        </Cell>
+        <Cell caption="Narrow frame (360px, a memo pane under 592px): the frame pads 16, the answer and the meta line wrap" block>
+          <div className="kp-frame360">
+            <QuestionsSpecimen v={FX_QUESTIONS_ATLAS} prefix="kit-qa-narrow" />
+          </div>
+        </Cell>
+      </Grid>
+      <Group label="In the Ledger: a Reviewer event of its run, the question as the event and the answer as its detail (the full answer and its source are in the row's raw record)">
+        <Table columns={LEDGER_COLUMNS} rows={ledgerRows} caption="Ledger · an answered question (specimen)" />
+      </Group>
     </Board>
   );
 }
@@ -2824,6 +2925,7 @@ export default function KitPage() {
             <SectionHeadBoard />
             <MemoCardBoard />
             <AgentPanelBoard />
+            <QuestionsBoard />
             <KeyFigureBoard />
             <SliderBoard />
             <DecisionCardBoard />

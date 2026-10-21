@@ -2,7 +2,9 @@
 // Countersign V2 · the agent panel (THREE-PANE.md R2.1, R2.4). The middle pane
 // is command and control only, like a coding agent's conversation: one-line
 // status lines from the agent, the plan prompt that starts drafting, the
-// reviewer's questions and instructions with short answers, the composer.
+// reviewer's questions and instructions with short replies, the composer. A
+// real answer about the deal is shown in the memo's Questions block; the panel
+// keeps one pointer line to it (R4.5).
 //
 // It never DISPLAYS data and holds no decision. Every number, list, table,
 // record, reason and the whole decision live in the memo pane; a panel line
@@ -34,6 +36,7 @@ import {
   reworkProposes,
 } from './select-file';
 import type { FileCtx, FlagNote } from './select-file';
+import { isAnsweredQuestion, qaAnchor } from './select-questions';
 import { selectPolicy } from './select-top';
 import type { AgentPanelView, FileAt, PlanPromptView, SectionId, StatusKey, ThreadAction, ThreadLine } from './types';
 import {
@@ -148,8 +151,16 @@ function linkOfAction(a: ThreadAction | null): ThreadLine['link'] {
   }
 }
 
+/**
+ * A composer entry as a panel line. A real answer about the deal (R4.5) leaves ONE pointer line,
+ * "Answered in the memo · Questions →", that cues its entry in the memo's Questions block; the
+ * answer itself is never shown here. Acknowledgements, refusals and help stay one reply line.
+ */
 function entryLine(e: ThreadEntry): ThreadLine {
   if (e.role === 'you') return { id: e.id, kind: 'you', glyph: null, text: COPY.youLine(e.text), link: null };
+  if (isAnsweredQuestion(e)) {
+    return { id: e.id, kind: 'answered', glyph: null, text: COPY.answeredInMemo, link: { label: sectionLinkLabel('questions'), target: 'questions', anchorId: qaAnchor(e.id) } };
+  }
   const glyph: StatusKey | null = e.tone === 'done' ? 'done' : e.tone === 'refusal' ? 'info' : null;
   return { id: e.id, kind: 'answer', glyph, text: e.text, link: linkOfAction(e.action) };
 }

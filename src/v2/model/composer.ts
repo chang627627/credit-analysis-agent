@@ -6,9 +6,13 @@
 // an answer or a reason. The composer never signs, returns, rejects, amends or
 // writes the reviewer note: those words get a short refusal that points to the
 // memo's Decision card ("Decide in the memo: Decision →") or the covenant row.
-// Replies are short (the panel clips an answer to 2 lines) and link to the
-// memo card they concern. state/composer.ts executes the intent through the
-// existing guarded actions; these functions only read and compose.
+// Steering replies are short (the panel clips a reply to 2 lines) and link to
+// the memo card they concern. A real answer about the deal (the engine
+// responder, or a deterministic answer composed from the package) is marked
+// `memo`: it goes in full to the memo's Questions block, and the panel keeps
+// one pointer line to it (R4.5, everything displayed goes on the right).
+// state/composer.ts executes the intent through the existing guarded actions;
+// these functions only read and compose.
 // ---------------------------------------------------------------------------
 
 import { answerQuestion } from '../../agent/responder';
@@ -214,10 +218,10 @@ function optionalNames(c: ComposerContext): string {
 }
 
 function done(text: string, action: ThreadAction | null = null): ComposerReply {
-  return { tone: 'done', text, meta: null, action };
+  return { tone: 'done', text, meta: null, action, memo: null };
 }
 function refusal(text: string, action: ThreadAction | null = null): ComposerReply {
-  return { tone: 'refusal', text, meta: null, action };
+  return { tone: 'refusal', text, meta: null, action, memo: null };
 }
 
 const GO_TO_DECISION: ThreadAction = { kind: 'decision', label: sectionLinkLabel('signature') };
@@ -291,6 +295,9 @@ export function composerReply(intent: ComposerIntent, c: ComposerContext, outcom
  * A question about this file: a local intercept when the engine responder would answer
  * wrongly (what-if points at the stress test; a restructured revision answers from the
  * revision), else the engine's pure rule-based responder over the deal and the package.
+ * Every answer but the stress-test pointer is a real answer about the deal (`memo`, R4.5):
+ * it goes in full to the memo's Questions block. The pointer is steering, so it stays one
+ * panel reply with its "Stress test →" link.
  */
 export function answerFor(s: V2Store, dealId: string, text: string): ComposerReply {
   const q = text.trim();
@@ -308,13 +315,14 @@ export function answerFor(s: V2Store, dealId: string, text: string): ComposerRep
     revisedLeverage,
     reasons: pkg ? packageDecision(ctx, pkg).reasons : null,
   });
+  const memo = { runId: ctx.runId };
   if (route.kind === 'local') {
     const stressOk = pkg !== null && (ctx.mode === 'gate' || ctx.mode === 'sealed' || ctx.mode === 'running');
-    if (route.stress) return { tone: 'answer', text: route.text, meta: COPY.askMetaLocal, action: stressOk ? { kind: 'stress', label: sectionLinkLabel('stress') } : null };
-    return { tone: 'answer', text: route.text, meta: COPY.askMetaLocal, action: memoAction(restructured && pkg ? `revision-${pkg.revision}` : 'recommendation') };
+    if (route.stress) return { tone: 'answer', text: route.text, meta: COPY.askMetaLocal, action: stressOk ? { kind: 'stress', label: sectionLinkLabel('stress') } : null, memo: null };
+    return { tone: 'answer', text: route.text, meta: COPY.askMetaLocal, action: memoAction(restructured && pkg ? `revision-${pkg.revision}` : 'recommendation'), memo };
   }
   const sec = sectionOfQuestion(q, ctx.plan.some((p) => p.id === 'step_peers' && !p.skipped));
-  return { tone: 'answer', text: answerQuestion(ctx.deal, true, pkg, q), meta: COPY.askMetaEngine, action: sec ? memoAction(sec) : null };
+  return { tone: 'answer', text: answerQuestion(ctx.deal, true, pkg, q), meta: COPY.askMetaEngine, action: sec ? memoAction(sec) : null, memo };
 }
 
 function memoAction(section: SectionId): ThreadAction {
@@ -322,7 +330,7 @@ function memoAction(section: SectionId): ThreadAction {
 }
 
 /**
- * The memo card a question concerns, so the panel's short answer can point at it (R2.1):
+ * The memo card a question concerns, so its answer in the memo's Questions block can point at it (R4.5):
  * covenant words → Covenants, risk words → Risk, peer words → Peers (when benchmarked),
  * figure words → Financials, decision words → Recommendation; null when nothing matches.
  */

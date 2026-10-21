@@ -321,13 +321,22 @@ export type ThreadAction =
   | { kind: 'source'; label: string }
   | { kind: 'ledger'; label: string };
 
-export type ThreadLineKind = 'run' | 'step' | 'flag' | 'revision' | 'gate' | 'you' | 'answer' | 'system' | 'decided';
+/**
+ * 'answer' is a composer reply that stays in the panel (a command acknowledgement, a refusal, the
+ * help line; it may clip to 2 lines). 'answered' is the ONE pointer line a real answer about the deal
+ * leaves in the panel, "Answered in the memo · Questions →" (R4.5): the answer itself is in the memo.
+ */
+export type ThreadLineKind = 'run' | 'step' | 'flag' | 'revision' | 'gate' | 'you' | 'answer' | 'answered' | 'system' | 'decided';
 export interface ThreadLine {
   id: string;
   kind: ThreadLineKind;
   glyph: StatusKey | null;
-  text: string;                                    // one line, plain (an answer may clip to 2 lines)
-  link: { label: string; target: FileAt } | null;  // memo card to scroll to ('signature' = the Decision card)
+  text: string;                                    // one line, plain (a panel reply may clip to 2 lines)
+  /**
+   * The memo card to scroll to ('signature' = the Decision card). anchorId, when set, is the row
+   * inside that card the link cues (the 'answered' line's entry, 'qa:<entryId>'); absent = the card.
+   */
+  link: { label: string; target: FileAt; anchorId?: string } | null;
 }
 export interface PlanPromptView {
   text: string;
@@ -367,4 +376,33 @@ export type ComposerIntent =
   | { kind: 'refuse'; reason: 'decision' | 'amend' | 'note' | 'required-step' | 'ambiguous' | 'no-plan' | 'plan-fixed' | 'already-live'
       | 'parsing' | 'question-closed' | 'nothing-to-hold' | 'nothing-running' | 'no-stress' | 'unknown'; stepId?: string };
 export type ComposerOutcome = 'done' | 'already' | 'confirm-opened' | 'refused';
-export interface ComposerReply { tone: 'answer' | 'done' | 'refusal'; text: string; meta: string | null; action: ThreadAction | null }
+/**
+ * memo: set only on a real answer about the deal (the engine responder, or a deterministic answer
+ * composed from the package), never on a command acknowledgement, a refusal, the help line or the
+ * stress-test pointer. Such an answer goes in full to the memo's Questions block, and the panel keeps
+ * one pointer line to it (R4.5). runId is the run whose package answered (exports and the Ledger
+ * group the question under it).
+ */
+export interface ComposerReply { tone: 'answer' | 'done' | 'refusal'; text: string; meta: string | null; action: ThreadAction | null; memo: { runId: number | null } | null }
+
+// ---- the memo's Questions block (THREE-PANE R4.5) ------------------------------
+
+/**
+ * One answered question in the memo's Questions block: the question as typed (its head), the full
+ * answer, the quiet meta line ("rule-based responder · simulated · 14:32") and the memo card the
+ * answer concerns ("Covenants →", the same target the panel reply used to carry). anchorId
+ * 'qa:<entryId>' is the entry's own cue target: the panel's "Questions →" scrolls to it and flashes it.
+ */
+export interface QuestionEntryView {
+  id: string; anchorId: string;
+  question: string; answer: string; meta: string;
+  link: { label: string; target: MemoTarget } | null;
+}
+/**
+ * The memo's Questions block (R4.5): scratch in the provisional frame (never a MemoCard),
+ * after the Decision card and before the stress test. It exists only once the file has an answered
+ * question since its epoch (a re-run starts fresh); selectQuestions returns null before that.
+ */
+export interface QuestionsView { eyebrow: string; aid: string; entries: QuestionEntryView[] }
+/** One answered question in the file and session exports (R4.5): at is ISO 8601, source the meta line's source. */
+export interface QuestionExport { question: string; answer: string; at: string; source: string }

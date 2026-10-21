@@ -98,6 +98,13 @@ export interface ThreadEntry {
   text: string; meta: string | null;
   tone: 'answer' | 'done' | 'refusal';
   action: ThreadAction | null;
+  /**
+   * R4.5: set only on an answer entry that is a real answer about the deal (ComposerReply.memo):
+   * the question as typed and the run whose package answered it. The memo's Questions block shows
+   * the pair in full, the panel keeps one pointer line to it, and the file export and the Ledger
+   * carry it under that run. Null on every other entry (echoes, acknowledgements, refusals, help).
+   */
+  qa: { question: string; runId: number | null } | null;
 }
 
 /** A cue carries time: consumers react to a tick change, and on mount honour a cue whose `at` is under 1000 ms old (§2.6). */
@@ -122,7 +129,7 @@ export interface UiState {
   /** the Desk row whose remove confirm is open */
   removeConfirm: string | null;
   attached: Record<number, string[]>;                              // stressRecord keys attached, per runId
-  thread: ThreadEntry[];                    // capped 300; not cleared by clearReading
+  thread: ThreadEntry[];                    // capped 300 (answered questions kept up to 500, R4.5); not cleared by clearReading
   threadEpoch: Record<string, number>;      // per dealId: entries older than the epoch are hidden
   composerDraft: Record<string, string>;    // per dealId, not persisted
   parsingSince: number | null;

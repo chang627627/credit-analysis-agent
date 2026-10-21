@@ -415,6 +415,19 @@ export const PENDING: PendingPattern[] = [
     kitAnchor: '#board-decisioncard',
     ownerNote: 'Owner asked for it (Mobbin audit fix 3)',
   },
+  {
+    id: 'P-33',
+    type: 'layout',
+    name: 'Answers in the memo: the reviewer\'s questions as a Questions block, one pointer line in the panel',
+    description:
+      'Everything displayed goes on the right, answers included. A real answer about the deal (the engine\'s rule-based responder, or Countersign\'s deterministic answer from the decision rule\'s reasons) is shown in full in a memo block, "Questions" with the aid line "Analysis aid · not part of the memo": scratch in the provisional frame of the stress test, never a memo card, after the Decision card and before the stress test (the Decision card stays right after step 5). It appears with the first answered question and follows the file\'s epoch, so a re-run starts fresh; there is no empty placeholder. Each entry is the question as its head (t-strong), the full answer (t-body ink-2), one quiet t-meta line with the source and the time ("rule-based responder · simulated · 14:03"), and the memo card the answer concerns ("Covenants →"). The agent panel keeps the reviewer\'s question as one "You · …" line and replaces the answer with ONE line, "Answered in the memo · Questions →", that scrolls the memo to that entry and flashes it once; in column mode a new answer is brought into view the same way (scroll only, focus stays in the composer). Command acknowledgements, refusals, the help line and the what-if pointer ("Try it in the stress test, below the Decision card.") stay one-line panel replies. The pairs (question, answer, time, source) go into the file export and the session export, and each is a Reviewer event in the Ledger with the answer as its detail. Before, an answer was one panel line clamped to 2 lines with no way to expand (the covenant, why and amend answers run 150 to 450 characters), the question echo was ellipsized, and nothing the reviewer asked before countersigning reached the export or the Ledger.',
+    evidence: 'Mobbin audit of the case file, fix 4 (verified: chat.css clamped an answer to 2 lines; askRoute\'s why branch returns every reason; neither model/exports.ts nor model/select-ledger.ts read ui.thread); THREE-PANE.md R4.5; owner rule R2 (the middle is command and control, everything displayed goes on the right)',
+    proposedBy: OWNER,
+    proposedDate: ON_3P,
+    status: 'approved',
+    kitAnchor: '#board-questions',
+    ownerNote: 'Owner asked for it (improvement batch 2)',
+  },
 ];
 
 export const REJECTED_BEFORE: { name: string; note: string }[] = [

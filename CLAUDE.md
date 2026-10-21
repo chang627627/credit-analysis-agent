@@ -587,8 +587,13 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   tested · Covenants →"; "Peer benchmarks skipped") · action-worthy flags only, at most one per step
   ("4 covenants breached · Covenants →", never the flag sentence, confidences or durations) ·
   revision lines ("Returned for revision · rev 2", "Proposed a $19.5M sponsor equity cure") · the gate
-  as ONE line "Your countersignature is needed · Decision →" (countdown / held variants) · Q&A ("You ·
-  …" and answers clipped to 2 lines) · "You countersigned DECLINE · 00:52 · Record →". **Reads like
+  as ONE line "Your countersignature is needed · Decision →" (countdown / held variants) · Q&A: the
+  reviewer's question as one "You · …" line; a **real answer about the deal is never shown in the
+  panel** (P-33, THREE-PANE R4.5): it leaves ONE line, "Answered in the memo · Questions →", that
+  scrolls the memo to the answer and flashes it once; command acknowledgements, refusals ("Decide in
+  the memo: Decision →"), the help line and the what-if pointer ("Try it in the stress test, below
+  the Decision card. · Stress test →") stay one-line replies (may clip to 2) · "You countersigned
+  DECLINE · 00:52 · Record →". **Reads like
   Claude Code** (THREE-PANE R3): the conversation runs top-down from the top of the panel and the
   plan checklist (locked required steps, a checkbox on the optional one, [Start drafting ⌘↵], the
   countdown line) is a message in that flow, not pinned above the input. Only the composer is pinned
@@ -600,8 +605,28 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   amount, CAM id, prepared-by, CIM paragraphs; no recommendation, and a sealed header seal is the
   who-clause only, "You countersigned.") → one paper `MemoCard` per section, 16px apart (P-26):
   1 Financials → 2 Risk → 3 Peers → 4 Covenants → (revisions) → 5 Recommendation → **the Decision
-  card** → the stress test (dashed scratch frame, no card) → exhibits → the appendix. The source CIM
-  opens on the memo pane's right edge (push at a pane width of 1064px and up, overlay below).
+  card** → **Questions** (scratch, only once the file has an answered question, see below) → the
+  stress test (dashed scratch frame, no card) → exhibits → the appendix. The source CIM opens on the
+  memo pane's right edge (push at a pane width of 1064px and up, overlay below).
+- **Answers in the memo** (P-33, THREE-PANE R4.5, Mobbin audit fix 4): the reviewer's answered
+  questions are a memo block, "Questions" with the aid line "Analysis aid · not part of the memo",
+  in the same dashed provisional frame as the stress test (never a `MemoCard`), after the Decision
+  card and before the stress test (`screens/file/Questions.tsx`, rendering `selectQuestions` →
+  `QuestionsView`, `model/select-questions.ts`). It appears with the first answered question since
+  the file's epoch (no placeholder; a re-run starts fresh). Each entry: the question as typed
+  (t-strong), the full answer (t-body ink-2, line breaks kept), one t-meta line with the source and
+  the time ("rule-based responder · simulated · 14:03", or "Countersign · deterministic" for the
+  answers composed from the decision rule's reasons) and the memo card the answer concerns
+  ("Covenants →"). Its anchor is `qa:<entryId>` (FileAt `'questions'`); the panel's "Questions →"
+  cues it (scroll + one flash, a held highlight under reduced motion), and in column mode a new
+  answer is cued the same way as it arrives (scroll only; focus stays in the composer). Only real
+  answers move (`ComposerReply.memo`, set by `answerFor` on the engine responder and the
+  deterministic answers, never on the stress pointer, acknowledgements or refusals);
+  `ThreadEntry.qa` carries the question and the run whose package answered. The pairs (question,
+  answer, ISO time, source) go into the file export (`questions`, by run) and the session export,
+  and the Ledger shows each as a Reviewer event of its run ("Asked · “…”", the answer as its
+  detail, the source under "Answered by" in the raw record). The thread cap drops answered
+  questions last (kept up to 500).
 - **Section cards** (P-26, owner: sections 1 to 4 "read as one blob"): a step eyebrow ("Step 1 of 5 ·
   Document Intelligence"; drafting / excluded / stopped show a status aside) → the title in
   `t-figure-lg` (the only 18px role in a card: KeyFigure values moved to `t-heading`, the risk score
@@ -674,7 +699,8 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   engine's pure responder, open once a package exists). Typing can never sign, return, reject, amend
   or write the note: such text gets "Decide in the memo: Decision →" (or a pointer to the covenant
   row). Any composer use, typing included, holds a running countdown. Q&A persists per file, scoped
-  by a per-file epoch (a re-run starts fresh).
+  by a per-file epoch (a re-run starts fresh); real answers are shown in the memo's Questions block,
+  not in the panel (P-33).
 - **Shell:** collapsible left sidebar (Desk · Book · Ledger, 64px icon rail, persisted; **no counts**: only
   a small accent dot on the Desk while a file waits on you at plan review or the countersignature);
   top bar = section name + auto-countersign switch + search.

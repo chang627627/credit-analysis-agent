@@ -241,9 +241,30 @@
 .kp-pline__text { min-width: 0; overflow: hidden; color: var(--ink); text-overflow: ellipsis; white-space: nowrap; }
 .kp-pline__text--answer { display: -webkit-box; color: var(--ink-2); white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 .kp-pline[data-kind="you"] .kp-pline__text { color: var(--ink-2); }
+.kp-pline__text--answered { color: var(--ink-2); }
 .kp-pline__link { display: inline-flex; align-items: center; height: var(--t-body-lh); white-space: nowrap; }
 .kp-panel__plan { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); }
 .kp-panel__composer { padding: 12px 16px 16px; border-top: 1px solid var(--line); }
+
+/* ---- board 16d · the memo's Questions block (P-33): the provisional frame, never a card ---- */
+.kp-qa {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px 20px;
+  border: var(--line-provisional);
+  border-radius: var(--r-md);
+}
+.kp-qa__head { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.kp-qa__list { display: flex; flex-direction: column; min-width: 0; list-style: none; }
+.kp-qa__entry { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 12px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.kp-qa__entry:last-child { padding-bottom: 0; }
+.kp-qa__entry.is-flash { animation: v2-flash var(--dur-flash) var(--ease-out); }
+.kp-qa__question { color: var(--ink); }
+.kp-qa__answer { color: var(--ink-2); white-space: pre-line; }
+.kp-qa__meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.kp-frame360 .kp-qa { padding: 16px; }
 
 /* ---- board 18b · the memo's Decision card (one horizontal verb row, consequence under each) ---- */
 .kp-signedover { display: flex; flex-direction: column; min-width: 0; list-style: none; }

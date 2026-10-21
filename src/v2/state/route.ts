@@ -18,7 +18,8 @@ import { useCallback, useEffect, useState } from 'react';
 
 export type FileAt =
   | 'recommendation' | 'financials' | 'risk' | 'peers' | 'covenants'
-  | `revision-${number}` | 'exhibits' | 'stress' | 'signature' | 'monitoring';
+  | `revision-${number}` | 'exhibits' | 'stress' | 'signature' | 'monitoring'
+  | 'questions';   // R4.5: the memo's Questions block (the reviewer's answered questions, scratch)
 export type Route =
   | { name: 'desk' }
   | { name: 'file'; dealId: string; at: FileAt | null }
@@ -36,6 +37,7 @@ const FIXED_AT: readonly string[] = [
   'stress',
   'signature',
   'monitoring',
+  'questions',
 ];
 
 function parseAt(raw: string | null): FileAt | null {

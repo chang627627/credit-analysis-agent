@@ -14,9 +14,15 @@
 //
 // One echo: submitComposer writes the only `you` entry, and the reply is the
 // only answer (no mirror of the engine's messages).
+//
+// R4.5: a real answer about the deal (ComposerReply.memo) is written with `qa`
+// (the question as typed and the run that answered it). The memo's Questions
+// block shows it in full and the panel only points at it; in column mode the
+// memo brings the new entry into view and flashes it once (scroll only: focus
+// stays in the composer, so a stray key can never sign).
 // ---------------------------------------------------------------------------
 
-import { answerFor, composerContext, composerReply, parseComposer, selectLiveDealId } from '../model';
+import { answerFor, composerContext, composerReply, parseComposer, qaAnchor, selectLiveDealId } from '../model';
 import type { ComposerOutcome, ComposerReply } from '../model';
 import type { ThreadEntry, V2Actions, V2Internals } from './store';
 import { holdAuto } from './gate';
@@ -24,6 +30,22 @@ import { closeDrawerIn, layoutOf } from './panes';
 
 /** The thread keeps the last 300 entries (THREE-PANE.md §4.4). */
 const THREAD_CAP = 300;
+/** Answered questions are on the record (the Ledger, the file export): the cap drops them last, keeping up to 500 (R4.5). */
+const QA_CAP = 500;
+
+/** The thread after the cap: the oldest entries go first, answered questions only after every other entry (and past QA_CAP). */
+function capThread(list: ThreadEntry[]): ThreadEntry[] {
+  if (list.length <= THREAD_CAP) return list;
+  const keep = new Set(list.filter((e) => e.qa !== null).slice(-QA_CAP).map((e) => e.id));
+  let excess = list.length - THREAD_CAP;
+  return list.filter((e) => {
+    if (excess > 0 && !keep.has(e.id)) {
+      excess -= 1;
+      return false;
+    }
+    return true;
+  });
+}
 
 let entrySeq = 0;
 
@@ -141,11 +163,15 @@ export function createComposerActions(x: V2Internals): ComposerActions {
       }
       // 6 and 7. the echo and the reply (same time: the reply sorts right after its echo), then clear the draft
       const entries: ThreadEntry[] = [
-        { id: entryId('you'), dealId, t: youAt, role: 'you', text, meta: null, tone: 'answer', action: null },
+        { id: entryId('you'), dealId, t: youAt, role: 'you', text, meta: null, tone: 'answer', action: null, qa: null },
       ];
+      let answered: string | null = null;
       if (reply) {
+        const id = entryId('answer');
+        // a real answer about the deal goes to the memo's Questions block (R4.5); every other reply stays a panel line
+        if (reply.memo) answered = id;
         entries.push({
-          id: entryId('answer'),
+          id,
           dealId,
           t: youAt,
           role: 'answer',
@@ -153,13 +179,22 @@ export function createComposerActions(x: V2Internals): ComposerActions {
           meta: reply.meta,
           tone: reply.tone,
           action: reply.action,
+          qa: reply.memo ? { question: text, runId: reply.memo.runId } : null,
         });
       }
       x.setUi((u) => {
         const composerDraft = { ...u.composerDraft };
         delete composerDraft[dealId];
-        return { ...u, thread: [...u.thread, ...entries].slice(-THREAD_CAP), composerDraft };
+        return { ...u, thread: capThread([...u.thread, ...entries]), composerDraft };
       });
+      // 8. the answer is displayed on the right: in column mode the memo brings its entry into view
+      // and flashes it once (the block mounts in this batch; the memo cues it a frame later). In
+      // drawer mode the drawer overlays the memo, so nothing moves until the reviewer follows the
+      // panel's "Questions →" (which closes the drawer first).
+      const r = x.routeRef.current;
+      if (answered !== null && layoutOf(x) === 'column' && r.name === 'file' && r.dealId === dealId) {
+        a.cueMemo({ section: 'questions', anchorId: qaAnchor(answered) }, { keepDrawer: true });
+      }
     },
 
     // typing is engagement (like the reviewer note); the draft is kept per file, never persisted

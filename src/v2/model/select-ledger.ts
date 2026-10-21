@@ -1,13 +1,16 @@
 // ---------------------------------------------------------------------------
 // Countersign V2 · Ledger (spec §7.5, §9.4 relabel tables). Every engine audit
 // entry gets a closed-set actor, a display label and a filter chip; the raw
-// engine label always stays in the row's `raw` grid and in the export.
+// engine label always stays in the row's `raw` grid and in the export. The
+// reviewer's answered questions (R4.5) join their run as Reviewer events, the
+// answer as the detail.
 // ---------------------------------------------------------------------------
 
 import type { AuditHistoryEntry, RunRecord } from '../../hooks/useCreditAgent';
-import type { CaseFileSnapshot, LedgerChip, MonitorLogEntry, V2Store } from '../state/contracts';
+import type { CaseFileSnapshot, LedgerChip, MonitorLogEntry, ThreadEntry, V2Store } from '../state/contracts';
 import { EM, fmtClock, fmtDuration, fmtElapsed, fmtHM, fmtIso, plural } from './format';
 import { countedFlagsOf, runTiming, signedVerdict } from './select-file';
+import { questionsOfRun } from './select-questions';
 import type { Actor, LedgerRow, LedgerRun, LedgerView, StatusKey, StatusText } from './types';
 import { COPY, provenanceText, STATUS_WORD, TOOL_LABEL, tokenWord, VERB_WORD } from './vocab';
 
@@ -143,6 +146,42 @@ function auditRow(e: AuditHistoryEntry, runEntries: AuditHistoryEntry[], index: 
   };
 }
 
+/**
+ * An answered question (R4.5) as a Reviewer event of its run: the question is the event, the
+ * answer its detail (the full answer is the raw grid's Detail), the source in "Answered by".
+ */
+function questionRow(e: ThreadEntry, question: string, fileName: string, runId: number): LedgerRow {
+  return {
+    id: e.id,
+    time: fmtClock(e.t),
+    actor: 'Reviewer',
+    event: COPY.askedEvent(question),
+    detail: e.text,
+    chip: 'reviewer',
+    raw: {
+      'Event id': e.id,
+      'ISO time': ISO(e.t),
+      Actor: 'Reviewer',
+      Kind: 'question',
+      File: fileName,
+      Run: String(runId),
+      'Raw label': COPY.askedRawLabel,
+      Detail: e.text,
+      [COPY.answeredBy]: e.meta ?? COPY.askMetaEngine,
+    },
+  };
+}
+
+/** A run's rows in time order: its audit entries with its answered questions merged in (stable). */
+function runRows(s: V2Store, runId: number, entries: AuditHistoryEntry[], fileName: string): LedgerRow[] {
+  const timed = entries.map((e, i) => ({ t: e.t, row: auditRow(e, entries, i, fileName) }));
+  for (const q of questionsOfRun(s, runId)) timed.push({ t: q.t, row: questionRow(q, q.qa.question, fileName, runId) });
+  return timed
+    .map((x, i) => ({ ...x, i }))
+    .sort((a, b) => a.t - b.t || a.i - b.i)
+    .map((x) => x.row);
+}
+
 function monitorRow(m: MonitorLogEntry): LedgerRow {
   const r = relabelMonitor(m);
   const detail = m.kind === 'raised' || m.kind === 'upgraded' ? m.reason : null;
@@ -255,7 +294,7 @@ export function selectLedger(s: V2Store, fileFilter: string | null): LedgerView 
   for (const run of runs) {
     const entries = byRun.get(run.runId) ?? [];
     const fileName = a.dealsFull.find((d) => d.id === run.dealId)?.name ?? run.dealName;
-    const rows = entries.map((e, i) => auditRow(e, entries, i, fileName));
+    const rows = runRows(s, run.runId, entries, fileName);
     allRows.push(...rows);
     if (!runsByFile.has(run.dealId)) {
       fileOrder.push(run.dealId);

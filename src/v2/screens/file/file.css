@@ -387,8 +387,46 @@
 .file-record__label { color: var(--ink-2); }
 .file-record__text { color: var(--ink-2); white-space: pre-line; overflow-wrap: anywhere; }
 
-/* ---- the stress test: scratch, no card (it keeps its own provisional frame) ---- */
+/* ---- the stress test and the questions: scratch, no card (each keeps its own provisional frame) ---- */
 .file-scratch { min-width: 0; scroll-margin-top: 60px; }
+
+/* ---- the reviewer's questions (R4.5, P-33): the provisional frame of the stress test, never a
+   memo card. Head (eyebrow + the aid line), then one entry per answered question under a hairline:
+   the question (t-strong), the full answer (t-body ink-2, its own line breaks kept), one quiet t-meta
+   line with the source, the time and the memo card it concerns. The panel's "Questions →" lands on
+   an entry and flashes it once (or holds the highlight under reduced motion). ---- */
+.file-qa {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px 20px;
+  border: var(--line-provisional);
+  border-radius: var(--r-md);
+}
+.file-qa__head { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.file-qa__list { display: flex; flex-direction: column; min-width: 0; list-style: none; }
+.file-qa__entry {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  overflow-wrap: anywhere;
+  scroll-margin-top: 60px;
+}
+.file-qa__entry:last-child { padding-bottom: 0; }
+.file-qa__entry.is-flash { animation: v2-flash var(--dur-flash) var(--ease-out); }
+.file-qa__entry.is-highlighted { background: var(--sunken); }
+.file-qa__question { color: var(--ink); }
+.file-qa__answer { color: var(--ink-2); white-space: pre-line; }
+.file-qa__meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+
+/* a frame narrower than 560px (a memo pane under 592px) pads 16, like the stress test's and the cards' */
+@container viz (max-width: 591px) {
+  .file-qa { padding: 16px; }
+}
 
 /* ---- not found ---- */
 .file-missing { height: calc(100vh - 48px); overflow-y: auto; }

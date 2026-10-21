@@ -25,10 +25,38 @@ npm install
 npm run dev      # http://localhost:5173
 npm run build    # tsc --noEmit + vite build  (keep this green)
 npm run preview  # serve the production build
+npm run v2-check   # V2 source guardrails (28 greps; see the V2 section)
+npm run v2-visual  # V2 rendering check: Playwright + axe, 9 states × phone/tablet/desktop
 ```
 
 Verify changes in the running app (browser preview) **and** with `tsc --noEmit`. Target **zero
 console errors**.
+
+**`npm run v2-visual`** (`scripts/v2-visual.mjs`; first time on a machine: `npx playwright install
+chromium`). Starts its own Vite dev server from this checkout on a free port (`--url <base>` reuses a
+running one, `--prod` checks the production bundle via `vite build` + `vite preview`), then reaches
+each V2 state from a fresh load at 390x844, 768x1024 and 1440x900: the Desk · Atlas before drafting
+(Select → plan) · Atlas, Cobalt and Meridian at the gate (demo pace 4×, Start drafting, wait for the
+title "Awaiting your countersignature"; the expected call is asserted) · Meridian countersigned
+(sealed) · `#/book` · `#/ledger` · `#/settings` · `/?kit`. Per cell: a full-page screenshot into
+`.v2-visual/` (gitignored, with `report.json` holding every axe result), **axe fails on serious or
+critical** violations, and layout fails on horizontal page scroll, a scroll container that scrolls
+sideways (except the allow-list `HSCROLL_OK`), a visible element cut by the viewport edge, the memo
+pane `.app-viz` showing < 300px or the Decision card `[data-section="signature"]` showing < 280px
+(VISIBLE width, after clipping), a driving click that cannot land at that width, or a page/console
+error. Prints a state × viewport table plus each failure; exit 0 / 1 / 2 (setup). Narrow a run with
+`--only atlas-gate,book` and `--viewport tablet,desktop`. ~25 s for all 27 cells; reruns are
+identical (the agent is deterministic). The shell is `overflow: hidden`, so the page itself never
+scrolls: the sideways-scroller and cut-edge checks are what catch overflow. **Status 2026-10-20:**
+desktop and tablet 9/9 green; phone fails on the known bug (the case file keeps the side-by-side
+split at 390px, so the memo pane gets 0px and the Countersign button cannot be clicked; a stacked
+phone layout is in progress) and on the kit page at phone width (91px page overflow, a
+non-focusable token matrix scroller). Its first run caught axe `label-content-name-mismatch`
+(WCAG 2.5.3) on desktop: kit `Button` set `aria-label={ariaLabel ?? children}`, so a visible letter
+chip (A / S / R / ⌘K) was missing from the name of the Decision verbs and Search. Fixed: Button sets
+`aria-label` only when `ariaLabel` is passed, and the name comes from the content (icon and Kbd are
+`aria-hidden`, so the names did not change). Gotcha: never put a shortcut chip inside an
+`aria-label`led control unless the label contains the chip's text.
 
 ## Deploy — GitHub + Vercel
 
@@ -546,7 +574,10 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   over the rest of that file (R4 over R3 over R2) and over SPEC.md; the owner decisions below
   supersede all of them.
 - **Guardrails:** `npm run v2-check` (28 greps: tokens only, 400/500/600, 4px grid, one
-  infinite animation, no hand-rolled controls outside the kit, V1 + engine hashes untouched, …).
+  infinite animation, no hand-rolled controls outside the kit, V1 + engine hashes untouched, …)
+  checks the source; `npm run v2-visual` (Playwright + axe, see Run & build) checks the rendering:
+  9 states × phone / tablet / desktop for serious axe violations, sideways overflow, cut-off
+  elements and a usable memo pane and Decision card width. Run both before calling V2 UI work done.
   New visual patterns go to `src/v2/design-pending.ts` (P-01 to P-37, rendered on `/?kit`) for
   owner approval; every `data-pattern` id needs an entry there, every kit export a kit-page specimen.
 - **Storage** (only in `src/v2/state/`): `v2.navCollapsed`, `v2.chatOpen` (only `state/panes.ts`).

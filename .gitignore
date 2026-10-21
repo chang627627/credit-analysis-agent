@@ -17,3 +17,6 @@ npm-debug.log*
 
 # vercel
 .vercel
+
+# V2 visual check output (scripts/v2-visual.mjs)
+.v2-visual/

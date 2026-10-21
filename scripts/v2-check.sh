@@ -77,7 +77,7 @@ src/components/amendTerms.ts:28141b45e747dcaa773b48d6404db1e06c3334753265ab2c36e
 v1_changes() {
   { git diff --name-only HEAD; git ls-files --others --exclude-standard; } | sort -u | while IFS= read -r f; do
     case "$f" in
-      src/v2/*|src/main.tsx|package.json|scripts/v2-check.sh|docs/v2/*|CLAUDE.md|.claude/*) continue ;;
+      src/v2/*|src/main.tsx|package.json|scripts/v2-check.sh|scripts/v2-visual.mjs|docs/v2/*|CLAUDE.md|.claude/*) continue ;;
     esac
     want=$(printf '%s\n' "$BASELINE" | awk -F: -v p="$f" '$1==p {print $2}')
     if [ -z "$want" ]; then echo "$f  (outside the V2 build area)"
@@ -149,7 +149,7 @@ report C25 "radius only via --r-xs/--r-sm/--r-md/--r-pill" "$(outside | grep -E 
 report C26 "spacing on the 4px grid (no negative spacing)" "$(pxcheck '(^|[[:space:];{])(padding|margin|gap|row-gap|column-gap)(-(top|right|bottom|left|inline|block)(-start|-end)?)?[[:space:]]*:' '(0|4|8|12|16|20|24|32|40|48)px')"
 report C27 "no !important" "$(gr '!important' $CSS)"
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  report C28 "V1 untouched: changes only in src/v2, src/main.tsx, scripts/v2-check.sh, one package.json line" "$(v1_changes)"
+  report C28 "V1 untouched: changes only in src/v2, src/main.tsx, scripts/v2-check.sh, scripts/v2-visual.mjs, one package.json line" "$(v1_changes)"
 else
   echo "skip C28  not a git work tree"
 fi

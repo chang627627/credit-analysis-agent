@@ -153,7 +153,12 @@ export function selectBook(s: V2Store): BookView {
     sweepLabel: COPY.sweepNow,
     sweepDisabled: m.sweeping,
   };
-  if (m.portfolio.length === 0) return { ...base, verdict: null, empty: COPY.bookEmpty, rows: [] };
+  if (m.portfolio.length === 0) {
+    // R4.14: "first sweep in a moment" only while nothing has been swept for lack of a sweep; when
+    // every file was removed from the Desk there is nothing to sweep, so say where they come back
+    const allRemoved = s.agent.dealsFull.length === 0 && s.ui.removedFiles.length > 0;
+    return { ...base, verdict: null, empty: allRemoved ? COPY.bookAllRemoved : COPY.bookEmpty, rows: [] };
+  }
 
   const rows: (BookRow & { oldestOpen: number })[] = m.portfolio.map((p) => {
     const mine = m.escalations.filter((e) => e.dealId === p.dealId);

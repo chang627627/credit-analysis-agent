@@ -388,7 +388,10 @@ export interface ThreadLine {
 }
 export interface PlanPromptView {
   text: string;
-  /** the plan itself, one line per step (Claude Code style checklist); optional steps carry a checkbox */
+  /**
+   * the plan itself, one line per step (Claude Code style checklist); optional steps carry a checkbox.
+   * toggleLabel is the checkbox's stable name, "Include Peer benchmarks" (checked = included, R4.14).
+   */
   steps: { id: string; n: number; title: string; tool: string; optional: boolean; included: boolean; toggleLabel: string }[];
   start: { label: string; kbd: string; disabled: boolean };
   optional: { stepId: string; label: string; included: boolean } | null; // 'Skip peers' / 'Include peers'

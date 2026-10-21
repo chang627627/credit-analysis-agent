@@ -64,8 +64,12 @@ const STATES = [
     id: 'desk-remove',
     label: 'Desk · remove confirm (Dialog)',
     drive: async (d) => {
-      await d.act(d.page.getByRole('button', { name: 'Remove Project Atlas', exact: true }), 'Remove Project Atlas (trash)');
+      // R4.14: a DOUBLE-click on the trash opens the dialog and leaves it open (its settle window
+      // swallows the second press, which lands on the scrim or the panel), and never removes
+      await d.act(d.page.getByRole('button', { name: 'Remove Project Atlas', exact: true }), 'Remove Project Atlas (trash)', { dbl: true });
       await d.page.getByRole('alertdialog').waitFor({ state: 'visible', timeout: 10_000 });
+      await d.page.waitForTimeout(600);
+      if ((await d.page.getByRole('alertdialog').count()) !== 1) d.note('a double-click on the trash did not leave the remove Dialog open');
     },
   },
   {
@@ -205,11 +209,16 @@ async function startServer(opts) {
 function driver(page, notes) {
   const d = {
     page,
-    /** a real click; if the control cannot be clicked at this width, record it and dispatch the click */
-    async act(locator, label) {
+    /** record a failure the driving found */
+    note(message) {
+      notes.push(message);
+    },
+    /** a real click (or double-click); if the control cannot be clicked at this width, record it and dispatch the click */
+    async act(locator, label, { dbl = false } = {}) {
       await locator.waitFor({ state: 'attached', timeout: 10_000 });
       try {
-        await locator.click({ timeout: 3000 });
+        if (dbl) await locator.dblclick({ timeout: 3000 });
+        else await locator.click({ timeout: 3000 });
       } catch {
         notes.push(`not clickable: ${label}`);
         // the failed attempt may have scrolled an overflow:hidden pane sideways to reach the control;

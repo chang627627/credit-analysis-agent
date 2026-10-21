@@ -344,6 +344,8 @@ export const COPY = {
   removeDialogConfirm: 'Remove',
   removedAnnounce: (name: string): string => `${name} removed from the Desk`,
   restoredAllAnnounce: (n: number): string => (n === 1 ? '1 file is back on the Desk.' : `${n} files are back on the Desk.`),
+  /** R4.14: an upload that finished while the remove Dialog was open is not opened under it */
+  uploadReadyAnnounce: (name: string): string => `${name} is ready on the Desk`,
   /** the empty Desk's note beside the drop zone; `samplesOnly` null when nothing was removed */
   deskEmptyNote: (samplesOnly: boolean | null): string =>
     samplesOnly === null
@@ -604,6 +606,8 @@ export const COPY = {
   bookDisclosure: "Figures are simulated drift on each file's filed figures.",
   sweepNow: 'Sweep now',
   bookEmpty: 'The Portfolio Monitor runs its first sweep in a moment.',
+  /** R4.14: every file was removed from the Desk (the monitor may already have swept) */
+  bookAllRemoved: 'No files on the Desk. Restore them from Settings.',
   acknowledge: 'Acknowledge',
   // R4.6 (audit fix 5): acknowledging a covenant item asks why. The engine keeps an acknowledged item
   // quiet until a sweep finds it worse (a watch that becomes a breach is raised again) or it passes

@@ -129,7 +129,7 @@ export {
 export { selectLiveDealId, isRunLive, onLiveFile, chatShown, SPEED_STEPS, selectTopBar, selectTabTitle, policyChecks, policyRule, selectPolicy } from './select-top';
 export { selectDesk } from './select-desk';
 export { selectFile, askRoute, routesOnSign, covenantEvidence, covenantInputsNotInCim } from './select-file';
-export { selectAgentPanel, memoTargetOfAnchor, newActivityLabel } from './select-thread';
+export { selectAgentPanel, memoTargetOfAnchor, newActivityLabel, stripLineOf } from './select-thread';
 export { composerContext, parseComposer, composerReply, answerFor, sectionOfQuestion } from './composer';
 export { selectQuestions, qaAnchor } from './select-questions';
 export {
@@ -170,6 +170,7 @@ export {
   FX_PANEL_PLAN_PREVIEW,
   FX_PANEL_PLAN_SKIPPED,
   FX_PANEL_RUNNING,
+  FX_PANEL_RUNNING_SKIPPED,
   FX_PANEL_ATLAS_GATE,
   FX_PANEL_ATLAS_REV2,
   FX_PANEL_MERIDIAN_COUNTDOWN,

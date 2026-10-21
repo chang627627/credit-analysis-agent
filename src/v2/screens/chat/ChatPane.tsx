@@ -14,18 +14,24 @@
 //     plan is shown, and the same composer (AgentStrip).
 //
 // The shell mounts this keyed by the deal, so the thread's follow state resets
-// on a file switch by design. Crossing 900px swaps the layout in place; the
-// composer's draft lives in the store, so nothing typed is lost.
+// on a file switch by design. Crossing 900px re-renders it in the other layout
+// (the shell moves it to the other side of the memo pane, so the DOM order
+// follows the screen); the composer's draft lives in the store, so nothing
+// typed is lost, and focus held inside the panel moves to the matching control
+// of the new layout, the composer's caret included (focus.ts carryFocusFrom /
+// restoreCarriedFocus, noted just before the swap, R4.14).
 // ---------------------------------------------------------------------------
 
-import { useCallback, useId, useState } from 'react';
-import { COPY, selectAgentPanel } from '../../model';
+import { useCallback, useId, useLayoutEffect, useRef, useState } from 'react';
+import { COPY, selectAgentPanel, stripLineOf } from '../../model';
 import type { ChatPaneProps } from '../../state/screens';
+import { onBeforeLayoutSwap } from '../../state/panes';
 import { useV2 } from '../../state/store';
 import { AgentStrip } from './AgentStrip';
 import { ChatHead } from './ChatHead';
 import { Composer } from './Composer';
 import { Button } from '../../kit';
+import { carryFocusFrom, restoreCarriedFocus } from './focus';
 import { useGoTo } from './go';
 import { PlanPrompt } from './PlanPrompt';
 import { Thread } from './Thread';
@@ -39,6 +45,14 @@ export function ChatPane({ dealId, layout }: ChatPaneProps) {
   // a composer send re-pins the thread and jumps to its foot
   const [sendSeq, setSendSeq] = useState(0);
   const onSent = useCallback(() => setSendSeq((n) => n + 1), []);
+  const paneRef = useRef<HTMLElement>(null);
+
+  // R4.14: focus survives the 900px swap: noted just before it (the old layout's DOM still on the
+  // page), given back after the commit in the new layout
+  useLayoutEffect(() => onBeforeLayoutSwap(() => carryFocusFrom(paneRef.current, dealId, layout)), [dealId, layout]);
+  useLayoutEffect(() => {
+    restoreCarriedFocus(paneRef.current, dealId, layout);
+  }, [dealId, layout]);
 
   const view = selectAgentPanel(s, dealId);
   const strip = layout === 'strip';
@@ -46,11 +60,11 @@ export function ChatPane({ dealId, layout }: ChatPaneProps) {
   const composer = <Composer dealId={dealId} composer={view.composer} onSent={onSent} />;
 
   return (
-    <aside className="chat-pane" data-chat-pane="" data-layout={layout} data-pattern="P-22" aria-label={COPY.agentPanel}>
+    <aside ref={paneRef} className="chat-pane" data-chat-pane="" data-layout={layout} data-pattern="P-22" aria-label={COPY.agentPanel}>
       {strip ? null : <ChatHead heading={view.title} headingId={headingId} />}
       {strip ? (
         <AgentStrip
-          line={view.lines.length > 0 ? view.lines[view.lines.length - 1] : null}
+          line={stripLineOf(view.lines)}
           plan={plan}
           onGo={go}
           onToggleStep={(stepId) => (plan && plan.preview ? a.togglePreviewStep(dealId, stepId) : a.togglePlanStep(stepId))}

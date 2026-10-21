@@ -10,7 +10,7 @@
 // ---------------------------------------------------------------------------
 
 import { useEffect, useRef } from 'react';
-import { announceFor, selectFile, selectTabTitle } from '../model';
+import { announceFor, COPY, selectFile, selectTabTitle } from '../model';
 import { toHash } from './route';
 import type { V2Internals, V2Store } from './store';
 import { buildSnapshot, isLiveStatus, routeEscalation, shouldRoute } from './files';
@@ -84,7 +84,11 @@ export function useV2Effects(s: V2Store, x: V2Internals): void {
     routeHygiene(x, x.routeRef.current);
   }, [fileKey, placeKey, x]);
 
-  // ---- upload auto-open (§9.2 #8): only if the user is still on the Desk
+  // ---- upload auto-open (§9.2 #8): only if the user is still on the Desk, and not while the
+  // remove Dialog is open (R4.14): the Dialog owns the screen until Cancel, Esc, the scrim or
+  // Remove, so a background extraction never dismisses it (navigating would close it through
+  // routeHygiene and drop focus on a different screen). The new file's row is on the Desk, and the
+  // live region says it is ready.
   const parsing = agent.parsing;
   const prevParsing = useRef(parsing);
   useEffect(() => {
@@ -92,13 +96,19 @@ export function useV2Effects(s: V2Store, x: V2Internals): void {
     prevParsing.current = parsing;
     if (was === null || parsing !== null) return;
     const c = x.current();
+    let announce: string | null = null;
     if (c.ui.pendingUploadOpen) {
       const uploads = c.agent.dealsFull.filter((d) => d.uploaded);
       const newest = uploads[uploads.length - 1];
-      if (newest && c.route.name === 'desk') x.navigate({ name: 'file', dealId: newest.id, at: null });
+      if (newest && c.route.name === 'desk') {
+        if (c.ui.removeConfirm === null) x.navigate({ name: 'file', dealId: newest.id, at: null });
+        else announce = COPY.uploadReadyAnnounce(newest.name);
+      }
     }
     x.setUi((u) =>
-      u.pendingUploadOpen || u.parsingSince !== null ? { ...u, pendingUploadOpen: false, parsingSince: null } : u,
+      u.pendingUploadOpen || u.parsingSince !== null || announce !== null
+        ? { ...u, pendingUploadOpen: false, parsingSince: null, announce: announce ?? u.announce }
+        : u,
     );
   }, [parsing, x]);
 

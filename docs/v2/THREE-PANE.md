@@ -399,7 +399,8 @@ flat 300-entry cap, where they conflict.
   screen, a new real answer cues its memo entry at once (`cueMemo({ section: 'questions', anchorId:
   'qa:<id>' })`: scroll and one flash; scroll only, focus stays in the composer, so no key can sign);
   in drawer mode nothing moves (the drawer overlays the memo) until the reviewer follows the panel's
-  link, which closes the drawer first.
+  link, which closes the drawer first. (Superseded by R4.13: there is no drawer, and a new answer is
+  cued the same way in both layouts, the column and the stacked strip.)
 - **Panel** (`selectAgentPanel`): the reviewer's question stays ONE "You · …" line (ellipsis; the
   full question heads the memo entry). A real answer becomes ONE unclamped line of the new kind
   `'answered'`: "Answered in the memo" (`COPY.answeredInMemo`, ink-2, no glyph) with the link
@@ -783,7 +784,8 @@ EmptyNote's "Restore sample files" (how an empty Desk recovers, not an undo).
   with `v2-enter` over `--dur-2` (0 under reduced motion, so instant). Focus moves to Cancel on open
   (the safe default); Tab and Shift+Tab wrap inside the panel and a `focusin` guard pulls focus back
   if anything moves it out; Esc and a press on the scrim itself cancel (the scrim's mousedown
-  prevents its default, so the press never moves focus); a press inside the panel keeps it open
+  prevents its default, so the press never moves focus; for the first 500ms a pointer press on the
+  scrim, Cancel or the confirm does nothing, R4.14); a press inside the panel keeps it open
   (the panel is `tabIndex -1`, outline none). On close, focus returns to the element that had it
   when the dialog opened, but only when focus fell with the dialog and that element is still on the
   page. `preview` renders the panel in flow: no portal, no scrim, no fixed position, no animation,
@@ -802,7 +804,8 @@ EmptyNote's "Restore sample files" (how an empty Desk recovers, not an undo).
   else the row before it; else the Desk heading (`h1[data-desk-heading]`, `tabIndex -1`, no ring).
   `cancelRemove` closes it and, as a fallback for a browser that does not focus a button on click,
   lands focus that fell to the body on the trash. `routeHygiene` closes the dialog on any place
-  change, without removing. `DeskRemoval`, `deskStageOf` and the undo hooks (`[data-removed]`, the
+  change, without removing; nothing in the background makes such a change while it is open (an
+  upload that finishes extracting is not opened under it, R4.14). `DeskRemoval`, `deskStageOf` and the undo hooks (`[data-removed]`, the
   summary's `[data-desk-restore]`) are gone; Desk.tsx adds `[data-select]` on the actions cell.
 - **Model** (`model/select-desk.ts`, `model/types.ts`, `model/vocab.ts`): `DeskView.removed` and
   `groups[].removed` (`DeskRemovedLine`) are gone; `DeskView.removeDialog: DeskRemoveDialog | null`
@@ -841,8 +844,9 @@ EmptyNote's "Restore sample files" (how an empty Desk recovers, not an undo).
 
 **Supersedes** commit 11fc179's rule for narrow screens ("a case file is always three panes", which
 forced the side-by-side split at every width), and with it §1.3's drawer mode and its rows below
-1024, §1.5's drawer flag, §1.8's drawer CSS, R2.1's head chevron and the drawer clauses of §2.6
-("drawer mode closes the drawer first"). Still in force from 11fc179: the panel is always shown
+1024, §1.5's drawer flag, §1.8's drawer CSS, R2.1's head chevron, the drawer clauses of §2.6
+("drawer mode closes the drawer first") and R4.5's column/drawer clause for a new answer (it is now
+cued in both layouts). Still in force from 11fc179: the panel is always shown
 on a case file, with no toggle, no collapse control and no `]`. At a viewport of 900px and up
 nothing changes.
 
@@ -858,8 +862,9 @@ agent panel docked below it as a strip with the latest status line and the compo
 
 - **Layout** (`state/panes.ts`, `state/contracts.ts`, `App.tsx`, `app.css`): `ChatLayout` is now
   `'column' | 'stacked'`, live from `matchMedia('(min-width: 900px)')` (`STACK_MAX_PX = 899`); the
-  store's `chatLayout` is the one signal the shell and the actions read (the old `'drawer'` below
-  1024 is gone). Below 900px the split is `.app-split[data-chat="stacked"]`: one column,
+  store's `chatLayout` is the signal the shell reads (no action reads it since `layoutOf` went; the
+  reveal band reads the memo pane's edge from the DOM, below; the old `'drawer'` below 1024 is
+  gone). Below 900px the split is `.app-split[data-chat="stacked"]`: one column,
   `grid-template-rows: minmax(0, 1fr) auto`; the memo pane (`.app-viz`, `height: auto`) fills the top
   and scrolls on its own (`.file`, `.file-canvas` and `.file-missing` are now `height: 100%` of the
   pane instead of `calc(100vh - 48px)`, identical in the column layout); the agent panel is docked
@@ -871,8 +876,9 @@ agent panel docked below it as a strip with the latest status line and the compo
   `selectAgentPanel` view, no new data. `.chat-pane[data-layout="strip"]` is as tall as its content,
   paper, with a 1px `--line` on top (the line that separates it from the memo) and no head row. It
   shows, top to bottom, inside `.chat-strip` (`data-pattern="P-40"`, padding 12 16 0, gap 8):
-  1. the **latest status line** only: the thread's last line (`lines[lines.length - 1]`) with its
-     glyph and trailing link, rendered by the shared `ChatLine` (`screens/chat/Line.tsx`, which the
+  1. the **latest status line** only: the thread's last line (`lines[lines.length - 1]`; superseded
+     by R4.14: `stripLineOf`, the last line about activity, passing over a skipped step's line) with
+     its glyph and trailing link, rendered by the shared `ChatLine` (`screens/chat/Line.tsx`, which the
      column's thread now renders too). It is one status line; where a phone is too narrow for its
      words beside the link (the gate line "Your countersignature is needed · Decision →" needs about
      199px of text and gets 169 to 199 at 360 to 390) it takes a second row rather than lose them
@@ -880,7 +886,8 @@ agent panel docked below it as a strip with the latest status line and the compo
   2. while a plan is shown (not started, plan review), the plan as **one compact row** instead of
      the checklist (`.chat-plan--compact`, a flex row that wraps, column gap 16, row gap 8): the
      count "5 steps" ("4 of 5 steps" with the optional step off), then per optional step "·", its
-     kit `Checkbox` (the same toggle label as the checklist's) and its line "Peer benchmarks
+     kit `Checkbox` (the same toggle label as the checklist's; since R4.14 a stable "Include Peer
+     benchmarks") and its line "Peer benchmarks
      optional" (ink) or "Peer benchmarks skipped" (ink-3); the primary [Start drafting ⌘↵] (preview:
      `draftFile`; plan review: `approvePlan`); [Cancel] (ghost) in plan review only; and the
      countdown line "Starts in 7 s · Hold" (or "Held · start when ready") while it runs. At a 768
@@ -939,6 +946,74 @@ agent panel docked below it as a strip with the latest status line and the compo
   Q&A, sealed) and at 704px (one row), each under a stand-in for the memo pane.
 - **v2-visual** adds a check on every case-file state: the agent panel is the strip below 900px and
   the column from 900px, wholly inside the viewport, with its composer on screen. Result: 30/30.
+
+### R4.14 Review fixes to R4.12 and R4.13 (as built)
+
+An adversarial review of the remove Dialog (R4.12) and the stacked layout (R4.13) found these; each
+was reproduced in headless Chromium before the fix. Every item says what it supersedes.
+
+1. **A background upload dismissed the remove Dialog** (supersedes nothing in R4.12; refines §9.2 #8
+   "upload auto-open"). With an upload extracting, opening the Dialog and waiting let the extraction
+   finish: the auto-open navigated to the new file, `routeHygiene` closed the Dialog, focus fell to
+   `<body>` on another screen, and a click meant for Remove landed in the new case file. The upload
+   effect (`state/effects.ts`) now treats an open remove confirm (`ui.removeConfirm !== null`) as
+   engagement with the Desk: it does not open the new file, clears `pendingUploadOpen` as usual (the
+   file is not opened later either), and announces "Project Zephyr is ready on the Desk"
+   (`COPY.uploadReadyAnnounce`); the new row is already on the Desk. The Dialog is dismissed only by
+   Cancel, Esc, the scrim or Remove.
+2. **A double-click on the trash opened and closed the Dialog at once** (supersedes R4.12's "a press
+   on the scrim itself cancels" for the first 500ms). The trash sits outside the centred panel at
+   1024 to 1440, so the double-click's second press landed on the scrim and cancelled: nothing
+   visible happened, the very symptom R4.12 fixed. Kit `Dialog` now has a settle window
+   (`SETTLE_MS = 500`, the idea of the gate's `ARM_SETTLE_MS`, started in a layout effect on open):
+   inside it a pointer press on the scrim does nothing (its default is still prevented), and a
+   pointer click on Cancel or the confirm is stopped in the actions' capture phase, so a second press
+   that lands on Remove (a narrow screen where the panel covers the trash) can never remove without
+   a look. Esc is instant, and keyboard activation (a click with `detail` 0: Enter or Space on the
+   focused button) is never held. `v2-visual`'s `desk-remove` state now opens the Dialog with a
+   double-click and fails if it does not stay open.
+3. **The strip showed a step the agent had not reached** (supersedes R4.13's "the thread's last
+   line (`lines[lines.length - 1]`)"). With peer benchmarks unticked, `selectAgentPanel` places the
+   skipped step's line in plan order, right after the running Risk step, so for the whole Risk step
+   the strip read "Peer benchmarks skipped" and "Scoring risk" never appeared there. The strip now
+   shows `stripLineOf(lines)` (`model/select-thread.ts`): the last line about activity, passing over
+   a skipped step's line (`skip:` ids; the last line when every line is one). The column keeps every
+   line in order. Kit: `FX_PANEL_RUNNING_SKIPPED` in the column cases and the strip cases.
+4. **A focused strip link dropped focus or changed target under it** (supersedes nothing; R4.13 did
+   not cover it). The strip rendered one unkeyed line, so a new line reused the focused link (now
+   scrolling to another card) or removed it (focus fell to `<body>`). The line is now its own element
+   keyed by its id and its link's target (`StripLine`, `.chat-strip__line`), so an in-place update
+   ("Extracting financials" to "Financials extracted", same target) keeps the focused link and a
+   different line is a new element; when the line that held keyboard focus leaves, the composer
+   takes it (`focusComposerIfLost`, keyboard only like the plan prompt's hand-off).
+5. **Crossing 900px lost the focus in the panel** (adds to R4.13, which left it open: the swap kept
+   the composer's draft, which lives in the store, but not the focus). The shell renders the panel before the memo pane in the column and after it when
+   stacked, and its contents change (head and thread, or the strip), so the control that held focus
+   was removed. `state/panes.ts` now runs `onBeforeLayoutSwap` listeners in the matchMedia change,
+   before the store re-renders, while the old layout's DOM is on the page; the panel
+   (`screens/chat/ChatPane.tsx`, `focus.ts` `carryFocusFrom` / `restoreCarriedFocus`) notes which
+   control held focus (the composer field with its selection, its send button, a thread line's link,
+   the optional step's checkbox by its name, Start drafting or Cancel by position, Hold) and, after
+   the commit in the new layout, focuses the matching control, else the composer. The note is used
+   once, only by the same file's panel in the other layout, only within 1 s, and only if focus fell to
+   the body. An IME composition in progress cannot survive the swap.
+6. **The optional step's checkbox was named for the action, not the option** (supersedes the
+   checklist's flipping `toggleLabel`, in place since 2b87902, and R4.13's "the same toggle label as
+   the checklist's"). It read "Skip Peer
+   benchmarks, checkbox, checked" for a step that runs. `checklistOf` now names every step's checkbox
+   `COPY.includeOptional(title)`, "Include Peer benchmarks", checked or not, so checked means
+   included, in the column's checklist and the strip's compact row alike. (`PlanPromptView.optional
+   .label`, "Skip peers" / "Include peers", is the retired button's and is unchanged.)
+7. **The Book contradicted itself once every file was removed** (refines R4.12's body "It leaves the
+   Desk and the Book"). Its empty copy was "The Portfolio Monitor runs its first sweep in a moment."
+   under a cadence line that already named sweep #1. `selectBook` now tells the cases apart: with no
+   file left on the Desk and at least one removed, the Book reads "No files on the Desk. Restore them
+   from Settings." (`COPY.bookAllRemoved`); otherwise the first-sweep copy stands.
+8. **Docs** (no behaviour): CLAUDE.md no longer says the actions read `chatLayout`, says a new answer
+   is cued "in both layouts", and lists `desk-remove` among the v2-visual states; R4.5's drawer clause
+   and R4.13's `chatLayout` sentence carry superseded notes; design-pending P-12 (no drawer) and P-27
+   (the plan checklist as a message, no chevron, the strip below 900px) describe the build, and P-38
+   and P-40 add the settle window, the strip's latest line and the focus carry.
 
 ## 0. Owner decisions that survive (each is checked in §9)
 

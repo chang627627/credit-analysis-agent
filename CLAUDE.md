@@ -35,7 +35,8 @@ console errors**.
 **`npm run v2-visual`** (`scripts/v2-visual.mjs`; first time on a machine: `npx playwright install
 chromium`). Starts its own Vite dev server from this checkout on a free port (`--url <base>` reuses a
 running one, `--prod` checks the production bundle via `vite build` + `vite preview`), then reaches
-each V2 state from a fresh load at 390x844, 768x1024 and 1440x900: the Desk · Atlas before drafting
+each V2 state from a fresh load at 390x844, 768x1024 and 1440x900: the Desk · the Desk with the remove
+Dialog open (opened by a DOUBLE-click on Atlas's trash, which must leave it open; R4.14) · Atlas before drafting
 (Select → plan) · Atlas, Cobalt and Meridian at the gate (demo pace 4×, Start drafting, wait for the
 title "Awaiting your countersignature"; the expected call is asserted) · Meridian countersigned
 (sealed) · `#/book` · `#/ledger` · `#/settings` · `/?kit`. Per cell: a full-page screenshot into
@@ -614,7 +615,11 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   is one column, the memo pane on top (full width beside the rail, scrolling on its own) and the
   panel docked under it as an always-visible strip (see Agent panel). The layout is the store's live
   `chatLayout` (`'column' | 'stacked'`, matchMedia in `state/panes.ts`, `STACK_MAX_PX = 899`), which
-  the shell and the actions both read. The sidebar forces its 64px rail below 1400px beside the panel
+  the shell reads (no action reads it; the reveal band reads the memo pane's edge from the DOM).
+  Crossing 900px keeps focus: just before the swap (`onBeforeLayoutSwap`, while the old layout's DOM
+  is on the page) the panel notes which control held focus, and after the commit it focuses the
+  matching one in the new layout (the composer when there is none), the composer's caret included
+  (`screens/chat/focus.ts`, R4.14; an IME composition in progress cannot survive). The sidebar forces its 64px rail below 1400px beside the panel
   (always below 1100) without touching `v2.navCollapsed`. Pane changes are instant (no grid-width
   transition). Desk, Book and Ledger stay full width with no panel ("upload to ingest, chat to
   steer": the Desk ingests, the case file steers). The plan auto-start countdown arms only while the
@@ -643,13 +648,19 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   skipped step's line links nowhere (it has no card). No boxes, cards, records or buttons other than
   the plan prompt's. **Below 900px the same view renders as the strip** (`ChatPane layout="strip"` →
   `screens/chat/AgentStrip.tsx`, pure, also rendered on `/?kit`; P-40, R4.13): docked under the memo
-  with a 1px line on top, no head row, and only (1) the **latest** status line (the thread's last
-  line with its trailing link, e.g. "Your countersignature is needed · Decision →"; one status line,
-  which takes a second row only when a phone is too narrow for its words beside the link), (2) while
+  with a 1px line on top, no head row, and only (1) the **latest** status line (the model's
+  `stripLineOf`: the thread's last line about activity, passing over a skipped step's line, which
+  sits in plan order after the running step, so the strip reads "Scoring risk · Risk →" and never a
+  step the agent has not reached, R4.14; with its trailing link, e.g. "Your countersignature is
+  needed · Decision →"; one status line, which takes a second row only when a phone is too narrow
+  for its words beside the link; keyed by its id and link, so a focused link is never silently
+  pointed at another card, and when the line holding keyboard focus leaves, the composer takes
+  it), (2) while
   a plan is shown (not started, plan review) the plan as **one compact row** instead of the checklist
   ("5 steps · [x] Peer benchmarks optional", [Start drafting ⌘↵], Cancel in plan review, "Starts in
   7 s · Hold"; it wraps on a phone; copy `PlanPromptView.compact` from `COPY.planCount` /
-  `COPY.optionalState`), (3) the composer exactly as in the column. Its links cue the memo exactly as
+  `COPY.optionalState`; the checkbox's name is stable, "Include Peer benchmarks", checked or not, in
+  the strip and the column's checklist alike, R4.14), (3) the composer exactly as in the column. Its links cue the memo exactly as
   the column's do (`go.ts`, `cueMemo` + flash); each line renders through the shared `ChatLine`
   (`Line.tsx`). The strip follows the memo in the DOM, so focus order matches the screen. In the
   stacked layout the reveal band ends at the memo pane's bottom edge, not the window's
@@ -677,7 +688,7 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   run has more than one revision it names the one that answered, "rev 1 · superseded by rev 2",
   R4.11) and the memo card the answer concerns
   ("Covenants →"). Its anchor is `qa:<entryId>` (FileAt `'questions'`); the panel's "Questions →"
-  cues it (scroll + one flash, a held highlight under reduced motion), and in column mode a new
+  cues it (scroll + one flash, a held highlight under reduced motion), and in both layouts a new
   answer is cued the same way as it arrives (scroll only; focus stays in the composer). Only real
   answers move (`ComposerReply.memo`, set by `answerFor` on the engine responder and the
   deterministic answers, never on the stress pointer, acknowledgements or refusals);
@@ -841,7 +852,12 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   clause for a file with no runs) and [Cancel] (secondary) [Remove] (danger), right-aligned. Focus
   moves to Cancel; Tab is trapped; Esc, Cancel or a press on the scrim keep the file and focus returns
   to the trash; the app's shortcuts (⌘K included) stand down while focus is inside; any place change
-  closes it without removing. It portals to `document.body` (`.v2` is on `<html>`); its prop is
+  closes it without removing. Nothing in the background dismisses it (R4.14): an upload that finishes
+  extracting while it is open is not opened (the new row is on the Desk and the live region says
+  "Project Zephyr is ready on the Desk"). For 500ms after it opens (its settle window, the gate's
+  ARM_SETTLE_MS idea) a pointer press on the scrim, Cancel or Remove does nothing, so the second press
+  of a double-click on the trash neither closes it at once nor removes without a look; Esc and
+  keyboard activation are instant. It portals to `document.body` (`.v2` is on `<html>`); its prop is
   `heading`, not `title` (guard C02); `preview` renders it in flow for the kit page. Remove takes
   the row away at once (no undo line, no tombstone, nothing in the summary), announces "Project
   Atlas removed from the Desk" and lands focus on the next row's remove button (its Select button if
@@ -852,7 +868,8 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   Settings' "Restore removed files", and on a completely empty Desk a kit `EmptyNote` beside the drop
   zone with "Restore sample files" (P-39, split out of P-35: the EmptyNote's optional `action`; an
   empty Ledger's EmptyNote offers "Open the Desk"; the "a refresh brings the samples back" copy stays
-  gone, since a refresh ends every run). `V2Store.allFiles` (the engine's list, removed files
+  gone, since a refresh ends every run). With every file removed, the Book reads "No files on the
+  Desk. Restore them from Settings." instead of the first-sweep copy (R4.14). `V2Store.allFiles` (the engine's list, removed files
   included) names what that restore brings back. Kit page: `#board-dialog` and `#board-deskremove`;
   `npm run v2-visual` checks the open dialog as state `desk-remove`.
 - **The verb row at phone width is checked on the kit page** (P-37, THREE-PANE R4.10, improvement

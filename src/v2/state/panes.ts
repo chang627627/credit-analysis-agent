@@ -78,6 +78,24 @@ function readChatLayout(): ChatLayout {
   }
 }
 
+// ---- before a layout swap (R4.14) ---------------------------------------------------
+// Crossing 900px re-renders the panel in the other layout: the shell moves it to the other side of
+// the memo pane and its contents change (head and thread, or the strip), so the control that held
+// focus is removed and focus would fall to the body. A listener here runs while the old layout's
+// DOM is still on the page (in the matchMedia change, before the store re-renders), so the panel
+// can note what held focus and give it back after the commit (screens/chat/focus.ts).
+
+type SwapListener = (from: ChatLayout, to: ChatLayout) => void;
+const beforeSwap = new Set<SwapListener>();
+
+/** Run `fn` when the layout is about to change, before the re-render. Returns the unsubscribe. */
+export function onBeforeLayoutSwap(fn: SwapListener): () => void {
+  beforeSwap.add(fn);
+  return () => {
+    beforeSwap.delete(fn);
+  };
+}
+
 /** Live layout mode, with a ref that updates synchronously (actions read it through current()). */
 export function useChatLayout(): [ChatLayout, Box<ChatLayout>] {
   const [layout, setLayout] = useState<ChatLayout>(readChatLayout);
@@ -87,6 +105,16 @@ export function useChatLayout(): [ChatLayout, Box<ChatLayout>] {
     const mql = window.matchMedia(COLUMN_QUERY);
     const on = () => {
       const next: ChatLayout = mql.matches ? 'column' : 'stacked';
+      const prev = ref.current;
+      if (prev !== next) {
+        for (const fn of Array.from(beforeSwap)) {
+          try {
+            fn(prev, next);
+          } catch {
+            /* a listener never blocks the swap */
+          }
+        }
+      }
       ref.current = next;
       setLayout(next);
     };

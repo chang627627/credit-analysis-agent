@@ -141,6 +141,7 @@
    third, with the link on its first row. ---- */
 .chat-strip { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 12px 16px 0; }
 .chat-strip:empty { display: none; }
+.chat-strip__line { min-width: 0; }  /* R4.14: the one line's own element, remounted per line */
 .chat-strip .chat-line__text {
   display: -webkit-box;
   white-space: normal;

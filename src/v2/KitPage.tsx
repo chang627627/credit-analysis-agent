@@ -88,6 +88,7 @@ import {
   FX_PANEL_PLAN_PREVIEW,
   FX_PANEL_PLAN_SKIPPED,
   FX_PANEL_RUNNING,
+  FX_PANEL_RUNNING_SKIPPED,
   FX_PANEL_SEALED,
   FX_QUESTIONS_ATLAS,
   FX_QUESTIONS_ATLAS_REV2,
@@ -122,6 +123,7 @@ import {
   fmtX,
   paletteFooter,
   plural,
+  stripLineOf,
 } from './model';
 import type {
   AgentPanelView,
@@ -1636,7 +1638,7 @@ function NavBoard() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [policyOn, setPolicyOn] = useState(FX_TOPBAR.policyOn);
   return (
-    <Board id={B.nav.id} name={B.nav.name} spec="Tabs 48, active = 2px --ink underline · Menu and Palette: paper, --shadow-pop, --r-md; keyboard-active row = --accent-wash + --accent-ink + 2px inset --accent outline; a Menu item's description (P-36) is a t-meta --ink-3 line under its label (the row grows, padding 8 12, the label stays one line); a Palette command's description shows in the footer (the hint row) for the hovered or active command, t-meta --ink-2 beside the count, rows stay 36 · FilterChips 28, --ink-3 edge · ConfirmStrip 44, --sunken (P-19); with a reason (P-34) a kit TextInput leads with the actions beside it, padding 12, then a calm t-small ink hint (after a refused confirm) and the t-small ink-2 consequence line, both describing the field · Dialog (P-38): role alertdialog over a flat --scrim; paper panel min(400px, 100% - 32px), padding 24, --r-md, --shadow-pop, enters with v2-enter; t-heading title, t-body ink-2 body, actions right-aligned 24 below (Cancel secondary, then the confirm danger)">
+    <Board id={B.nav.id} name={B.nav.name} spec="Tabs 48, active = 2px --ink underline · Menu and Palette: paper, --shadow-pop, --r-md; keyboard-active row = --accent-wash + --accent-ink + 2px inset --accent outline; a Menu item's description (P-36) is a t-meta --ink-3 line under its label (the row grows, padding 8 12, the label stays one line); a Palette command's description shows in the footer (the hint row) for the hovered or active command, t-meta --ink-2 beside the count, rows stay 36 · FilterChips 28, --ink-3 edge · ConfirmStrip 44, --sunken (P-19); with a reason (P-34) a kit TextInput leads with the actions beside it, padding 12, then a calm t-small ink hint (after a refused confirm) and the t-small ink-2 consequence line, both describing the field · Dialog (P-38): role alertdialog over a flat --scrim; paper panel min(400px, 100% - 32px), padding 24, --r-md, --shadow-pop, enters with v2-enter; t-heading title, t-body ink-2 body, actions right-aligned 24 below (Cancel secondary, then the confirm danger); for 500ms after opening a pointer press on the scrim, Cancel or the confirm does nothing (a double-click on the opener leaves it open, R4.14); Esc and the keyboard are instant">
       <Group label="Tabs (top-bar fixture; click to switch)">
         <div className="kp-tabsframe">
           <Tabs items={FX_TOPBAR.tabs.map((t) => ({ id: t.id, label: t.label, count: null, countTone: 'ink-3' as const }))} active={tab} onSelect={setTab} ariaLabel="Sections (specimen)" />
@@ -1742,7 +1744,7 @@ function DialogSpecimens() {
       <Cell caption="preview · a file with runs (FX_DESK_REMOVE_MERIDIAN_DECIDED): the body says its runs stay in the Ledger" block>
         <Dialog open heading={meridian.title} body={meridian.body} cancelLabel={meridian.cancelLabel} confirmLabel={meridian.confirmLabel} onCancel={noop} onConfirm={noop} preview />
       </Cell>
-      <Cell caption="live · the scrim covers the page, focus moves to Cancel, Tab and Shift+Tab stay inside, Esc, Cancel or a press on the scrim close it, and focus returns to this button">
+      <Cell caption="live · the scrim covers the page, focus moves to Cancel, Tab and Shift+Tab stay inside, Esc, Cancel or a press on the scrim close it (a pointer press in the first 500ms does nothing, so a double-click here leaves it open), and focus returns to this button">
         <Button variant="secondary" size="sm" icon={Trash2} onClick={() => setOpen(true)}>
           Open the live dialog
         </Button>
@@ -2457,6 +2459,7 @@ const PANEL_CASES: { key: string; v: AgentPanelView; caption: string }[] = [
   { key: 'not-started', v: FX_PANEL_NOT_STARTED, caption: 'not started · one ready line; the composer takes “draft the memo” (⌘↵ also starts)' },
   { key: 'plan', v: FX_PANEL_PLAN_REVIEW, caption: 'plan review · the plan checklist as a message in the thread (Claude Code style), Start drafting, the countdown with Hold; the memo shows its header alone until drafting starts' },
   { key: 'running', v: FX_PANEL_RUNNING, caption: 'drafting · the running step carries the static drafting glyph (the memo caret stays the only loop)' },
+  { key: 'running-skipped', v: FX_PANEL_RUNNING_SKIPPED, caption: 'drafting with peer benchmarks skipped · the skipped step’s line sits in plan order after the running step and links nowhere (it has no card)' },
   { key: 'gate', v: FX_PANEL_ATLAS_GATE, caption: 'at the gate · ONE line, “Decision →” scrolls the memo to the Decision card; no token, no verbs, no note here' },
   { key: 'rev2', v: FX_PANEL_ATLAS_REV2, caption: 'rev 2 after Q&A · a typed “countersign” is refused with a pointer to the Decision card; a real answer leaves ONE “Answered in the memo · Questions →” line (the answer is in the memo, P-33); the what-if pointer stays a one-line reply' },
   { key: 'countdown', v: FX_PANEL_MERIDIAN_COUNTDOWN, caption: 'policy countdown · one line; the countdown itself fills the reviewer line on the Decision card' },
@@ -2473,7 +2476,7 @@ function StripSpecimen({ v, onToggleStep = noop }: { v: AgentPanelView; onToggle
       </div>
       <div className="chat-pane" data-layout="strip">
         <AgentStrip
-          line={v.lines.length > 0 ? v.lines[v.lines.length - 1] : null}
+          line={stripLineOf(v.lines)}
           plan={v.plan}
           onGo={noop}
           onToggleStep={onToggleStep}
@@ -2503,6 +2506,7 @@ function StripSpecimen({ v, onToggleStep = noop }: { v: AgentPanelView; onToggle
 const STRIP_CASES: { key: string; v: AgentPanelView; caption: string }[] = [
   { key: 'preview', v: FX_PANEL_PLAN_PREVIEW, caption: 'not started · no line yet; the plan as one compact row: the count, the optional step’s checkbox with its line, Start drafting (no Cancel, no countdown)' },
   { key: 'running', v: FX_PANEL_RUNNING, caption: 'drafting · the latest line only (the running step); the memo above follows the card being written' },
+  { key: 'running-skipped', v: FX_PANEL_RUNNING_SKIPPED, caption: 'drafting with peer benchmarks skipped (R4.14) · the column lists “Peer benchmarks skipped” after the running step; the strip passes over it and shows the step that is running' },
   { key: 'gate', v: FX_PANEL_ATLAS_GATE, caption: 'at the gate · “Decision →” scrolls the memo to the Decision card; too narrow beside its link, the line takes a second row rather than lose its words' },
   { key: 'answered', v: FX_PANEL_ATLAS_REV2, caption: 'rev 2 after Q&A · the latest line (the gate); an answer in the memo leaves “Answered in the memo · Questions →” here until the next line' },
   { key: 'sealed', v: FX_PANEL_SEALED, caption: 'countersigned · the decided line links to the record on the Decision card' },

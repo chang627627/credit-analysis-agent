@@ -167,7 +167,12 @@ function entryLine(e: ThreadEntry): ThreadLine {
 
 // ---- the plan prompt ------------------------------------------------------------
 
-/** The plan as the column's checklist, one line per runnable step (optional steps carry a checkbox). */
+/**
+ * The plan as the column's checklist, one line per runnable step (optional steps carry a checkbox).
+ * The checkbox's name says what checked means and never changes with its state (R4.14): "Include
+ * Peer benchmarks", checked or not (an action word that flipped, "Skip …" while checked, read
+ * "Skip Peer benchmarks, checked" for a step that runs).
+ */
 function checklistOf(runnable: PlanStep[], isIn: (p: PlanStep) => boolean): PlanPromptView['steps'] {
   return runnable.map((st, i) => ({
     id: st.id,
@@ -176,7 +181,7 @@ function checklistOf(runnable: PlanStep[], isIn: (p: PlanStep) => boolean): Plan
     tool: TOOL_LABEL[st.toolName],
     optional: !!st.optional,
     included: isIn(st),
-    toggleLabel: isIn(st) ? COPY.skipOptional(sectionHeading(sectionOfPlanStep(st))) : COPY.includeOptional(sectionHeading(sectionOfPlanStep(st))),
+    toggleLabel: COPY.includeOptional(sectionHeading(sectionOfPlanStep(st))),
   }));
 }
 
@@ -291,6 +296,21 @@ function decidedLine(ctx: FileCtx): ThreadLine | null {
   return { id: 'decided', kind: 'decided', glyph, text, link: { label: COPY.recordLink, target: 'signature' } };
 }
 
+/** The id prefix of a skipped step's line ("Peer benchmarks skipped"). */
+const SKIP_LINE = 'skip:';
+
+/**
+ * R4.14: the strip's one status line (narrow screens, R4.13): the latest line about activity. A
+ * skipped step's line sits in plan order, right after the step before it, so while that step runs
+ * the skipped line is the thread's last; the strip passes over it, showing the running step
+ * ("Scoring risk · Risk →") or its flag instead of a step the agent has not reached. The column
+ * keeps every line in order.
+ */
+export function stripLineOf(lines: ThreadLine[]): ThreadLine | null {
+  for (let i = lines.length - 1; i >= 0; i--) if (!lines[i].id.startsWith(SKIP_LINE)) return lines[i];
+  return lines.length > 0 ? lines[lines.length - 1] : null;
+}
+
 const COMPOSER: AgentPanelView['composer'] = { placeholder: COPY.composerPlaceholder, disabled: false, disabledReason: null };
 
 export function selectAgentPanel(s: V2Store, dealId: string): AgentPanelView {
@@ -348,7 +368,7 @@ export function selectAgentPanel(s: V2Store, dealId: string): AgentPanelView {
       const sec = sectionOfPlanStep(p);
       if (p.skipped) {
         // a skipped step has no memo card (live drafting, THREE-PANE R3), so its line links nowhere
-        S.push({ t: null, line: { id: `skip:${p.id}`, kind: 'step', glyph: 'excluded', text: COPY.skippedLine(sectionHeading(sec)), link: null } });
+        S.push({ t: null, line: { id: `${SKIP_LINE}${p.id}`, kind: 'step', glyph: 'excluded', text: COPY.skippedLine(sectionHeading(sec)), link: null } });
         continue;
       }
       const st = ctx.steps.find((x) => x.id === p.id);

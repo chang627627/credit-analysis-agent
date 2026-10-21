@@ -11,7 +11,15 @@
 // fixed scrim. The app's global shortcuts stand down while focus is inside (state/shortcuts.ts).
 // `preview` (kit page only) renders the panel in normal flow: no portal, no scrim, no fixed
 // position, no focus move or trap, no document listeners.
-import { useEffect, useId, useRef } from 'react';
+//
+// Settle window (R4.14, the idea of the gate's ARM_SETTLE_MS): for SETTLE_MS after it opens, a
+// pointer press on the scrim and a click on Cancel or the confirm do nothing, so the second press
+// of a double-click on the opener (which lands wherever the scrim or the panel now sits) neither
+// closes the dialog at once (it would look as if the opener did nothing) nor confirms the
+// destructive action without a look. Esc stays instant, and keyboard activation (Enter or Space on
+// the focused button, a click with detail 0) is never held.
+import { useEffect, useId, useLayoutEffect, useRef } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 import type { KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from './Button';
@@ -28,6 +36,9 @@ export interface DialogProps {
   preview?: boolean;
 }
 
+/** A pointer press this soon after opening is the opener's double-click, not an answer. */
+const SETTLE_MS = 500;
+
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /** The focusable controls inside the panel that are actually on screen, in DOM order. */
@@ -41,7 +52,13 @@ export function Dialog({ open, heading, body, cancelLabel, confirmLabel, onCance
   const bodyId = `${id}-body`;
   const panelRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLSpanElement>(null);
+  const openedAt = useRef(0);
   const shown = preview || open;
+
+  // the settle window starts with the commit that shows the dialog, before any later press can land
+  useLayoutEffect(() => {
+    if (open && !preview) openedAt.current = performance.now();
+  }, [open, preview]);
 
   // Opening: remember the opener and put focus on Cancel; keep focus inside while open. Closing:
   // hand focus back to the opener only when it fell with the panel (a confirm may move it on purpose,
@@ -67,6 +84,9 @@ export function Dialog({ open, heading, body, cancelLabel, confirmLabel, onCance
   }, [open, preview]);
 
   if (!shown) return null;
+
+  /** a pointer press inside the settle window (keyboard clicks carry detail 0 and always pass) */
+  const settling = (e: ReactMouseEvent) => !preview && e.detail > 0 && performance.now() - openedAt.current < SETTLE_MS;
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (preview) return;
@@ -117,7 +137,13 @@ export function Dialog({ open, heading, body, cancelLabel, confirmLabel, onCance
       <p id={bodyId} className="k-dialog__body t-body">
         {body}
       </p>
-      <div className="k-dialog__actions">
+      <div
+        className="k-dialog__actions"
+        onClickCapture={(e) => {
+          // the settle window: a click this soon after opening never reaches Cancel or the confirm
+          if (settling(e)) e.stopPropagation();
+        }}
+      >
         <span ref={cancelRef} className="k-dialog__cancel">
           <Button variant="secondary" onClick={onCancel}>
             {cancelLabel}
@@ -146,7 +172,7 @@ export function Dialog({ open, heading, body, cancelLabel, confirmLabel, onCance
         // default keeps the press from moving focus, so it returns to the opener on close
         if (e.target !== e.currentTarget) return;
         e.preventDefault();
-        onCancel();
+        if (!settling(e)) onCancel();
       }}
     >
       {panel}

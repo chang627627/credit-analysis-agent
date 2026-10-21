@@ -12,7 +12,7 @@
 // specimens; the raw step record is FX_STUB_EXTRACT.
 // ---------------------------------------------------------------------------
 
-import { AUTO_NOTE, COPY, IMPERATIVE, NOT_IN_CIM, NOT_IN_CIM_SHORT, sectionLinkLabel, STATUS_WORD, tokenOf } from './vocab';
+import { AUTO_NOTE, COPY, IMPERATIVE, NOT_IN_CIM, NOT_IN_CIM_SHORT, sectionLinkLabel, STATUS_WORD, STEP_LINE, tokenOf } from './vocab';
 import { EM, MINUS } from './format';
 import { policyRule } from './select-top';
 import { qaAnchor } from './select-questions';
@@ -1414,11 +1414,11 @@ export const FX_PANEL_PLAN_REVIEW: AgentPanelView = {
   plan: {
     text: 'My plan: 5 steps. Peer benchmarks is optional; untick it to skip.',
     steps: [
-      { id: 'step_extract', n: 1, title: 'Financials', tool: 'Document Intelligence', optional: false, included: true, toggleLabel: 'Skip Financials' },
-      { id: 'step_risk', n: 2, title: 'Risk score and rating', tool: 'Risk Engine', optional: false, included: true, toggleLabel: 'Skip Risk score and rating' },
-      { id: 'step_peers', n: 3, title: 'Peer benchmarks', tool: 'Peer Benchmarks', optional: true, included: true, toggleLabel: 'Skip Peer benchmarks' },
-      { id: 'step_covenants', n: 4, title: 'Covenant compliance', tool: 'Covenant Tester', optional: false, included: true, toggleLabel: 'Skip Covenant compliance' },
-      { id: 'step_package', n: 5, title: 'Recommendation', tool: 'Memo Builder', optional: false, included: true, toggleLabel: 'Skip Recommendation' },
+      { id: 'step_extract', n: 1, title: 'Financials', tool: 'Document Intelligence', optional: false, included: true, toggleLabel: 'Include Financials' },
+      { id: 'step_risk', n: 2, title: 'Risk score and rating', tool: 'Risk Engine', optional: false, included: true, toggleLabel: 'Include Risk score and rating' },
+      { id: 'step_peers', n: 3, title: 'Peer benchmarks', tool: 'Peer Benchmarks', optional: true, included: true, toggleLabel: 'Include Peer benchmarks' },
+      { id: 'step_covenants', n: 4, title: 'Covenant compliance', tool: 'Covenant Tester', optional: false, included: true, toggleLabel: 'Include Covenant compliance' },
+      { id: 'step_package', n: 5, title: 'Recommendation', tool: 'Memo Builder', optional: false, included: true, toggleLabel: 'Include Recommendation' },
     ],
     start: { label: COPY.startDrafting, kbd: '⌘↵', disabled: false },
     optional: { stepId: 'step_peers', label: 'Skip peers', included: true },
@@ -1427,7 +1427,7 @@ export const FX_PANEL_PLAN_REVIEW: AgentPanelView = {
     countdown: { text: 'Starts in 6 s', holdLabel: COPY.hold },
     compact: {
       count: '5 steps',
-      optional: [{ stepId: 'step_peers', text: 'Peer benchmarks optional', included: true, toggleLabel: 'Skip Peer benchmarks' }],
+      optional: [{ stepId: 'step_peers', text: 'Peer benchmarks optional', included: true, toggleLabel: 'Include Peer benchmarks' }],
     },
   },
 };
@@ -1464,6 +1464,21 @@ export const FX_PANEL_RUNNING: AgentPanelView = {
   ...FX_PANEL_NOT_STARTED,
   start: null,
   lines: [...ATLAS_RUN.slice(0, 4), L('step:step_covenants', 'step', 'drafting', 'Testing covenants', 'covenants')],
+};
+
+/**
+ * R4.14: Atlas drafting with peer benchmarks skipped, while Risk runs. The skipped step's line sits
+ * in plan order after the running step (the column shows both); the strip shows the running step
+ * (stripLineOf passes over the skipped line).
+ */
+export const FX_PANEL_RUNNING_SKIPPED: AgentPanelView = {
+  ...FX_PANEL_NOT_STARTED,
+  start: null,
+  lines: [
+    ...ATLAS_RUN.slice(0, 2),
+    L('step:step_risk', 'step', 'drafting', STEP_LINE.compute_risk_score.running, 'risk'),
+    L('skip:step_peers', 'step', 'excluded', COPY.skippedLine('Peer benchmarks')),
+  ],
 };
 
 /** Atlas at the rev 1 gate: one gate line pointing at the memo's Decision card (no token in the panel). */

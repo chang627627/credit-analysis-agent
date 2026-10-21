@@ -3,8 +3,9 @@
 // the case file stacks: the memo full width on top, and the agent panel docked
 // under it as this always-visible strip (never a drawer, never a toggle, never
 // hidden). Built from the same AgentPanelView as the column, no new data:
-//   1. the LATEST status line only (the thread's last line, one line, with its
-//      trailing link, e.g. "Your countersignature is needed · Decision →");
+//   1. the LATEST status line only (the model's stripLineOf: the thread's last
+//      line about activity, passing over a skipped step's line, R4.14; one line
+//      with its trailing link, e.g. "Your countersignature is needed · Decision →");
 //   2. while a plan is shown (not started, plan review), the plan as ONE
 //      compact row instead of the checklist: "5 steps", each optional step's
 //      checkbox with its line ("Peer benchmarks optional"), Start drafting with
@@ -15,7 +16,10 @@
 //
 // When the compact plan leaves (Start drafting, Cancel, the countdown) with
 // keyboard focus inside it, the composer takes focus instead of the body, as
-// the column's plan prompt does.
+// the column's plan prompt does. The one line is keyed by its id and its link
+// (R4.14): a new line is a new element, so a focused link is never silently
+// pointed at another card, and when the line holding keyboard focus leaves,
+// the composer takes it too.
 // ---------------------------------------------------------------------------
 
 import { useLayoutEffect, useRef } from 'react';
@@ -35,12 +39,35 @@ export interface StripPlanHandlers {
 }
 
 export interface AgentStripProps extends StripPlanHandlers {
-  /** the thread's last line (AgentPanelView.lines), or null when there is none yet */
+  /** the latest line about activity (stripLineOf(AgentPanelView.lines)), or null when there is none yet */
   line: ThreadLine | null;
   plan: PlanPromptView | null;
   onGo: GoTo;
   /** the composer: the connected one in the app, a specimen field on the kit page */
   composer: ReactNode;
+}
+
+/** The strip's one line. Remounted per line (keyed by the caller); focus inside it goes to the composer when it leaves. */
+function StripLine({ line, onGo }: { line: ThreadLine; onGo: GoTo }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    return () => {
+      const held = document.activeElement;
+      if (root && held && root.contains(held) && heldByKeyboard(held)) focusComposerIfLost(root.closest('[data-chat-pane]'));
+    };
+  }, []);
+  return (
+    <div ref={rootRef} className="chat-strip__line">
+      <ChatLine line={line} onGo={onGo} as="div" />
+    </div>
+  );
+}
+
+/** A line is the same element only while it says the same thing with the same link target. */
+function lineKey(line: ThreadLine): string {
+  const l = line.link;
+  return l ? `${line.id}|${l.target}|${l.anchorId ?? ''}` : line.id;
 }
 
 function CompactPlan({ plan, onToggleStep, onStart, onCancel, onHold }: StripPlanHandlers & { plan: PlanPromptView }) {
@@ -103,7 +130,7 @@ export function AgentStrip({ line, plan, onGo, composer, ...handlers }: AgentStr
   return (
     <>
       <div className="chat-strip" data-pattern="P-40">
-        {line ? <ChatLine line={line} onGo={onGo} as="div" /> : null}
+        {line ? <StripLine key={lineKey(line)} line={line} onGo={onGo} /> : null}
         {plan ? <CompactPlan plan={plan} {...handlers} /> : null}
       </div>
       <div className="chat-foot">{composer}</div>

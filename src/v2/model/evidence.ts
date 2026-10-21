@@ -11,7 +11,7 @@ import { MIN_HEADROOM } from '../../agent/policy';
 import { headroomOf } from '../../agent/whatif';
 import { fmtM, fmtPct, fmtSigned, fmtX } from './format';
 import type { CushionView, EvidenceView, FigureId } from './types';
-import { NOT_IN_CIM } from './vocab';
+import { NOT_IN_CIM, NOT_IN_CIM_SHORT } from './vocab';
 
 /** 'CIM para 2': the plain-words address of a CIM paragraph (owner feedback: the ¶ mark read as noise). */
 export function paraLabel(n: number): string {
@@ -184,7 +184,12 @@ export function evidenceFor(
     const ebitda = operand('ebitda', f.ebitdaTtm);
     return { cls: 'derived', text: 'Derived', formula: `${debt.text} ÷ ${ebitda.text}`, operands: [debt, ebitda] };
   }
-  return { cls: 'unquoted', text: NOT_IN_CIM };
+  return unquotedEvidence();
+}
+
+/** The class of a figure no CIM sentence states (R4.3): the short form on screen, the full wording for assistive tech (R4.8). */
+export function unquotedEvidence(): EvidenceView {
+  return { cls: 'unquoted', text: NOT_IN_CIM_SHORT, full: NOT_IN_CIM };
 }
 
 /** Model-output evidence (not a CIM figure): the Risk Engine score or a revised structure. */
@@ -194,7 +199,10 @@ export function modelEvidence(source: 'risk' | 'revised'): EvidenceView {
     : { cls: 'model', text: 'Model output · Structuring Engine' };
 }
 
-/** Plain text for a KeyFigure: 'Quoted · CIM para 2' · 'Derived · 96.3 ÷ 22.6' · 'Not in the CIM · extraction model' · 'Model output · …'. */
+/**
+ * The class in full words, for accessible names and sentences: 'Quoted · CIM para 2' · 'Derived ·
+ * 96.3 ÷ 22.6' · 'Not in the CIM · extraction model' · 'Model output · …'.
+ */
 export function evidenceText(e: EvidenceView): string {
   switch (e.cls) {
     case 'quoted':
@@ -202,10 +210,19 @@ export function evidenceText(e: EvidenceView): string {
     case 'derived':
       return `Derived · ${e.formula}`;
     case 'unquoted':
-      return e.text;
+      return e.full;
     case 'model':
       return e.text;
   }
+}
+
+/**
+ * The class as printed under a key figure (R4.8): evidenceText, except that a figure the CIM does
+ * not state reads the short 'Not in CIM', so the caption keeps to one line as before R4.3. The full
+ * wording stays in the figure's accessible name.
+ */
+export function evidenceCaption(e: EvidenceView): string {
+  return e.cls === 'unquoted' ? e.text : evidenceText(e);
 }
 
 /** Parse a threshold like '≤ 4.00x' / '≥ $10.0M'. */

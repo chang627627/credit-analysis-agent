@@ -281,7 +281,9 @@ copy and the §9.8 walkthrough's "3 of 8 figures are not quoted in the CIM".
 - **Copy** (model only; `vocab.ts`): the evidence class reads `NOT_IN_CIM` "Not in the CIM ·
   extraction model" everywhere it shows (Financials Source column, key figures, accessible names;
   the class id stays `unquoted`). The short form `NOT_IN_CIM_SHORT` "Not in CIM" is used only where
-  space requires it: the line under a covenant Actual (an 88px column).
+  space requires it: the line under a covenant Actual (an 88px column). **R4.8 narrows this:** on
+  screen the Financials Source column and the key figure captions read the short form too; the full
+  wording stays in the accessible names and the Financials foot line explains it.
 - **Financials foot line** (`evidenceCheckLine`, counts and names computed from the figure rows and
   the deal's covenants): "3 of 4 covenant tests use figures the CIM does not state (interest
   coverage, fixed-charge coverage and liquidity); they come from the extraction model." Singular
@@ -514,6 +516,39 @@ snooze; Mark handed off (countersign items) is unchanged.
   the hint and watch states, a 360px frame, the acknowledged line (`FX_BOOK_ACKED_ITEM`) and the
   Ledger row with its reason. Fixtures: `FX_BOOK_ACK_BREACH` / `_HINT` / `_WATCH`, the Book's
   acknowledged items carry `ackRecord`, the Ledger's acknowledgement rows carry their reasons.
+
+### R4.8 The short evidence form in tight cells (improvement batch 2, item 4)
+
+**The problem (verified in the build).** R4.3 printed the full class "Not in the CIM · extraction
+model" in the Financials Source column (200px) and in each Recommendation key figure's evidence
+caption, so those rows and captions wrapped to two lines where the old "Unquoted · extracted" had fit
+on one.
+
+**The rule.** On screen, a figure the CIM does not state reads the short form "Not in CIM" wherever
+its class sits in a table cell or under a figure; the full wording stays where it is read aloud or
+explained. This supersedes R4.3's Copy bullet ("everywhere it shows"; the short form "only … under a
+covenant Actual").
+
+- **Model** (`model/evidence.ts`, `model/types.ts`): the unquoted `EvidenceView` is `{ cls:
+  'unquoted'; text: 'Not in CIM'; full: 'Not in the CIM · extraction model' }`, built by
+  `unquotedEvidence()` from `NOT_IN_CIM_SHORT` and `NOT_IN_CIM` (both `vocab.ts`). `evidenceText(e)`
+  returns the class in full words (accessible names, `CovenantEvidence.text`, sentences); the new
+  `evidenceCaption(e)` returns the short form for that class and `evidenceText` otherwise, and is
+  what `KeyFigureView.evidenceText` now carries.
+- **Financials Source column:** the cell shows "Not in CIM" on one line. The kit `EvidenceTag`
+  gains `srText`: when it differs from the visible text, the visible text is `aria-hidden` and the
+  full wording sits in a `v2-sr` span, so assistive tech reads "Not in the CIM · extraction model".
+- **Key figures:** the caption reads "Not in CIM"; the button's accessible name is unchanged
+  ("Interest coverage 2.10x, 0.10x room · ≥ 2.00x. Not in the CIM · extraction model. Show in
+  Financials.").
+- **Unchanged:** the line under a covenant Actual ("Not in CIM") and the Actual's accessible name,
+  the Financials foot line (`evidenceCheckLine`, which states in full that the figures come from the
+  extraction model), the Decision card's info item and the sealed caption. Other classes ("Quoted ·
+  CIM para 2", "Derived · 96.3 ÷ 22.6", "Model output · …") are short enough already and are
+  printed as before.
+- **Kit page:** the EvidenceTag specimen renders the short form with `srText` and says so; the
+  KeyFigure warn specimen and the Financials card caption name the short caption; `FX_*` key figures
+  carry "Not in CIM" with the full wording in their accessible names.
 
 ## 0. Owner decisions that survive (each is checked in §9)
 

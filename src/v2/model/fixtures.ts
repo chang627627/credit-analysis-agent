@@ -434,7 +434,7 @@ const NOTE_ATLAS_RESTRUCTURE: NoteView = {
 
 const quoted = (para: number, offset: number, citeIndex: number) =>
   ({ cls: 'quoted', text: 'Quoted', para, paraLabel: `CIM para ${para}`, markId: `m${para}-${offset}`, citeIndex }) as const;
-const UNQUOTED = { cls: 'unquoted', text: NOT_IN_CIM } as const;
+const UNQUOTED = { cls: 'unquoted', text: NOT_IN_CIM_SHORT, full: NOT_IN_CIM } as const;
 
 const ATLAS_MARKS = ['m2-80', 'm2-111', 'm2-121', 'm2-190'];
 
@@ -510,7 +510,7 @@ const KEYFIGS_ATLAS: KeyFigureView[] = [
     caption: '0.10x room · ≥ 2.00x',
     tone: 'warn',
     dot: 'warn',
-    evidenceText: NOT_IN_CIM,
+    evidenceText: NOT_IN_CIM_SHORT,
     anchorId: 'fig:interest',
     ariaLabel: `Interest coverage 2.10x, 0.10x room · ≥ 2.00x. ${NOT_IN_CIM}. Show in Financials.`,
     target: { section: 'financials', anchorId: 'fig:interest' },
@@ -522,7 +522,7 @@ const KEYFIGS_ATLAS: KeyFigureView[] = [
     caption: '$4.2M room · ≥ $10.0M',
     tone: 'ink',
     dot: null,
-    evidenceText: NOT_IN_CIM,
+    evidenceText: NOT_IN_CIM_SHORT,
     anchorId: 'fig:liquidity',
     ariaLabel: `Liquidity $14.2M, $4.2M room · ≥ $10.0M. ${NOT_IN_CIM}. Show in Financials.`,
     target: { section: 'financials', anchorId: 'fig:liquidity' },
@@ -1146,6 +1146,7 @@ const FIGURES_UP: FigureRow[] = [
   { id: 'fixed', anchorId: 'fig:fixed', label: 'Fixed-charge coverage', value: '1.45x', evidence: UNQUOTED, group: 'tested', valueTone: 'ink', mark: null },
   { id: 'liquidity', anchorId: 'fig:liquidity', label: 'Liquidity', value: '$25.7M', evidence: UNQUOTED, group: 'tested', valueTone: 'ink', mark: null },
 ];
+// `evidenceText` is the class in full words (the accessible name); the caption shows the short form (R4.8)
 const upKey = (label: string, value: string, evidenceText: string, anchorId: string, extra: Partial<KeyFigureView> = {}): KeyFigureView => ({
   target: { section: 'financials', anchorId },
   label,
@@ -1154,7 +1155,7 @@ const upKey = (label: string, value: string, evidenceText: string, anchorId: str
   caption: null,
   tone: 'ink',
   dot: null,
-  evidenceText,
+  evidenceText: evidenceText === NOT_IN_CIM ? NOT_IN_CIM_SHORT : evidenceText,
   anchorId,
   ariaLabel: `${label} ${value}${extra.caption ? `, ${extra.caption}` : ''}. ${evidenceText}. Show in Financials.`,
   ...extra,

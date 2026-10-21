@@ -719,9 +719,13 @@ A full UI rebuild done the "Homewise V2 way" (independent Mobbin + awesome-desig
   single 36px-row slot).
 - **Covenant inputs the CIM does not state are on the record** (P-32, THREE-PANE R4.3, Mobbin audit
   fix 3). Interest coverage, fixed-charge coverage and liquidity are stated in no sample CIM, yet
-  they are 3 of the 4 covenant-tested actuals. Their evidence class reads "Not in the CIM ·
-  extraction model" everywhere (`NOT_IN_CIM`; class id still `unquoted`; the short "Not in CIM" only
-  under a covenant Actual, an 88px column). The Financials foot line counts and names them, computed:
+  they are 3 of the 4 covenant-tested actuals. Their evidence class is "Not in the CIM ·
+  extraction model" (`NOT_IN_CIM`; class id still `unquoted`) in every accessible name and is
+  explained in full by the Financials foot line; ON SCREEN the tight cells read the short "Not in CIM"
+  (`NOT_IN_CIM_SHORT`): the Financials Source column (the kit `EvidenceTag`'s new `srText` carries
+  the full wording for assistive tech), the Recommendation key figures' caption (`evidenceCaption`;
+  `evidenceText` stays the full words) and the line under a covenant Actual, so those rows stay one
+  line (THREE-PANE R4.8). The Financials foot line counts and names them, computed:
   "3 of 4 covenant tests use figures the CIM does not state (interest coverage, fixed-charge
   coverage and liquidity); they come from the extraction model." (no more "verify them against the
   source", which the CIM cannot support). `CovenantRow.evidence` (`covenantEvidence`: class, text,

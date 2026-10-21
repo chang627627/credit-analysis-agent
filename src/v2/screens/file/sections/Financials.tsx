@@ -5,8 +5,9 @@
 // coverage, liquidity; no header band of its own). Each figure carries
 // exactly one evidence class in the Source column: Quoted (a cite that opens
 // the source on that span), Derived (the formula, every operand its own
-// cite), Not in the CIM · extraction model (class unquoted, THREE-PANE
-// R4.3), or Model output. A tested figure that breaches its filed covenant
+// cite), "Not in CIM" (class unquoted, THREE-PANE R4.3; the short form on
+// screen, "Not in the CIM · extraction model" for assistive tech, R4.8), or
+// Model output. A tested figure that breaches its filed covenant
 // is the section's one emphasis: the breach glyph before its label and the
 // value in bad-ink, both decided by the model. The table stacks under 480px
 // of its own width. `Evidence` is shared with Risk.
@@ -72,7 +73,8 @@ export function Evidence(props: { ev: EvidenceView; subject: string; ctx: FileCt
       );
     }
     case 'unquoted':
-      return <EvidenceTag cls="unquoted" text={ev.text} />;
+      // "Not in CIM" on screen, the full wording read aloud (R4.8): the 200px Source column stays one line
+      return <EvidenceTag cls="unquoted" text={ev.text} srText={ev.full} />;
     case 'model':
     default:
       return <EvidenceTag cls="model" text={ev.text} />;

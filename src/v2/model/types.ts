@@ -49,7 +49,9 @@ export type FigureId = 'revenue' | 'ebitda' | 'margin' | 'debt' | 'leverage' | '
 export type EvidenceView =
   | { cls: 'quoted'; text: 'Quoted'; para: number; paraLabel: string; markId: string; citeIndex: number }
   | { cls: 'derived'; text: 'Derived'; formula: string; operands: { text: string; markId: string | null; citeIndex: number | null }[] }
-  | { cls: 'unquoted'; text: 'Not in the CIM · extraction\u00a0model' }   // R4.3: no CIM sentence states it (vocab NOT_IN_CIM; no-break space)
+  // R4.3: no CIM sentence states it. R4.8: `text` is the short form shown in the cell (vocab NOT_IN_CIM_SHORT),
+  // `full` the wording assistive tech reads (vocab NOT_IN_CIM; no-break space)
+  | { cls: 'unquoted'; text: 'Not in CIM'; full: 'Not in the CIM · extraction\u00a0model' }
   | { cls: 'model'; text: string };
 
 // ---- memo targets and section heads (THREE-PANE §2.6, §5.3, §5.5)
@@ -159,6 +161,10 @@ export interface CovenantRow {
   /** the Actual's evidence (R4.3); null in the stress test, whose actuals are scenario values, not the filed figures */
   evidence: CovenantEvidence | null;
 }
+/**
+ * evidenceText is the caption shown under the figure (evidenceCaption: "Not in CIM" for a figure the
+ * CIM does not state, R4.8); ariaLabel carries the full wording ("Not in the CIM · extraction model").
+ */
 export interface KeyFigureView { label: string; value: string; sub: string | null; caption: string | null; tone: 'ink' | 'warn' | 'bad'; dot: MeaningTone | null; evidenceText: string; anchorId: string; ariaLabel: string; target: MemoTarget }
 /** basis, prior, token and sentence are kept for the exports; the card shows them through `takeaway`. */
 export interface RecommendationBody { basis: string; prior: TokenView | null; token: TokenView; sentence: string; summary: string; keyFigures: KeyFigureView[]; aidLabel: string; nearestFlip: string; stressLinkLabel: string; reworkLine: string | null; summaryLabel: string; keyFiguresLabel: string }

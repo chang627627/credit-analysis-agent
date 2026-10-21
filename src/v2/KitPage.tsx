@@ -411,6 +411,7 @@ function EvidenceSpecimen({ ev }: { ev: EvidenceView }) {
       </EvidenceTag>
     );
   }
+  if (ev.cls === 'unquoted') return <EvidenceTag cls="unquoted" text={ev.text} srText={ev.full} />;
   return <EvidenceTag cls={ev.cls} text={ev.text} />;
 }
 
@@ -1139,7 +1140,7 @@ function TipCiteEvidenceBoard() {
             </Cell>
           ) : null}
           {unquoted ? (
-            <Cell caption={`not in the CIM · ${unquoted.label} ${unquoted.value} · it comes from the extraction model (R4.3)`}>
+            <Cell caption={`not in the CIM · ${unquoted.label} ${unquoted.value} · it comes from the extraction model (R4.3) · the short form on screen, "${unquoted.evidence.cls === 'unquoted' ? unquoted.evidence.full : ''}" read aloud through srText (R4.8)`}>
               <EvidenceSpecimen ev={unquoted.evidence} />
             </Cell>
           ) : null}
@@ -2225,7 +2226,7 @@ function MemoCardBoard() {
       }
     >
       <Group label="A memo on the canvas: one card per section (Atlas, rev 1 gate and rev 2)">
-        <Cell caption="Financials (breach marked where it sits, the evidence check as a foot line naming the covenant inputs the CIM does not state; press Show row to flash total leverage) · Covenant compliance (stackBelow 640; each Actual traces to its Financials row, and one the CIM does not state carries “Not in CIM”, P-32) · Recommendation rev 2 (struck prior + token) · every set card ends in its footer line and Record" block>
+        <Cell caption="Financials (breach marked where it sits; the Source column reads “Not in CIM” on one line, the full wording read aloud, R4.8; the evidence check as a foot line naming the covenant inputs the CIM does not state; press Show row to flash total leverage) · Covenant compliance (stackBelow 640; each Actual traces to its Financials row, and one the CIM does not state carries “Not in CIM”, P-32) · Recommendation rev 2 (struck prior + token) · every set card ends in its footer line and Record" block>
           <div className="kp-canvas">
             {FIN ? <FinancialsCard s={FIN} prefix="kit-card" flashKey={flash === 0 ? undefined : flash} /> : null}
             {COV_SECTION ? <CovenantsCard s={COV_SECTION} /> : null}
@@ -2397,7 +2398,7 @@ function KeyFigureBoard() {
             </Cell>
           ) : null}
           {warn ? (
-            <Cell caption="warn · dot" block>
+            <Cell caption="warn · dot · a figure the CIM does not state: the caption reads “Not in CIM”, the accessible name keeps the full wording (R4.8)" block>
               <KeyFigureSpecimen k={warn} />
             </Cell>
           ) : null}

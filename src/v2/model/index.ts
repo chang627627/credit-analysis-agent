@@ -104,6 +104,8 @@ export {
   evidenceFor,
   modelEvidence,
   evidenceText,
+  evidenceCaption,
+  unquotedEvidence,
   parseThreshold,
   cushionOf,
   distanceOf,
